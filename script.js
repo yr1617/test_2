@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-   DOM REFS
+    DOM REFS
 ════════════════════════════════════════ */
 const landing        = document.querySelector('.landing');
 const landingCanvas  = document.querySelector('.landing-canvas');
@@ -15,7 +15,7 @@ const revealCards    = document.querySelectorAll('.reveal-card');
 const navLinks       = document.querySelectorAll('.topnav a[data-target]');
 
 /* ════════════════════════════════════════
-   POINTER & TILT STATE (모델 눕힘/탑뷰 방지 앵글)
+    POINTER & TILT STATE (오리지널 앵글 보존)
 ════════════════════════════════════════ */
 const pointer = {
   x:  window.innerWidth  * 0.5,
@@ -35,7 +35,7 @@ const tilt = {
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
 /* ════════════════════════════════════════
-   LANDING CANVAS GLOW
+    LANDING CANVAS GLOW
 ════════════════════════════════════════ */
 const setupLandingCanvas = () => {
   if (!landing || !landingCanvas) return null;
@@ -87,7 +87,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-   TILT TARGET UPDATE
+    TILT TARGET UPDATE
 ════════════════════════════════════════ */
 const updateTiltTarget = (clientX, clientY) => {
   if (!landingDisplay) return;
@@ -111,12 +111,12 @@ const updateTiltTarget = (clientX, clientY) => {
 };
 
 /* ════════════════════════════════════════
-   THREE.JS (카메라 높이 조정을 통해 모델 부상 완료)
+    THREE.JS (렌더 셋업 및 모델 구출 상태 유지)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
 let threeCamera   = null;
-let modelMesh     = null;
+let modelMesh    = null;
 let modelLoaded   = false;
 let animFrameId   = null;
 let modelAutoRotY = 0;
@@ -143,7 +143,6 @@ const initThree = () => {
   threeScene = new THREE.Scene();
   threeScene.background = null;
 
-  /* [완전 수정] 카메라 포지션의 Y축과 Z축 수치를 조율하여 모델을 침몰 상태에서 구출 */
   threeCamera = new THREE.PerspectiveCamera(35, W / H, 0.1, 100);
   threeCamera.position.set(0, 0.0, 3.8); 
 
@@ -184,7 +183,7 @@ const initThree = () => {
       const size   = new THREE.Vector3();
       box.getSize(size);
       const maxDim = Math.max(size.x, size.y, size.z);
-      const scale  = 2.0 / maxDim; 
+      const scale   = 2.0 / maxDim; 
       
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
@@ -233,7 +232,7 @@ const resizeThree = () => {
 };
 
 /* ════════════════════════════════════════
-   MAIN ANIMATION LOOP
+    MAIN ANIMATION LOOP
 ════════════════════════════════════════ */
 const animate = () => {
   animFrameId = requestAnimationFrame(animate);
@@ -267,7 +266,7 @@ const animate = () => {
 };
 
 /* ════════════════════════════════════════
-   NAV PROGRESS
+    NAV PROGRESS
 ════════════════════════════════════════ */
 const updateNavProgress = () => {
   const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
@@ -292,8 +291,9 @@ const updateNavProgress = () => {
 };
 
 /* ════════════════════════════════════════
-   SCROLL REVEAL & HIGHLIGHT OBSERVER
+    SCROLL REVEAL & HIGHLIGHT OBSERVER
 ════════════════════════════════════════ */
+// 인라인 형광펜 감지 최적화 세팅
 const highlightObserver = new IntersectionObserver(
   (entries) => {
     entries.forEach((entry) => {
@@ -302,7 +302,7 @@ const highlightObserver = new IntersectionObserver(
       }
     });
   },
-  { threshold: 0.6 }
+  { threshold: 0.4, rootMargin: '0px 0px -10% 0px' }
 );
 
 document.querySelectorAll('.point-highlight').forEach((el) => {
@@ -325,12 +325,19 @@ if (revealCards.length) {
 }
 
 /* ════════════════════════════════════════
-   EVENT LISTENERS
+    EVENT LISTENERS & CURSOR COUPLING
 ════════════════════════════════════════ */
 window.addEventListener('pointermove', (e) => {
   pointer.tx = e.clientX;
   pointer.ty = e.clientY;
   updateTiltTarget(e.clientX, e.clientY);
+
+  // 커스텀 커서 호버 클래스 제어 (.cursor-follower.is-link 와 연동)
+  if (follower) {
+    const target = e.target;
+    const isInteractive = target.closest('a, button, .project-card, .main-project-card, .scroll-link');
+    follower.classList.toggle('is-link', !!isInteractive);
+  }
 });
 
 window.addEventListener('pointerleave', () => {
@@ -339,6 +346,7 @@ window.addEventListener('pointerleave', () => {
   tilt.hovering = false;
   tilt.tx = -8; tilt.ty = 35; tilt.tz = 0;
   landingDisplay?.classList.remove('is-hovering');
+  if (follower) follower.classList.remove('is-link');
 });
 
 window.addEventListener('scroll', updateNavProgress, { passive: true });
@@ -349,7 +357,7 @@ window.addEventListener('resize', () => {
 });
 
 /* ════════════════════════════════════════
-   INIT
+    INIT
 ════════════════════════════════════════ */
 initThree();
 updateNavProgress();
