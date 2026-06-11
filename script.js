@@ -111,7 +111,7 @@ const updateTiltTarget = (clientX, clientY) => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE
+    THREE.JS ENGINE (오류 원인 완벽 제거 버전)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -122,12 +122,8 @@ let animFrameId   = null;
 let modelAutoRotY = 0;
 
 const initThree = () => {
-  if (!modelCanvas) {
-    console.error("❌ Three.js 에러: #model-canvas 엘리먼트를 찾을 수 없습니다.");
-    return;
-  }
+  if (!modelCanvas) return;
 
-  console.log("🚀 Three.js 초기화 시작...");
   const shell = landingDisplay;
   const W = shell ? shell.offsetWidth  : 600;
   const H = shell ? shell.offsetHeight : 600;
@@ -150,41 +146,34 @@ const initThree = () => {
   threeCamera = new THREE.PerspectiveCamera(35, W / H, 0.1, 100);
   threeCamera.position.set(0, 0.0, 3.8); 
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+  // [수정] 룸 인바이런먼트 에러 라인을 삭제하고, 고품질 스튜디오 조명 세팅으로 전면 교체
+  const ambient = new THREE.AmbientLight(0xffffff, 0.8);
   threeScene.add(ambient);
 
-  const keyLight = new THREE.DirectionalLight(0xfff8f0, 2.5);
-  keyLight.position.set(3, 4, 4);
+  const keyLight = new THREE.DirectionalLight(0xfff8f0, 3.0);
+  keyLight.position.set(5, 5, 4);
   threeScene.add(keyLight);
 
-  const rimLight = new THREE.DirectionalLight(0xaae961, 2.2); 
-  rimLight.position.set(-4, 2, -1);
+  const rimLight = new THREE.DirectionalLight(0xaae961, 2.5); 
+  rimLight.position.set(-5, 3, -2);
   threeScene.add(rimLight);
 
-  const backLight = new THREE.DirectionalLight(0xb18bff, 1.8); 
-  backLight.position.set(-1, -2, -3);
+  const backLight = new THREE.DirectionalLight(0xb18bff, 2.0); 
+  backLight.position.set(-2, -3, -3);
   threeScene.add(backLight);
 
-  const pmremGen = new THREE.PMREMGenerator(threeRenderer);
-  pmremGen.compileEquirectangularShader();
-  const envScene = new THREE.RoomEnvironment();
-  const envTexture = pmremGen.fromScene(envScene).texture;
-  threeScene.environment = envTexture;
-  pmremGen.dispose();
+  const fillLight = new THREE.PointLight(0xffffff, 1.5, 10);
+  fillLight.position.set(0, 2, 2);
+  threeScene.add(fillLight);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
-  // CDN 디코더 주소 안정화
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
   loader.setDRACOLoader(draco);
 
-  console.log("📦 GLB 모델 로딩 시도 중... 경로: ./modeling.glb");
-  
-  // 상대 경로 호환성을 위해 './modeling.glb'로 지정
   loader.load(
     './modeling.glb',
     (gltf) => {
-      console.log("✅ GLB 모델 로드 성공!");
       const model = gltf.scene;
       const box    = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
@@ -201,12 +190,12 @@ const initThree = () => {
         if (!child.isMesh) return;
         child.material = new THREE.MeshPhysicalMaterial({
           color:              0xffffff,
-          metalness:          0.0,
-          roughness:          0.02,       
-          transmission:       0.93,       
-          thickness:          1.0,        
+          metalness:          0.1,
+          roughness:          0.05,       
+          transmission:       0.90,       
+          thickness:          1.2,        
           ior:                1.52,       
-          envMapIntensity:    3.0,
+          envMapIntensity:    1.5,
           clearcoat:          1.0,
           clearcoatRoughness: 0.02,
           iridescence:        0.85,       
@@ -223,13 +212,9 @@ const initThree = () => {
       modelLoaded = true;
       if (crystalFallback) crystalFallback.classList.add('is-hidden');
     },
-    (xhr) => {
-      if (xhr.total > 0) {
-        console.log(`⏳ 로딩 중: ${Math.round((xhr.loaded / xhr.total) * 100)}%`);
-      }
-    },
+    undefined,
     (err) => {
-      console.error('❌ GLB 로드 실패! 에러 내용:', err);
+      console.warn('GLB load failed, loading fallback:', err);
       if (crystalFallback) crystalFallback.classList.remove('is-hidden');
     }
   );
@@ -304,21 +289,25 @@ const updateNavProgress = () => {
 };
 
 /* ════════════════════════════════════════
-    SCROLL REVEAL & HIGHLIGHT OBSERVER
+    SCROLL REVEAL & HIGHLIGHT OBSERVER (형광펜 모션 싱크 최적화)
 ════════════════════════════════════════ */
 const highlightObserver = new IntersectionObserver(
   (entries) => {
     entries.forEach((entry) => {
+      // 해당 텍스트가 뷰포트 중간 영역에 실질적으로 들어왔을 때만 애니메이션 작동
       if (entry.isIntersecting) {
         entry.target.classList.add('is-highlighted');
       }
     });
   },
-  { threshold: 0.4, rootMargin: '0px 0px -10% 0px' }
+  { 
+    threshold: 0.1, 
+    rootMargin: '0px 0px -15% 0px' // 하단에서 15% 정도 올라왔을 때 자연스럽게 슥 그어지도록 오프셋 조절
+  }
 );
 
 /* ════════════════════════════════════════
-    INITIALIZE ENTRY (안전한 DOM 로드 후 실행)
+    INITIALIZE ENTRY
 ════════════════════════════════════════ */
 const initAll = () => {
   landingCanvasCtrl = setupLandingCanvas();
@@ -347,7 +336,6 @@ const initAll = () => {
   animate();
 };
 
-// DOM이 완전히 준비되면 실행
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initAll);
 } else {
