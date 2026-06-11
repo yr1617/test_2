@@ -15,7 +15,7 @@ const revealCards    = document.querySelectorAll('.reveal-card');
 const navLinks       = document.querySelectorAll('.topnav a[data-target]');
 
 /* ════════════════════════════════════════
-    POINTER & TILT STATE (오리지널 앵글 보존)
+    POINTER & TILT STATE
 ════════════════════════════════════════ */
 const pointer = {
   x:  window.innerWidth  * 0.5,
@@ -75,7 +75,7 @@ const setupLandingCanvas = () => {
   return { resize, draw };
 };
 
-const landingCanvasCtrl = setupLandingCanvas();
+let landingCanvasCtrl = null;
 
 const updateLandingVars = () => {
   if (!landing) return;
@@ -111,7 +111,7 @@ const updateTiltTarget = (clientX, clientY) => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS (렌더 셋업 및 모델 구출 상태 유지)
+    THREE.JS ENGINE
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -122,8 +122,12 @@ let animFrameId   = null;
 let modelAutoRotY = 0;
 
 const initThree = () => {
-  if (!modelCanvas) return;
+  if (!modelCanvas) {
+    console.error("❌ Three.js 에러: #model-canvas 엘리먼트를 찾을 수 없습니다.");
+    return;
+  }
 
+  console.log("🚀 Three.js 초기화 시작...");
   const shell = landingDisplay;
   const W = shell ? shell.offsetWidth  : 600;
   const H = shell ? shell.offsetHeight : 600;
@@ -170,12 +174,17 @@ const initThree = () => {
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
-  draco.setDecoderPath('https://unpkg.com/three@0.165.0/examples/jsm/libs/draco/');
+  // CDN 디코더 주소 안정화
+  draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
   loader.setDRACOLoader(draco);
 
+  console.log("📦 GLB 모델 로딩 시도 중... 경로: ./modeling.glb");
+  
+  // 상대 경로 호환성을 위해 './modeling.glb'로 지정
   loader.load(
-    'modeling.glb',
+    './modeling.glb',
     (gltf) => {
+      console.log("✅ GLB 모델 로드 성공!");
       const model = gltf.scene;
       const box    = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
@@ -214,9 +223,13 @@ const initThree = () => {
       modelLoaded = true;
       if (crystalFallback) crystalFallback.classList.add('is-hidden');
     },
-    undefined,
+    (xhr) => {
+      if (xhr.total > 0) {
+        console.log(`⏳ 로딩 중: ${Math.round((xhr.loaded / xhr.total) * 100)}%`);
+      }
+    },
     (err) => {
-      console.warn('GLB load failed:', err);
+      console.error('❌ GLB 로드 실패! 에러 내용:', err);
       if (crystalFallback) crystalFallback.classList.remove('is-hidden');
     }
   );
@@ -293,7 +306,6 @@ const updateNavProgress = () => {
 /* ════════════════════════════════════════
     SCROLL REVEAL & HIGHLIGHT OBSERVER
 ════════════════════════════════════════ */
-// 인라인 형광펜 감지 최적화 세팅
 const highlightObserver = new IntersectionObserver(
   (entries) => {
     entries.forEach((entry) => {
@@ -305,34 +317,51 @@ const highlightObserver = new IntersectionObserver(
   { threshold: 0.4, rootMargin: '0px 0px -10% 0px' }
 );
 
-document.querySelectorAll('.point-highlight').forEach((el) => {
-  highlightObserver.observe(el);
-});
+/* ════════════════════════════════════════
+    INITIALIZE ENTRY (안전한 DOM 로드 후 실행)
+════════════════════════════════════════ */
+const initAll = () => {
+  landingCanvasCtrl = setupLandingCanvas();
+  
+  document.querySelectorAll('.point-highlight').forEach((el) => {
+    highlightObserver.observe(el);
+  });
 
-if (revealCards.length) {
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible');
-          observer.unobserve(entry.target);
-        }
-      });
-    },
-    { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
-  );
-  revealCards.forEach(card => observer.observe(card));
+  if (revealCards.length) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
+    );
+    revealCards.forEach(card => observer.observe(card));
+  }
+
+  initThree();
+  updateNavProgress();
+  animate();
+};
+
+// DOM이 완전히 준비되면 실행
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAll);
+} else {
+  initAll();
 }
 
 /* ════════════════════════════════════════
-    EVENT LISTENERS & CURSOR COUPLING
+    EVENT LISTENERS
 ════════════════════════════════════════ */
 window.addEventListener('pointermove', (e) => {
   pointer.tx = e.clientX;
   pointer.ty = e.clientY;
   updateTiltTarget(e.clientX, e.clientY);
 
-  // 커스텀 커서 호버 클래스 제어 (.cursor-follower.is-link 와 연동)
   if (follower) {
     const target = e.target;
     const isInteractive = target.closest('a, button, .project-card, .main-project-card, .scroll-link');
@@ -355,10 +384,3 @@ window.addEventListener('resize', () => {
   resizeThree();
   updateNavProgress();
 });
-
-/* ════════════════════════════════════════
-    INIT
-════════════════════════════════════════ */
-initThree();
-updateNavProgress();
-animate();
