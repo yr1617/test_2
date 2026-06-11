@@ -1,289 +1,127 @@
-/* ════════════════════════════════════════
-   RESET & SYSTEM BASE
-════════════════════════════════════════ */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&display=swap');
 
-body {
-  background-color: #101012;
-  color: #ffffff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  overflow-x: hidden;
-  /* [요구사항] 마우스 모양을 강제로 바꾸지 않고 기본 마우스 포인터 유지 */
-  cursor: default !important;
+@font-face {
+  font-family: 'SpokaHanSansNeo';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SpoqaHanSansNeo-Thin.woff') format('woff');
+  font-weight: 100;
+  font-display: swap;
 }
-
-/* ════════════════════════════════════════
-   CURSOR FOLLOWER (마우스 클릭 방해 전면 차단)
-════════════════════════════════════════ */
-.cursor-follower {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 300px;
-  height: 300px;
-  background: radial-gradient(circle, rgba(219,255,134,0.06) 0%, rgba(155,111,245,0) 70%);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  will-change: transform;
-  /* [요구사항] 원래 마우스의 클릭 및 호버가 카드 텍스트에 완벽히 먹히도록 차단 */
-  pointer-events: none !important;
-  z-index: 1;
+@font-face {
+  font-family: 'SpokaHanSansNeo';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SpoqaHanSansNeo-Light.woff') format('woff');
+  font-weight: 300;
+  font-display: swap;
 }
-
-/* ════════════════════════════════════════
-   NAVIGATION BAR
-════════════════════════════════════════ */
-.topnav {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 40px;
-  z-index: 100;
-  background: linear-gradient(to bottom, rgba(16,16,18,0.8), rgba(16,16,18,0));
-  backdrop-filter: blur(8px);
+@font-face {
+  font-family: 'SpokaHanSansNeo';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SpoqaHanSansNeo-Regular.woff') format('woff');
+  font-weight: 400;
+  font-display: swap;
 }
-
-.nav-logo {
-  font-size: 24px;
-  color: #ffffff;
-}
-
-.nav-links a {
-  color: rgba(255, 255, 255, 0.6);
-  text-decoration: none;
-  margin-left: 24px;
-  font-size: 14px;
+@font-face {
+  font-family: 'SpokaHanSansNeo';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SpoqaHanSansNeo-Medium.woff') format('woff');
   font-weight: 500;
-  transition: color 0.3s;
-  position: relative;
-  padding-bottom: 4px;
+  font-display: swap;
 }
-
-.nav-links a:hover,
-.nav-links a.is-active {
-  color: #ffffff;
-}
-
-.nav-links a::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background-color: #dbff86;
-  transform: scaleX(var(--nav-progress, 0));
-  transform-origin: left;
-  transition: transform 0.1s linear;
-}
-
-/* ════════════════════════════════════════
-   LANDING LAYOUT (첫 화면 완벽한 중앙 정렬)
-════════════════════════════════════════ */
-.landing {
-  position: relative;
-  width: 100%;
-  /* [요구사항] 무조건 화면 전체 크기를 잡고 정중앙에 수직 정렬 배치 */
-  min-height: 100vh !important;
-  display: flex !important;
-  align-items: center !important; 
-  justify-content: center !important;
-  padding: 100px 80px 60px 80px;
-  overflow: hidden;
-}
-
-.landing-canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.landing-body {
-  position: relative;
-  width: 100%;
-  max-width: 1280px;
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 60px;
-  align-items: center;
-  z-index: 2;
-}
-
-.landing-title-area {
-  display: flex;
-  flex-direction: column;
-}
-
-.tagline {
-  color: #dbff86;
-  font-size: 14px;
+@font-face {
+  font-family: 'SpokaHanSansNeo';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SpoqaHanSansNeo-Bold.woff') format('woff');
   font-weight: 700;
-  letter-spacing: 2px;
-  margin-bottom: 20px;
+  font-display: swap;
 }
 
-.main-title {
-  font-size: 64px;
-  font-weight: 800;
-  line-height: 1.15;
-  letter-spacing: -1px;
-  color: #ffffff;
-  margin-bottom: 48px;
+:root {
+  --bg: #151517;
+  --bg-deep: #101013;
+  --surface: #17181c;
+  --surface-strong: #1d1e23;
+  --text: #f3efe7;
+  --muted: #b7b0a6;
+  --line: rgba(255,255,255,0.12);
+  --primary: #aae961;
+  --sub: #dbff86;
+  --strong: #5d35a3;
+  --accent: #5d35a3;
+  --shadow: 0 14px 40px rgba(69,56,42,0.08);
+  --body-font: 'SpokaHanSansNeo','Apple SD Gothic Neo',sans-serif;
+  --eng-font: 'Google Sans Flex',sans-serif;
+  --pointer-x: 72%;
+  --pointer-y: 38%;
 }
 
-.text-muted {
-  color: rgba(255, 255, 255, 0.35);
+*{box-sizing:border-box;}
+
+/* ── [수정 사항] 마우스 보이게 수정 (기존의 cursor: none !important 제거) ── */
+html,body,* {
+  cursor: auto;
+}
+a, button, [role="button"], .scroll-link, .project-card, .main-project-card {
+  cursor: pointer; /* 클릭 가능한 요소들은 정직하게 손가락 포인터 유지 */
 }
 
-.meta-info {
-  display: flex;
-  gap: 40px;
+html{scroll-behavior:smooth;scrollbar-width:none;}
+
+body{
+  margin:0;
+  min-height:100vh;
+  color:var(--text);
+  font-family:var(--body-font);
+  overflow-x:hidden;
+  background:linear-gradient(180deg,var(--bg) 0%,var(--bg-deep) 100%);
+  scrollbar-width:none;
+}
+body::-webkit-scrollbar{display:none;}
+body::before{
+  content:"";position:fixed;inset:0;
+  background:linear-gradient(90deg,rgba(255,255,255,0.1),transparent 26%,transparent 74%,rgba(255,255,255,0.08));
+  opacity:0.18;pointer-events:none;
+}
+a{color:inherit;text-decoration:none;}
+
+/* ─── BACKGROUND DECOR ─── */
+.background-orb{
+  position:fixed;width:360px;height:360px;border-radius:50%;
+  filter:blur(80px);opacity:0.18;pointer-events:none;
+}
+.orb-left{top:140px;left:-120px;background:var(--primary);}
+.orb-right{right:-140px;bottom:120px;background:var(--strong);}
+.background-grid{
+  position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.05) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,0.05) 1px,transparent 1px);
+  background-size:120px 120px;opacity:0.18;pointer-events:none;
 }
 
-.meta-label {
-  display: block;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
-  margin-bottom: 4px;
-  letter-spacing: 1px;
+/* ─── TOPBAR ─── */
+.topbar{
+  width:100%;position:sticky;top:0;z-index:10;
+  border-bottom:1px solid rgba(255,255,255,0.08);
+  background:
+    radial-gradient(circle at 16% 18%,rgba(170,233,97,0.08),transparent 18%),
+    radial-gradient(circle at 78% 26%,rgba(93,53,163,0.16),transparent 22%),
+    linear-gradient(180deg,rgba(23,23,23,0.95) 0%,rgba(15,15,16,0.9) 100%);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+}
+.topbar-inner{
+  width:min(1220px,calc(100% - 40px));margin:0 auto;
+  padding:18px 0 16px;display:flex;justify-content:space-between;
+  align-items:center;gap:20px;
+}
+.brand,.topnav a,.eyebrow,.project-type,.meta-label,.contact-label{font-family:var(--eng-font);}
+.brand{font-weight:650;letter-spacing:0.14em;color:#f7f4ec;}
+.brand-logo{display:inline-flex;align-items:center;width:58px;height:58px;letter-spacing:0;}
+.brand-logo img{width:100%;height:100%;object-fit:contain;display:block;}
+.topnav{display:flex;flex-wrap:wrap;gap:18px;}
+.topnav a{min-width:124px;display:grid;gap:12px;font-size:0.9rem;color:rgba(247,244,236,0.76);}
+.topnav a span{display:block;}
+.nav-progress{display:block;width:100%;height:1px;background:rgba(255,255,255,0.16);position:relative;overflow:hidden;}
+.nav-progress::after{
+  content:"";position:absolute;inset:0 auto 0 0;
+  width:calc(var(--nav-progress,0)*100%);
+  background:linear-gradient(90deg,var(--sub),rgba(255,255,255,0.92));
+  transition:width 0.28s ease;
 }
 
-.meta-value {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-/* ════════════════════════════════════════
-   INTERACTION CARD SYSTEM
-════════════════════════════════════════ */
-.landing-card-area {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  perspective: 1000px;
-}
-
-#model-canvas {
-  position: absolute;
-  top: -10%;
-  left: -10%;
-  width: 120% !important;
-  height: 120% !important;
-  pointer-events: none;
-  z-index: 5;
-}
-
-.profile-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 24px;
-  padding: 32px;
-  backdrop-filter: blur(12px);
-  position: relative;
-  z-index: 2;
-}
-
-.info-box p {
-  font-size: 15px;
-  line-height: 1.7;
-  color: rgba(255, 255, 255, 0.8);
-  word-break: keep-all;
-}
-
-.sub-grid {
-  display: grid;
-  grid-template-columns: 0.8fr 1.2fr;
-  gap: 20px;
-}
-
-.avatar-box {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.avatar-circle {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  border: 1px dashed rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.box-title {
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 16px;
-  color: #ffffff;
-}
-
-.skills-list {
-  list-style: none;
-}
-
-.skills-list li {
-  font-size: 13px;
-  line-height: 2.0;
-  color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 8px;
-}
-
-/* ════════════════════════════════════════
-   [요구사항] 완벽한 글자 단위 형광펜 하이라이트 효과
-════════════════════════════════════════ */
-.highlight {
-  display: inline !important;
-  position: relative !important;
-  /* 줄 전체를 먹지 않고 글자 밑단 40% 영역만 영롱한 연두색 스펙트럼 틴트 처리 */
-  background: linear-gradient(to top, rgba(219, 255, 134, 0.35) 40%, transparent 40%) !important;
-  padding: 0 4px !important;
-  border-radius: 4px !important;
-}
-
-/* Fallback 포크 */
-#crystal-fallback {
-  display: none;
-}
-
-/* ════════════════════════════════════════
-   SCROLL REVEAL CONTENT
-════════════════════════════════════════ */
-.content-section {
-  width: 100%;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #141416;
-  padding: 80px;
-}
-
-.reveal-card {
-  opacity: 0;
-  transform: translateY(40px);
-  transition: opacity 0.8s cubic-bezier(0.25, 1, 0.5, 1), transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
-  max-width: 600px;
-  text-align: center;
-}
-
-.reveal-card.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
+/* ──
