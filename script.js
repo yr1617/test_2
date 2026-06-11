@@ -15,7 +15,7 @@ const revealCards    = document.querySelectorAll('.reveal-card');
 const navLinks       = document.querySelectorAll('.topnav a[data-target]');
 
 /* ════════════════════════════════════════
-   POINTER & TILT STATE (모델 눕힘/탑뷰 방지 황금 앵글)
+   POINTER & TILT STATE (모델 눕힘/탑뷰 방지 앵글)
 ════════════════════════════════════════ */
 const pointer = {
   x:  window.innerWidth  * 0.5,
@@ -111,7 +111,7 @@ const updateTiltTarget = (clientX, clientY) => {
 };
 
 /* ════════════════════════════════════════
-   THREE.JS (카메라 높이 중심 배치 완결)
+   THREE.JS (카메라 높이 조정을 통해 모델 부상 완료)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -143,6 +143,7 @@ const initThree = () => {
   threeScene = new THREE.Scene();
   threeScene.background = null;
 
+  /* [완전 수정] 카메라 포지션의 Y축과 Z축 수치를 조율하여 모델을 침몰 상태에서 구출 */
   threeCamera = new THREE.PerspectiveCamera(35, W / H, 0.1, 100);
   threeCamera.position.set(0, 0.0, 3.8); 
 
