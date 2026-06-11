@@ -136,7 +136,6 @@ a{color:inherit;text-decoration:none;}
 }
 .landing-sticky{
   position:relative;
-  /* FIX #1: top을 줄여 요소가 더 위로 오게 */
   top:0;
   min-height:calc(100vh - 74px);
   overflow:visible;
@@ -158,11 +157,9 @@ a{color:inherit;text-decoration:none;}
 }
 .landing-copy,.landing-foot{position:relative;z-index:10;}
 
-/* FIX #1: Landing 내부 그리드 — 중앙보다 약간 위 */
 .landing-inner{
   width:min(1220px,calc(100% - 40px));
   margin:0 auto;
-  /* padding-top을 줄여 위로 당김 */
   padding:0 0 clamp(20px,4vh,48px);
   position:relative;
   display:grid;
@@ -174,9 +171,7 @@ a{color:inherit;text-decoration:none;}
   align-items:center;
   column-gap:clamp(40px,7vw,104px);
   row-gap:20px;
-  /* 화면 높이에서 상단 여백을 뺀 영역의 85%를 사용 → 약간 위쪽 배치 */
   min-height:calc(100vh - 74px);
-  /* 실제 콘텐츠를 위쪽으로 당기는 transform */
   transform:translateY(-6%);
 }
 
@@ -193,7 +188,6 @@ a{color:inherit;text-decoration:none;}
   font-weight:500;color:rgba(250,247,240,0.88);
 }
 
-/* FIX #1: 3D 모델 영역 키우기 */
 .landing-display-shell{
   grid-area:model;position:relative;
   width:clamp(400px,42vw,660px);
@@ -369,14 +363,13 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
 
 .section-lead{max-width:48ch;margin:18px 0 0;color:var(--muted);}
 
-/* ─── CAREER GRID — FIX #2: Masonry, auto height, no fixed rows ─── */
+/* ─── CAREER GRID ─── */
 .career-grid{
   column-count:2;
   column-gap:24px;
   margin-top:34px;
 }
 .career-grid .panel{
-  /* height: auto — content drives height, no fixed px */
   height:auto;
   break-inside:avoid;
   display:inline-block;
@@ -387,7 +380,6 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
   border-top:1px solid var(--line);
 }
 
-/* FIX #2: Title ↔ list 간격 */
 .panel h3{margin-bottom:0;padding-bottom:4px;}
 
 .detail-list{margin:20px 0 0;padding-left:18px;}
@@ -395,11 +387,9 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
 .detail-list li+li{margin-top:9px;}
 .compact li+li{margin-top:7px;}
 
-/* FIX #2: 형광펜 호버 — 카드 배경 아닌 li 단위 효과 */
 .detail-list li::after{
   content:"";
   position:absolute;
-  /* 텍스트 아래 2px 위치에 얇은 선 */
   left:-2px;right:-6px;
   bottom:1px;
   height:6px;
@@ -411,8 +401,23 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
 }
 .detail-list li:hover::after{opacity:1;}
 
-/* ─── FIX #2: accent-panel 보라 배경 제거 → 다른 카드와 동일한 어두운 배경 ─── */
-/* FIX #2 핵심: 수상이력 카드를 일반 panel과 동일한 배경으로 복구 */
+/* ─── NEW: SCRIPT-DRIVEN HIGHLIGHT EFFECT ─── */
+/* 스크롤 감지 시 글자 아래쪽만 노란색/연두색 그라데이션으로 부드럽게 채워지는 인라인 형광펜 */
+.point-highlight {
+  display: inline;
+  position: relative;
+  color: #ffffff;
+  font-weight: 600;
+  background: linear-gradient(to top, rgba(219, 255, 134, 0.4) 40%, transparent 40%);
+  background-size: 0% 100%;
+  background-repeat: no-repeat;
+  transition: background-size 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.point-highlight.is-highlighted {
+  background-size: 100% 100%;
+}
+
+/* ─── ACCENT PANEL ─── */
 .accent-panel{
   background:
     linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01)),
@@ -422,7 +427,6 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
 .accent-panel h3{color:#f6f2ea;}
 .accent-panel .detail-list li{color:var(--muted);}
 
-/* 일반 panel 배경 */
 .panel,.contact-copy,.contact-card,.hero-copy{
   background:
     linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01)),
@@ -493,7 +497,7 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
 .project-grid:hover .project-card:hover .project-index{color:rgba(219,255,134,0.9);text-shadow:0 0 24px rgba(219,255,134,0.15);}
 .project-grid:hover .project-card:hover .project-type{color:#ffffff;}
 
-/* ─── MAIN PROJECT GRID — FIX #5 & #8 ─── */
+/* ─── MAIN PROJECT GRID ─── */
 .main-project-grid{
   display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
   gap:18px;margin-top:28px;
@@ -504,7 +508,6 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
   display:flex;flex-direction:column;justify-content:flex-end;gap:12px;
   min-height:380px;
 }
-/* FIX #5: 이미지 높이 고정 — 타이틀 줄수 영향 없음 */
 .project-thumb{
   height:200px;flex-shrink:0;
   border:1px solid rgba(255,255,255,0.14);border-radius:14px;
@@ -521,7 +524,7 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
 }
 .main-project-card h3{font-size:1.08rem;line-height:1.4;min-height:2.8em;}
 
-/* ─── FIX #4: CONTACT 여백 + Gmail ─── */
+/* ─── CONTACT ─── */
 .contact-copy .eyebrow{margin-bottom:20px;}
 .contact-copy h2{max-width:18ch;margin-top:16px;}
 .contact-copy p{margin:28px 0 0;max-width:44ch;line-height:1.9;}
@@ -537,7 +540,7 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
 }
 .contact-button:hover{opacity:1;transform:scale(1.06);box-shadow:0 18px 36px rgba(93,53,163,0.32);}
 
-/* ─── FIX #6: CUSTOM CURSOR ─── */
+/* ─── CUSTOM CURSOR ─── */
 .cursor-follower{
   position:fixed;left:0;top:0;width:12px;height:12px;border-radius:50%;
   background:rgba(219,255,134,0.95);box-shadow:0 0 16px rgba(219,255,134,0.38);
