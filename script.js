@@ -1,5 +1,5 @@
 /**
- * script.js — 최예린 포트폴리오 (최종 버그 수정본)
+ * script.js — 최예린 포트폴리오 (오리지널 디자인 복구 및 모델링 자세/재질 정상화 버전)
  */
 
 import * as THREE from 'three';
@@ -19,7 +19,7 @@ const revealCards    = document.querySelectorAll('.reveal-card');
 const navLinks       = document.querySelectorAll('.topnav a[data-target]');
 
 /* ════════════════════════════════════════
-   POINTER STATE & MOUSE FIX
+   POINTER STATE & MOUSE TRACKING
 ════════════════════════════════════════ */
 const pointer = {
   x:  window.innerWidth  * 0.72,
@@ -36,11 +36,7 @@ const tilt = {
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
-/* 커스텀 마우스 좌표 추적 엔진 버그 수정 완료 */
-let currentX = window.innerWidth / 2;
-let currentY = window.innerHeight / 2;
-
-window.addEventListener('mousemove', (e) => {
+window.addEventListener('pointermove', (e) => {
   pointer.tx = e.clientX;
   pointer.ty = e.clientY;
   updateTiltTarget(e.clientX, e.clientY);
@@ -127,14 +123,13 @@ const updateTiltTarget = (clientX, clientY) => {
 };
 
 /* ════════════════════════════════════════
-   THREE.JS — GLB MODEL 로딩 및 완벽 정렬 수리
+   THREE.JS — 3D GLB MODEL ENGINE
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
 let threeCamera   = null;
 let modelMesh     = null;
 let modelLoaded   = false;
-let animFrameId   = null;
 let modelAutoRotY = 0;
 
 const initThree = () => {
@@ -146,7 +141,7 @@ const initThree = () => {
 
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
-    alpha:       true,
+    alpha:       true, // 투명도 확보
     antialias:   true,
     powerPreference: 'high-performance',
   });
@@ -154,44 +149,44 @@ const initThree = () => {
   threeRenderer.setSize(W, H);
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  threeRenderer.toneMappingExposure = 1.2;
+  threeRenderer.toneMappingExposure = 1.5; // 모델링이 좀 더 밝고 고급스럽게 빛나도록 노출 값 상향
 
   threeScene = new THREE.Scene();
-  threeScene.background = null;
 
   threeCamera = new THREE.PerspectiveCamera(38, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.5);
 
-  /* 조명 시스템 */
-  const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+  /* 입체적인 조명 보강 */
+  const ambient = new THREE.AmbientLight(0xffffff, 0.4); // 주변광은 살짝 줄여서 질감을 살림
   threeScene.add(ambient);
 
-  const keyLight = new THREE.DirectionalLight(0xffeedd, 2.5);
-  keyLight.position.set(4, 6, 4);
+  const keyLight = new THREE.DirectionalLight(0xffffff, 3.5); // 강력한 메인 하이라이트
+  keyLight.position.set(5, 7, 5);
   threeScene.add(keyLight);
 
-  const rimLight = new THREE.DirectionalLight(0xaae961, 1.8);
-  rimLight.position.set(-4, 3, -2);
+  const rimLight = new THREE.DirectionalLight(0 aae961, 2.5); // 엣지 부분에 초록/보라 반사광 투여
+  rimLight.position.set(-5, 4, -3);
   threeScene.add(rimLight);
 
-  const backLight = new THREE.DirectionalLight(0x9b6ff5, 1.5);
-  backLight.position.set(0, -3, -4);
-  threeScene.add(backLight);
+  const fillLight = new THREE.DirectionalLight(0x9b6ff5, 2.0);
+  fillLight.position.set(0, -4, 2);
+  threeScene.add(fillLight);
 
-  /* 영롱한 크리스탈 마스터 재질 세팅 */
+  /* 🌟 [수정] 흰색 밀가루 현상 제거: 맑고 영롱하게 반사되는 크리스탈/보석 글래스 질감 튜닝 */
   const crystalMaterial = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
-    metalness: 0.0,
-    roughness: 0.05,
+    metalness: 0.1,         // 금속 광택 느낌 추가
+    roughness: 0.0,         // 완벽하게 매끄러운 표면 처리 (희멀건 느낌 제거)
     transparent: true,
-    opacity: 0.65,
-    transmission: 0.9,
-    ior: 1.5,
+    opacity: 0.45,          // 투명도를 높여 텁텁함 개선
+    transmission: 0.95,     // 빛이 투과되도록 투과율 대폭 상승
+    ior: 2.417,             // 다이아몬드 수준의 굴절률로 보석처럼 전반사 구현
     side: THREE.DoubleSide,
-    depthWrite: true
+    depthWrite: true,
+    clearcoat: 1.0,         // 표면 코팅광 추가
+    clearcoatRoughness: 0.0
   });
 
-  /* 오리지널 modeling.glb 정밀 호출 */
   const loader = new GLTFLoader();
   const draco = new DRACOLoader();
   draco.setDecoderPath('https://unpkg.com/three@0.165.0/examples/jsm/libs/draco/');
@@ -202,16 +197,15 @@ const initThree = () => {
     (gltf) => {
       const model = gltf.scene;
 
-      // 크리스탈 재질 모든 하위 메시에 강제 적용
       model.traverse((child) => {
         if (child.isMesh) {
           child.material = crystalMaterial;
-          child.castShadow = false;
-          child.receiveShadow = false;
         }
       });
 
-      // 정중앙 바운딩 박스 크기 및 비율 재교정
+      /* 🌟 [수정] 누워서 돌아가던 현상 교정: 모델링 자체의 각도를 정방향으로 세우기 */
+      model.rotation.x = Math.PI / 2; 
+
       const box = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
@@ -220,7 +214,7 @@ const initThree = () => {
       const size = new THREE.Vector3();
       box.getSize(size);
       const maxDim = Math.max(size.x, size.y, size.z);
-      const targetScale = 2.4 / maxDim; // 3D 피사체 크기 키움
+      const targetScale = 2.3 / maxDim;
       model.scale.setScalar(targetScale);
 
       modelMesh = new THREE.Group();
@@ -234,30 +228,25 @@ const initThree = () => {
     },
     undefined,
     (error) => {
-      console.warn('GLB 로딩에 실패하여 CSS 다이아몬드 대체 모드를 활성화합니다:', error);
+      console.warn('GLB 로드 실패, CSS 폴백 모드 작동:', error);
     }
   );
 };
 
 /* ════════════════════════════════════════
-   MAIN ENGINE LOOP
+   MAIN TICK ENGINE
 ════════════════════════════════════════ */
 const tick = () => {
-  // 부드러운 마우스 커서 추적 보간 연산 (Lerp)
-  currentX += (pointer.tx - currentX) * 0.15;
-  currentY += (pointer.ty - currentY) * 0.15;
-  if (follower) {
-    follower.style.left = `${currentX}px`;
-    follower.style.top = `${currentY}px`;
-  }
-
-  // 랜딩 발광체 마우스 팔로잉 연산
   pointer.x += (pointer.tx - pointer.x) * 0.08;
   pointer.y += (pointer.ty - pointer.y) * 0.08;
   landingCanvasCtrl?.draw();
   updateLandingVars();
 
-  // 3D 회전 및 마우스 틸트 반응식
+  if (follower) {
+    follower.style.left = `${pointer.tx}px`;
+    follower.style.top = `${pointer.ty}px`;
+  }
+
   tilt.rx += (tilt.tx - tilt.rx) * 0.08;
   tilt.ry += (tilt.ty - tilt.ry) * 0.08;
   tilt.rz += (tilt.tz - tilt.rz) * 0.08;
@@ -265,6 +254,7 @@ const tick = () => {
   if (modelLoaded && modelMesh) {
     if (!tilt.hovering) {
       modelAutoRotY += 0.006;
+      /* 똑바로 선 상태에서 이쁘게 정방향으로 Y축 회전 */
       modelMesh.rotation.set(
         THREE.MathUtils.degToRad(tilt.rx),
         THREE.MathUtils.degToRad(tilt.ry) + modelAutoRotY,
@@ -283,11 +273,11 @@ const tick = () => {
     threeRenderer.render(threeScene, threeCamera);
   }
 
-  animFrameId = requestAnimationFrame(tick);
+  requestAnimationFrame(tick);
 };
 
 /* ════════════════════════════════════════
-   NAVBAR PROGRESS & SECTIONS TRACKING
+   NAVBAR PROGRESS & TRACKING
 ════════════════════════════════════════ */
 const updateNavProgress = () => {
   const scrollY = window.scrollY;
@@ -318,7 +308,7 @@ const updateNavProgress = () => {
 };
 
 /* ════════════════════════════════════════
-   SCROLL REVEAL (Intersection Observer)
+   SCROLL REVEAL
 ════════════════════════════════════════ */
 if (revealCards.length) {
   const observer = new IntersectionObserver(
@@ -336,7 +326,7 @@ if (revealCards.length) {
 }
 
 /* ════════════════════════════════════════
-   INITIALIZATION & RESIZE WINDOW
+   EVENT LISTENERS
 ════════════════════════════════════════ */
 window.addEventListener('pointerleave', () => {
   pointer.tx = window.innerWidth  * 0.72;
@@ -359,7 +349,6 @@ window.addEventListener('resize', () => {
   }
 });
 
-// 부트업 실행
 initThree();
 tick();
 updateNavProgress();
