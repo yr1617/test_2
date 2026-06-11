@@ -1,12 +1,5 @@
-/**
- * style.css — 최예린 포트폴리오
- * ─────────────────────────────────────
- * 디자이너님의 오리지널 코드 구조, 네이밍, 스타일을 100% 완전 보존하고
- * 지시하신 [첫 화면 레이아웃 정돈], [3D 모델 위치], [정교한 형광펜 효과]만 반영했습니다.
- */
-
 /* ════════════════════════════════════════
-   DOM RESET & VARIABLES (기본 설정 보존)
+   0. RESET & RESET VARIABLES
 ════════════════════════════════════════ */
 * {
   margin: 0;
@@ -31,7 +24,7 @@ body {
 }
 
 /* ════════════════════════════════════════
-   NAVBAR (기본 디자인 및 기능 보존)
+   1. NAVBAR
 ════════════════════════════════════════ */
 .topnav {
   position: fixed;
@@ -88,15 +81,15 @@ body {
 }
 
 /* ════════════════════════════════════════
-   LANDING SECTION (요청 사항만 칼같이 반영)
+   2. LANDING SECTION (첫 화면 우측 쏠림 패치 완료)
 ════════════════════════════════════════ */
 .landing {
   position: relative;
   width: 100vw;
   height: 100vh;
   display: flex;
-  align-items: center;     /* 상하 중앙 보정 */
-  justify-content: center;   /* 좌우 중앙 보정 */
+  align-items: center;     
+  justify-content: center;   
   overflow: hidden;
   background-color: var(--bg-color);
 }
@@ -111,23 +104,22 @@ body {
   pointer-events: none;
 }
 
-/* [수정 사항] 타이틀, 버튼, 모델이 뒤틀리지 않고 첫 화면 중간쯤 오도록 배치 조율 */
+/* [완전 수정] 플렉스 축을 수직으로 고정하여 요소 전체를 정중앙 정렬 */
 #landing-display {
   position: relative;
   width: 100%;
   max-width: 1200px;
-  height: 80vh;            /* 3D 모델 침몰 방지를 위한 높이 확보 */
+  height: 80vh;            
   display: flex;
   flex-direction: column;  
-  align-items: center;     /* 모든 컴포넌트 가로축 정중앙 결속 */
-  justify-content: center; /* 세로축 기준 화면 중간 배치 */
+  align-items: center;     
+  justify-content: center; 
   text-align: center;      
   margin: 0 auto;
   padding: 0 2rem;
   z-index: 2;
 }
 
-/* [수정 사항] 첫 화면 타이틀과 문구 위치 중앙 정렬 및 쏠림 해결 */
 .landing-title-wrap {
   margin-bottom: 2rem;
   animation: fadeIn 1.2s cubic-bezier(0.25, 1, 0.5, 1) both;
@@ -151,7 +143,6 @@ body {
   text-align: center;
 }
 
-/* [수정 사항] 버튼 위치가 중간 정렬에 맞춰 제자리를 찾도록 설정 */
 .cta-wrap {
   margin-top: 1rem;
   z-index: 10;
@@ -176,14 +167,149 @@ body {
   background-color: var(--accent-color);
 }
 
-/* [수정 사항] 바닥에 깔리거나 누워있지 않고 글자 배후 정중앙에서 컴포지션을 완성하도록 안착 */
+/* [완전 수정] 3D 모델 캔버스가 바닥에 눕지 않고 완벽한 중간 배후에 위치하게 고정 */
 #model-canvas, 
 #crystal-fallback {
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%); /* 데드센터 딱 정중앙 고정 */
+  transform: translate(-50%, -50%); 
   width: min(600px, 90vw);
   height: min(600px, 90vh);
-  z-index: -1;             /* 글자 가독성을 위해 한
-  
+  z-index: -1;             
+  pointer-events: none;    
+  transition: opacity 0.5s ease;
+}
+
+.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* ════════════════════════════════════════
+   3. CURSOR FOLLOWER
+════════════════════════════════════════ */
+.cursor-follower {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  background-color: rgba(219, 255, 134, 0.05);
+  pointer-events: none;
+  z-index: 999;
+  mix-blend-mode: difference;
+  transition: width 0.3s ease, height 0.3s ease, background-color 0.3s ease;
+}
+
+.cursor-follower.is-link {
+  width: 60px;
+  height: 60px;
+  background-color: rgba(219, 255, 134, 0.15);
+  border-color: var(--accent-color);
+}
+
+/* ════════════════════════════════════════
+   4. PORTFOLIO SECTIONS
+════════════════════════════════════════ */
+.section {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  padding: 8rem 4rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.section-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 3rem;
+  letter-spacing: -0.01em;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 1rem;
+}
+
+/* ════════════════════════════════════════
+   5. CAREER & AWARDS SECTION (텍스트 정렬 완전 보존 + 형광펜 범위 완벽 패치)
+════════════════════════════════════════ */
+.career-container {
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.career-block {
+  margin-bottom: 3.5rem;
+}
+
+.career-block h3 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--accent-color);
+  margin-bottom: 1.2rem;
+}
+
+.career-list {
+  list-style: none;
+}
+
+.career-list li {
+  font-size: 1.1rem;
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.85); 
+  margin-bottom: 0.8rem;
+  position: relative;
+  padding-left: 1.2rem;
+}
+
+.career-list li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--accent-color);
+}
+
+/* [완전 수정] 블록 전체를 덮어버리던 버그를 차단하고 텍스트 하단 영역만 긋는 인라인 형광펜 */
+.point-highlight {
+  position: relative;
+  color: #ffffff;
+  font-weight: 600;
+  background: linear-gradient(to top, rgba(219, 255, 134, 0.35) 45%, transparent 45%);
+  background-size: 0% 100%;
+  background-repeat: no-repeat;
+  transition: background-size 0.7s cubic-bezier(0.25, 1, 0.5, 1);
+  display: inline; /* block 수치를 원천 차단하여 가로 채움 현상 수정 */
+}
+
+.point-highlight.is-highlighted {
+  background-size: 100% 100%;
+}
+
+/* ════════════════════════════════════════
+   6. SCROLL REVEAL CARDS & ANIMATIONS
+════════════════════════════════════════ */
+.reveal-card {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.reveal-card.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
