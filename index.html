@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>최예린 포트폴리오</title>
   <link rel="stylesheet" href="style.css">
-  <!-- Three.js 및 Loader 임포트를 위한 Import map 정의 -->
   <script type="importmap">
     {
       "imports": {
@@ -17,10 +16,8 @@
 </head>
 <body>
 
-  <!-- 커서 팔로워 (순정 마우스 유지용) -->
   <div class="cursor-follower"></div>
 
-  <!-- 상단 네비게이션 바 -->
   <nav class="topnav">
     <a href="#" class="logo">★</a>
     <div class="nav-links">
@@ -33,7 +30,6 @@
     </div>
   </nav>
 
-  <!-- 첫 화면 (Landing) 섹션 -->
   <section id="home" class="landing">
     <canvas class="landing-canvas"></canvas>
     
@@ -45,13 +41,11 @@
       <div class="cta-wrap">
         <a href="#project-type" class="cta-button">View Works</a>
       </div>
-      <!-- 3D 모델 및 CSS 대안 캔버스 쉘 -->
       <canvas id="model-canvas"></canvas>
       <div id="crystal-fallback" class="is-hidden"></div>
     </div>
   </section>
 
-  <!-- Career & Awards 섹션 (원본 내용 및 구조 100% 보존) -->
   <section id="career" class="section reveal-card">
     <div class="career-container">
       <h2 class="section-title">Career & Awards</h2>
