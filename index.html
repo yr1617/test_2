@@ -37,7 +37,6 @@
   </header>
 
   <main class="page-shell">
-    <!-- ── LANDING ── -->
     <section class="landing section" id="home">
       <div class="landing-field" aria-hidden="true">
         <canvas class="landing-canvas"></canvas>
@@ -55,9 +54,7 @@
           <div class="landing-display-shell">
             <div class="landing-display" id="landing-display" aria-label="interactive 3d model preview">
               <div class="display-frame">
-                <!-- Three.js GLB renderer target -->
                 <canvas class="model-canvas" id="model-canvas" aria-hidden="true"></canvas>
-                <!-- CSS crystal fallback (hidden once GLB loads) -->
                 <div class="crystal-fallback" id="crystal-fallback" aria-hidden="true">
                   <div class="lobe lobe-a"></div>
                   <div class="lobe lobe-b"></div>
@@ -81,7 +78,6 @@
 
     <div class="content-shell">
 
-      <!-- ── PROFILE ── -->
       <section class="hero section" id="profile">
         <div class="hero-copy reveal-card">
           <h2>About</h2>
@@ -108,7 +104,6 @@
         </div>
       </section>
 
-      <!-- ── PROJECT TYPE ── -->
       <section class="section" id="project-list">
         <div class="section-heading">
           <p class="eyebrow">PROJECT TYPE</p>
@@ -136,7 +131,6 @@
         </div>
       </section>
 
-      <!-- ── MAIN PROJECT ── -->
       <section class="section" id="main-project">
         <div class="section-heading">
           <p class="eyebrow">MAIN PROJECT</p>
@@ -176,7 +170,6 @@
         </div>
       </section>
 
-      <!-- ── CAREER & AWARDS ── -->
       <section class="section" id="career-awards">
         <div class="section-heading">
           <p class="eyebrow">CAREER &amp; AWARDS</p>
@@ -203,7 +196,7 @@
             <h3>교내 활동 · 동아리 활동</h3>
             <ul class="detail-list">
               <li>급식 티켓팅 서비스 제작 프로젝트 [급식 패스]</li>
-              <li>미림 해커톤 / 컬러워크 기록 서비스 제작 프로젝트 [투데인트]</li>
+              <li><span class="point-highlight">미림 해커톤</span> / 컬러워크 기록 서비스 제작 프로젝트 [투데인트]</li>
               <li>AI ESG 교육 이수</li>
               <li>홍보 게시물 제작</li>
             </ul>
@@ -212,18 +205,18 @@
             <h3>개인 프로젝트 경험</h3>
             <ul class="detail-list">
               <li>컵에 끼우는 화상 방지용 실리콘 차단물로 창업 아이디어 경진 대회 참여</li>
-              <li>(진행중) 하루 한번 면접 질문 서비스 제작 프로젝트 [모디곰]</li>
+              <li>(진행중) 하루 한번 면접 질문 서비스 제작 프로젝트 <span class="point-highlight">[모디곰]</span></li>
             </ul>
           </article>
           <article class="panel reveal-card">
             <h3>독서 경험</h3>
             <ul class="detail-list compact">
-              <li>&lt; 라면집도 디자이너가 하면 다르다 &gt; - 강범규</li>
+              <li>&lt; <span class="point-highlight">라면집도 디자이너가 하면 다르다</span> &gt; - 강범규</li>
               <li>&lt; 디자인 구구단 &gt; - 에이핫</li>
-              <li>&lt; (UX/UI 디자이너를 위한) 실무 피그마 &gt; - 클레어정</li>
+              <li>&lt; <span class="point-highlight">(UX/UI 디자이너를 위한) 실무 피그마</span> &gt; - 클레어정</li>
               <li>&lt; (비전공자를 위한 이해할 수 있는) IT 지식 &gt; - 최원영</li>
               <li>&lt; 1일 1로그 100일 완성 IT 지식 &gt; - 브라이언 W. 커니핸</li>
-              <li>&lt; 폰트의 비밀 &gt; - 고바야시 아키라</li>
+              <li>&lt; <span class="point-highlight">폰트의 비밀</span> &gt; - 고바야시 아키라</li>
               <li>&lt; 갱부 &gt; - 나쓰메 소세키</li>
             </ul>
           </article>
@@ -234,7 +227,6 @@
               <li>ITQ 한글 A급, PPT C급</li>
             </ul>
           </article>
-          <!-- FIX #2: accent-panel 보라 배경 제거 — 일반 panel 배경 사용 -->
           <article class="panel accent-panel reveal-card">
             <h3>수상 이력</h3>
             <ul class="detail-list">
@@ -247,7 +239,6 @@
         </div>
       </section>
 
-      <!-- ── CONTACT ── -->
       <section class="section contact-section" id="contact">
         <div class="contact-copy reveal-card">
           <p class="eyebrow">CONTACT</p>
@@ -264,7 +255,6 @@
             <li>UI·UX 디자인</li>
             <li>서비스 기획 및 설계</li>
           </ul>
-          <!-- FIX #4: Gmail compose — 기기 기본 메일앱 열지 않음 -->
           <a class="contact-button"
              href="https://mail.google.com/mail/?view=cm&fs=1&to=d-2535%40e-mirim.hs.kr"
              target="_blank"
@@ -272,8 +262,7 @@
         </div>
       </section>
 
-    </div><!-- /.content-shell -->
-  </main>
+    </div></main>
 
   <script type="module" src="script.js?v=16"></script>
 </body>
