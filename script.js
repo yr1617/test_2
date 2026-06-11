@@ -1,135 +1,133 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
-/* ════════════════════════════════════════
-   DOM REFS & STATE
-════════════════════════════════════════ */
-const landing        = document.querySelector('.landing');
-const landingCanvas  = document.querySelector('.landing-canvas');
-const landingDisplay = document.querySelector('#landing-display');
-const modelCanvas    = document.querySelector('#model-canvas');
-const crystalFallback = document.querySelector('#crystal-fallback');
-const revealCards    = document.querySelectorAll('.reveal-card');
+const container = document.querySelector('#landing-display');
+const canvas = document.querySelector('#model-canvas');
+const revealCards = document.querySelectorAll('.reveal-card');
 
-const pointer = {
-  x: window.innerWidth * 0.72,
-  y: window.innerHeight * 0.38,
-};
+if (container && canvas) {
+  const width = container.clientWidth;
+  const height = container.clientHeight;
 
-/* ════════════════════════════════════════
-   🌟 마우스 시스템 복구 (빛 동적 그라디언트 추적 정상화)
-════════════════════════════════════════ */
-window.addEventListener('pointermove', (e) => {
-  pointer.x = e.clientX;
-  pointer.y = e.clientY;
+  // 1. 씬 생성
+  const scene = new THREE.Scene();
 
-  if (landing) {
-    const rect = landing.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / Math.max(rect.width, 1)) * 100;
-    const y = ((e.clientY - rect.top) / Math.max(rect.height, 1)) * 100;
-    landing.style.setProperty('--pointer-x', `${x}%`);
-    landing.style.setProperty('--pointer-y', `${y}%`);
-  }
-});
+  // 2. 🌟 [카메라 각도 수리] 탑뷰(위에서 본 각도)를 버리고, 입체감이 돋보이는 정면 각도로 전면 교정!
+  const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+  camera.position.set(0, 0.2, 4.2); // 정면에서 아주 살짝만 위쪽 배치
+  camera.lookAt(0, 0, 0);
 
-/* ════════════════════════════════════════
-   THREE.JS 3D ENGINE (보석 최적화 + 정방향 수리)
-════════════════════════════════════════ */
-let scene, camera, renderer, mainModel = null;
-
-const initThree = () => {
-  if (!modelCanvas || !landingDisplay) return;
-
-  const W = landingDisplay.offsetWidth;
-  const H = landingDisplay.offsetHeight;
-
-  scene = new THREE.Scene();
-  
-  camera = new THREE.PerspectiveCamera(38, W / H, 0.1, 100);
-  camera.position.set(0, 0, 4.5);
-
-  renderer = new THREE.WebGLRenderer({ canvas: modelCanvas, alpha: true, antialias: true });
-  renderer.setSize(W, H);
+  // 3. 렌더러 설정
+  const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+  renderer.setSize(width, height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.5;
+  renderer.toneMappingExposure = 1.4;
 
-  // 조명 강화 입체 튜닝
-  const ambient = new THREE.AmbientLight(0xffffff, 0.5);
-  scene.add(ambient);
+  /* ════════════════════════════════════════
+     🌟 [조명 세팅 수리] 플라스틱 뭉개짐 방지
+     빛을 입체적으로 쪼개어 보석의 각진 엣지가 투명하게 반사되도록 합니다.
+  ════════════════════════════════════════ */
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+  scene.add(ambientLight);
 
-  const keyLight = new THREE.DirectionalLight(0xffeedd, 2.5);
-  keyLight.position.set(4, 6, 4);
-  scene.add(keyLight);
+  const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
+  mainLight.position.set(5, 8, 6);
+  scene.add(mainLight);
 
-  const rimLight = new THREE.DirectionalLight(0xaae961, 1.8);
-  rimLight.position.set(-4, 2, -2);
-  scene.add(rimLight);
+  const subLight = new THREE.DirectionalLight(0xdbff86, 1.5); // 예린님 고유 서브컬러 반사광
+  subLight.position.set(-5, -3, 3);
+  scene.add(subLight);
 
-  // 🌟 [보석 재질 극대화] 희멀건 현상을 방지하는 전반사 크리스탈 매터리얼 정의
-  const jewelMaterial = new THREE.MeshPhysicalMaterial({
+  /* ════════════════════════════════════════
+     🌟 [재질 수리] 흰 플라스틱 재질을 영롱한 크리스탈 유리로 변경
+     transmission(투과율)과 ior(굴절률)을 심어 투명하고 맑게 만듭니다.
+  ════════════════════════════════════════ */
+  const crystalMaterial = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
-    metalness: 0.05,
-    roughness: 0.02,
+    metalness: 0.0,
+    roughness: 0.03,        // 표면을 매끄럽게 닦아서 흐릿한 플라스틱 느낌 제거
     transparent: true,
-    transmission: 0.95, // 유리 질감 투과 극대화
-    ior: 2.4,           // 다이아몬드 굴절률 구현
-    thickness: 1.2,
-    clearcoat: 1.0,     // 겉면 코팅 광택광
-    clearcoatRoughness: 0.01,
+    transmission: 0.95,     // 속이 투명하게 비치는 효과 극대화
+    ior: 2.2,               // 보석 고유의 내부 굴절 표현
+    thickness: 1.0,         // 두께 굴절감 부여
+    clearcoat: 1.0,         // 코팅 광택 코팅막 레이어 추가
+    clearcoatRoughness: 0.0,
     side: THREE.DoubleSide
   });
 
-  // GLB 파일 안전 로드 및 누워있던 축 직립 보정
+  let model = null;
+
+  // 4. 모델 로드 및 회전축 교정
   const loader = new GLTFLoader();
-  const draco = new DRACOLoader();
-  draco.setDecoderPath('https://unpkg.com/three@0.165.0/examples/jsm/libs/draco/');
-  loader.setDRACOLoader(draco);
-
   loader.load('modeling.glb', (gltf) => {
-    mainModel = gltf.scene;
+    model = gltf.scene;
 
-    mainModel.traverse((child) => {
+    model.traverse((child) => {
       if (child.isMesh) {
-        child.material = jewelMaterial;
+        child.material = crystalMaterial;
       }
     });
 
-    // 🌟 [회전축 교정] 누워있던 축을 똑바로 일으켜 세워 전면을 보게 고정합니다.
-    mainModel.rotation.set(0, 0, 0);
-
-    // 정중앙 피벗 정렬 정규화
-    const box = new THREE.Box3().setFromObject(mainModel);
+    // 🌟 [중요] 피벗 포인트(중심점)를 정중앙으로 잡고 눕혀져 있던 각도를 똑바로 세웁니다.
+    const box = new THREE.Box3().setFromObject(model);
     const center = new THREE.Vector3();
     box.getCenter(center);
-    mainModel.position.sub(center);
+    model.position.sub(center);
+    
+    model.rotation.set(0, 0, 0); // 뷰 왜곡 초기화
 
-    scene.add(mainModel);
-    if (crystalFallback) crystalFallback.classList.add('is-hidden');
-  }, undefined, (err) => {
-    console.warn("GLB 불러오기 실패, CSS 폴백을 유지합니다.", err);
+    scene.add(model);
+  }, undefined, (error) => {
+    console.error('모델 로드 실패:', error);
   });
-};
 
-// 정방향 애니메이션 루프
-const animate = () => {
-  requestAnimationFrame(animate);
-  if (mainModel) {
-    // 똑바로 선 자세를 축으로 예쁘게 360도 자전 제어
-    mainModel.rotation.y += 0.006;
-  }
-  if (renderer && scene && camera) {
+  /* ════════════════════════════════════════
+     🌟 [인터랙션 수리] 마우스 무브 반응형 인터랙션 구현
+  ════════════════════════════════════════ */
+  const mouse = { x: 0, y: 0 };
+  const targetRotation = { x: 0, y: 0 };
+
+  window.addEventListener('mousemove', (event) => {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    // 마우스가 움직일 때 모델이 부드럽게 각도를 비틀도록 설정
+    targetRotation.x = mouse.y * 0.4;
+    targetRotation.y = mouse.x * 0.5;
+  });
+
+  // 5. 애니메이션 루프
+  const clock = new THREE.Clock();
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const elapsedTime = clock.getElapsedTime();
+
+    if (model) {
+      // 시계처럼 도는 게 아니라, 정면에서 예쁘게 자전하도록 회전축 고정
+      model.rotation.y = elapsedTime * 0.4;
+
+      // 마우스 움직임에 반응하여 부드럽게 기울어지는 애니메이션 연동 (Lerp)
+      model.rotation.x += (targetRotation.x - model.rotation.x) * 0.05;
+      model.rotation.z += (-targetRotation.y - model.rotation.z) * 0.05;
+    }
+
     renderer.render(scene, camera);
   }
-};
+  animate();
 
-initThree();
-animate();
+  // 리사이즈 매칭
+  window.addEventListener('resize', () => {
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  });
+}
 
-/* ════════════════════════════════════════
-   SCROLL REVEAL (오리지널 순차 등장 제어 복구)
-════════════════════════════════════════ */
+// 클로드 오리지널 스크롤 Reveal 감지 스크립트 복구
 const observer = new IntersectionObserver((entries) => {
   entries.forEach((entry) => {
     if (entry.isIntersecting) {
@@ -139,12 +137,3 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.1 });
 
 revealCards.forEach(card => observer.observe(card));
-
-window.addEventListener('resize', () => {
-  if (!landingDisplay || !camera || !renderer) return;
-  const W = landingDisplay.offsetWidth;
-  const H = landingDisplay.offsetHeight;
-  camera.aspect = W / H;
-  camera.updateProjectionMatrix();
-  renderer.setSize(W, H);
-});
