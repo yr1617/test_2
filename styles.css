@@ -52,7 +52,6 @@
 
 *{box-sizing:border-box;}
 
-/* ── OS 기본 마우스 숨김 및 크로스브라우저 강제 설정 ── */
 html, body, a, button, input, select, textarea, * {
   cursor: none !important;
 }
@@ -158,12 +157,8 @@ a{color:inherit;text-decoration:none;}
   color:#faf7f0;margin-top:0;
 }
 .landing-sticky{
-  position:relative;
-  top:0;
-  min-height:calc(100vh - 74px);
-  overflow:visible;
-  display:flex;
-  align-items:center;
+  position:relative;top:0;min-height:calc(100vh - 74px);overflow:visible;
+  display:flex;align-items:center;
 }
 .landing-field{position:absolute;inset:0;overflow:hidden;}
 .landing-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0.96;}
@@ -180,28 +175,19 @@ a{color:inherit;text-decoration:none;}
 }
 .landing-copy,.landing-foot{position:relative;z-index:10;}
 
-/* 랜딩 내부 상하 정렬값 보정완료 (정중앙보다 약간 위 배치) */
+/* 첫 화면 타이틀과 모델링 상하 정렬 안정적인 위치로 복구 완료 */
 .landing-inner{
-  width:min(1220px,calc(100% - 40px));
-  margin:0 auto;
-  padding:0 0 clamp(20px,4vh,48px);
-  position:relative;
-  display:grid;
-  grid-template-columns:minmax(0,1.25fr) minmax(340px,0.85fr);
+  width:min(1220px,calc(100% - 40px));margin:0 auto;
+  padding:0 0 clamp(20px,4vh,48px);position:relative;
+  display:grid;grid-template-columns:minmax(0,1.25fr) minmax(340px,0.85fr);
   grid-template-areas:
     "copy model"
     "foot model";
-  align-content:center;
-  align-items:center;
-  column-gap:clamp(30px,5vw,80px);
-  row-gap:24px;
+  align-content:center;align-items:center;
+  column-gap:clamp(30px,5vw,80px);row-gap:24px;
   min-height:calc(100vh - 74px);
-  transform:translateY(-5.5%);
 }
-
-.landing-copy{
-  grid-area:copy;padding-top:0;position:relative;z-index:10;align-self:end;
-}
+.landing-copy{grid-area:copy;padding-top:0;position:relative;z-index:10;align-self:end;}
 .landing-title{
   margin-top:12px;font-family:var(--eng-font);
   font-size:clamp(4.2rem,9vw,7.6rem);font-weight:800;
@@ -211,61 +197,44 @@ a{color:inherit;text-decoration:none;}
   margin:18px 0 0;font-size:clamp(1.1rem,2vw,1.45rem);
   font-weight:500;color:rgba(250,247,240,0.88);
 }
-
-/* 3D 모델 영역 비율 최적화 */
 .landing-display-shell{
-  grid-area:model;position:relative;
-  width:clamp(380px,40vw,600px);
-  height:clamp(380px,60vh,640px);
-  z-index:1;pointer-events:auto;
-  justify-self:end;align-self:center;
+  grid-area:model;position:relative;width:clamp(380px,40vw,600px);height:clamp(380px,60vh,640px);
+  z-index:1;pointer-events:auto;justify-self:end;align-self:center;
 }
 .landing-display{
-  width:100%;height:100%;border-radius:0;
-  background:transparent !important;border:0;overflow:visible;box-shadow:none;
+  width:100%;height:100%;border-radius:28px;
+  background:rgba(255,255,255,0.01);border:1px solid rgba(255,255,255,0.06);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  overflow:hidden;box-shadow:inset 0 1px 2px rgba(255,255,255,0.05),0 12px 36px rgba(0,0,0,0.16);
   transform:translate(0,0) scale(1);transform-origin:center center;
   will-change:transform;z-index:1;
 }
-.display-frame{position:absolute;inset:0;border-radius:inherit;overflow:visible;background:transparent !important;}
+.display-frame{position:absolute;inset:0;border-radius:inherit;overflow:hidden;}
+.model-canvas{position:absolute;inset:0;width:100%!important;height:100%!important;display:block;z-index:2;pointer-events:none;}
 
-/* Three.js canvas */
-.model-canvas{
-  position:absolute;inset:0;width:100% !important;height:100% !important;
-  display:block;z-index:2;pointer-events:none;border-radius:28px;
-}
-
-/* Crystal CSS fallback */
 .crystal-fallback{
-  position:absolute;left:50%;top:50%;
-  width:min(400px,80%);aspect-ratio:1;
+  position:absolute;left:50%;top:50%;width:min(400px,80%);aspect-ratio:1;
   transform-style:preserve-3d;
   transform:translate(-50%,-50%) rotateX(var(--object-rotate-x,-10deg)) rotateY(var(--object-rotate-y,24deg)) rotateZ(var(--object-rotate-z,4deg));
   animation:crystal-spin 11s linear infinite;
   filter:drop-shadow(0 0 24px rgba(219,255,134,0.2)) drop-shadow(0 0 54px rgba(255,255,255,0.14));
-  transition:filter 0.25s ease,opacity 0.5s ease;
-  z-index:1;
+  transition:filter 0.25s ease,opacity 0.5s ease;z-index:1;
 }
 .crystal-fallback.is-hidden{opacity:0;pointer-events:none;}
 .landing-display.is-hovering .crystal-fallback{animation-play-state:paused;}
 
 .crystal-fallback::before,.crystal-fallback::after,.lobe,.prism-core{
-  position:absolute;display:block;
-  border:1.5px solid rgba(255,255,255,0.85);
+  position:absolute;display:block;border:1.5px solid rgba(255,255,255,0.85);
   background:
     linear-gradient(135deg,rgba(255,255,255,0.74),rgba(255,255,255,0.08) 34%,rgba(170,233,97,0.18) 58%,rgba(93,53,163,0.18)),
     linear-gradient(45deg,rgba(255,255,255,0.52),transparent 24%,rgba(255,255,255,0.22) 62%,transparent);
   backdrop-filter:blur(7px) saturate(1.6);-webkit-backdrop-filter:blur(7px) saturate(1.6);
   box-shadow:
-    inset 14px 14px 24px rgba(255,255,255,0.28),
-    inset -16px -16px 30px rgba(93,53,163,0.16),
-    0 0 18px rgba(255,255,255,0.28),
-    0 0 42px rgba(219,255,134,0.2);
+    inset 14px 14px 24px rgba(255,255,255,0.28),inset -16px -16px 30px rgba(93,53,163,0.16),
+    0 0 18px rgba(255,255,255,0.28),0 0 42px rgba(219,255,134,0.2);
   opacity:0.88;
 }
-.crystal-fallback::before,.crystal-fallback::after{
-  content:"";inset:18%;
-  clip-path:polygon(50% 0,61% 33%,97% 33%,68% 54%,80% 91%,50% 68%,20% 91%,32% 54%,3% 33%,39% 33%);
-}
+.crystal-fallback::before,.crystal-fallback::after{content:"";inset:18%;clip-path:polygon(50% 0,61% 33%,97% 33%,68% 54%,80% 91%,50% 68%,20% 91%,32% 54%,3% 33%,39% 33%);}
 .crystal-fallback::before{transform:translateZ(42px) rotateY(-16deg);}
 .crystal-fallback::after{transform:translateZ(-42px) rotateY(16deg) scale(0.92);opacity:0.56;}
 .lobe-a{inset:12% 18% 40% 18%;clip-path:polygon(50% 0,100% 100%,0 100%);transform:rotateX(64deg) translateZ(68px);}
@@ -279,11 +248,7 @@ a{color:inherit;text-decoration:none;}
   to{transform:translate(-50%,-50%) rotateX(var(--object-rotate-x,-10deg)) rotateY(calc(var(--object-rotate-y,24deg) + 360deg)) rotateZ(var(--object-rotate-z,4deg));}
 }
 
-/* Landing foot */
-.landing-foot{
-  grid-area:foot;margin-top:0;display:flex;flex-direction:column;
-  align-items:flex-start;gap:22px;position:relative;z-index:10;
-}
+.landing-foot{grid-area:foot;margin-top:0;display:flex;flex-direction:column;align-items:flex-start;gap:22px;position:relative;z-index:10;}
 .landing-foot p{margin:0;color:rgba(250,247,240,0.72);line-height:1.7;max-width:36ch;}
 .scroll-link{
   position:relative;justify-self:start;display:inline-flex;align-items:center;
@@ -357,7 +322,7 @@ h3{font-size:1.35rem;font-weight:600;letter-spacing:-0.02em;color:#fdfbf7;}
 /* ─── SECTION HEADING ─── */
 .section-heading{margin:96px 0 36px;padding:0 6px;}
 .section-heading h2{font-size:2.3rem;margin-bottom:8px;}
-.sub-lead{margin:6px 0 0;font-size:1.05rem;color:var(--muted); line-height: 1.6;}
+.sub-lead{margin:6px 0 0;font-size:1.05rem;color:var(--muted);line-height:1.63;}
 
 /* ─── PROJECT GRID ─── */
 .project-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
@@ -377,39 +342,25 @@ h3{font-size:1.35rem;font-weight:600;letter-spacing:-0.02em;color:#fdfbf7;}
 .main-project-card h3{font-size:1.18rem;font-weight:600;color:var(--text);line-height:1.4;}
 
 /* ─── CAREER & AWARDS (Masonry) ─── */
-.career-masonry{
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:24px;
-  align-items:start;
-}
+.career-masonry{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;align-items:start;}
 .panel h3{margin-bottom:22px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:14px;}
 .detail-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:14px;}
-.detail-list li{
-  font-size:0.95rem;
-  line-height:1.64;
-  color:rgba(243,239,231,0.8);
-  position:relative;
-  padding-left:14px;
-}
-.detail-list li::before{
-  content:"";position:absolute;left:2px;top:10px;width:4px;height:4px;border-radius:50%;background:var(--primary);
-}
+.detail-list li{font-size:0.95rem;line-height:1.64;color:rgba(243,239,231,0.8);position:relative;padding-left:14px;}
+.detail-list li::before{content:"";position:absolute;left:2px;top:10px;width:4px;height:4px;border-radius:50%;background:var(--primary);}
 
-/* 정밀 타격 형광펜 부드러운 호버 애니메이션 */
+/* 형광펜 효과 글자 길이에 정확히 매칭 및 슥 그어지는 애니메이션 구현 */
 .detail-list li span {
   position: relative;
   display: inline;
-  background: linear-gradient(180deg, transparent 65%, rgba(170, 233, 97, 0.35) 35%);
+  background: linear-gradient(180deg, transparent 62%, rgba(170, 233, 97, 0.35) 38%);
   background-size: 0% 100%;
   background-repeat: no-repeat;
   background-position: left bottom;
-  transition: background-size 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition: background-size 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   padding: 1px 0;
 }
 .detail-list li:hover span {
   background-size: 100% 100%;
-  color: #fff;
 }
 
 /* ─── CONTACT ─── */
