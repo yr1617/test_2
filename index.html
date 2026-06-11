@@ -15,69 +15,54 @@
   </script>
 </head>
 <body>
-  <div class="background-orb orb-left"></div>
-  <div class="background-orb orb-right"></div>
-  <div class="background-grid"></div>
+  <!-- 마우스 커서 이펙트용 태그 -->
   <div class="cursor-follower" aria-hidden="true"></div>
 
   <header class="topbar">
     <div class="topbar-inner">
-      <a class="brand brand-logo" href="#home" aria-label="Yerin Choi Home">
-        <img src="logo.png" alt="">
+      <a class="brand brand-logo" href="#home">
+        <img src="logo.png" alt="로고">
       </a>
-      <nav class="topnav" aria-label="주요 섹션">
-        <a href="#home"         data-target="home"><span>Home</span><i class="nav-progress"></i></a>
-        <a href="#profile"      data-target="profile"><span>Profile</span><i class="nav-progress"></i></a>
+      <nav class="topnav">
+        <a href="#home" data-target="home"><span>Home</span><i class="nav-progress"></i></a>
+        <a href="#profile" data-target="profile"><span>Profile</span><i class="nav-progress"></i></a>
         <a href="#project-list" data-target="project-list"><span>Project Type</span><i class="nav-progress"></i></a>
         <a href="#main-project" data-target="main-project"><span>Main Project</span><i class="nav-progress"></i></a>
         <a href="#career-awards" data-target="career-awards"><span>Career &amp; Awards</span><i class="nav-progress"></i></a>
-        <a href="#contact"      data-target="contact"><span>Contact</span><i class="nav-progress"></i></a>
+        <a href="#contact" data-target="contact"><span>Contact</span><i class="nav-progress"></i></a>
       </nav>
     </div>
   </header>
 
   <main class="page-shell">
-    <section class="landing section" id="home">
-      <div class="landing-field" aria-hidden="true">
+    <!-- ── LANDING SECTION (요청하신 타이틀/모델링/버튼 구조 유지) ── -->
+    <section class="landing" id="home">
+      <div class="landing-field">
         <canvas class="landing-canvas"></canvas>
-        <div class="landing-glow landing-glow-primary"></div>
-        <div class="landing-glow landing-glow-strong"></div>
       </div>
-      <div class="landing-sticky">
-        <div class="landing-inner">
+      <div class="landing-inner">
+        <!-- 좌측: 타이틀 -->
+        <div class="landing-copy">
+          <h1 class="landing-title">QUIET<br>BUT<br>SOLID</h1>
+          <p class="landing-subtitle">차분함 속에서 피어나는 견고한 디자인</p>
+        </div>
 
-          <div class="landing-copy">
-            <h1 class="landing-title">QUIET<br>BUT<br>SOLID</h1>
-            <p class="landing-subtitle">차분함 속에서 피어나는 견고한 디자인</p>
+        <!-- 우측: 3D 모델링 (뒤에 반투명 배경 완전히 제거됨) -->
+        <div class="landing-display-shell">
+          <div class="landing-display" id="landing-display">
+            <canvas class="model-canvas" id="model-canvas"></canvas>
           </div>
+        </div>
 
-          <div class="landing-display-shell">
-            <div class="landing-display" id="landing-display" aria-label="interactive 3d model preview">
-              <div class="display-frame">
-                <canvas class="model-canvas" id="model-canvas" aria-hidden="true"></canvas>
-                <div class="crystal-fallback" id="crystal-fallback" aria-hidden="true">
-                  <div class="lobe lobe-a"></div>
-                  <div class="lobe lobe-b"></div>
-                  <div class="lobe lobe-c"></div>
-                  <div class="lobe lobe-d"></div>
-                  <div class="prism-core"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="landing-foot">
-            <a class="scroll-link" href="#profile">View Profile</a>
-          </div>
-
+        <!-- 하단: 버튼 위치 고정 -->
+        <div class="landing-foot">
+          <a class="scroll-link" href="#profile">View Profile</a>
         </div>
       </div>
     </section>
 
-    <div class="page-spotlight" aria-hidden="true"></div>
-
     <div class="content-shell">
-
+      <!-- ── PROFILE ── -->
       <section class="hero section" id="profile">
         <div class="hero-copy reveal-card">
           <h2>About</h2>
@@ -95,7 +80,7 @@
         </div>
         <div class="hero-visual">
           <div class="portrait-frame reveal-card">
-            <img src="profile-new.png" alt="최예린 프로필 이미지">
+            <img src="profile-new.png" alt="최예린 프로필">
           </div>
           <div class="hero-note">
             <span>YERIN CHOI</span>
@@ -104,6 +89,7 @@
         </div>
       </section>
 
+      <!-- ── PROJECT TYPE ── -->
       <section class="section" id="project-list">
         <div class="section-heading">
           <p class="eyebrow">PROJECT TYPE</p>
@@ -131,6 +117,7 @@
         </div>
       </section>
 
+      <!-- ── MAIN PROJECT ── -->
       <section class="section" id="main-project">
         <div class="section-heading">
           <p class="eyebrow">MAIN PROJECT</p>
@@ -138,43 +125,43 @@
         </div>
         <div class="main-project-grid">
           <article class="main-project-card reveal-card">
-            <div class="project-thumb"><img src="project1.jpg" alt="모디곰 BI 포스터"></div>
+            <div class="project-thumb"><img src="project1.jpg" alt=""></div>
             <span>교과 프로젝트</span>
             <h3>그래픽 포스터 제작 프로젝트 [모디곰 BI 포스터]</h3>
           </article>
           <article class="main-project-card reveal-card">
-            <div class="project-thumb"><img src="project2.jpg" alt="맛집 지도 서비스 MZ"></div>
+            <div class="project-thumb"><img src="project2.jpg" alt=""></div>
             <span>교과 프로젝트</span>
             <h3>맛집 지도 서비스 제작 프로젝트 [MZ]</h3>
           </article>
           <article class="main-project-card reveal-card">
-            <div class="project-thumb"><img src="project3.png" alt="급식 패스"></div>
+            <div class="project-thumb"><img src="project3.png" alt=""></div>
             <span>동아리 활동</span>
             <h3>급식 티켓팅 서비스 제작 프로젝트 [급식 패스]</h3>
           </article>
           <article class="main-project-card reveal-card">
-            <div class="project-thumb"><img src="project4.png" alt="온"></div>
+            <div class="project-thumb"><img src="project4.png" alt=""></div>
             <span>교내 해커톤</span>
             <h3>시각장애인을 위한 쇼핑 오디오 가이드 서비스 [온]</h3>
           </article>
           <article class="main-project-card reveal-card">
-            <div class="project-thumb"><img src="project5.png" alt="샌드위치 카운터"></div>
+            <div class="project-thumb"><img src="project5.png" alt=""></div>
             <span>개인 프로젝트</span>
             <h3>창업 동아리 정산 및 재고 관리 웹 서비스 [샌드위치 카운터]</h3>
           </article>
           <article class="main-project-card reveal-card">
-            <div class="project-thumb"><img src="project6.jpg" alt="미림 그래픽 뉴스"></div>
+            <div class="project-thumb"><img src="project6.jpg" alt=""></div>
             <span>교내 활동</span>
             <h3>인포그래픽 저널 및 카드뉴스 제작 [미림 그래픽 뉴스]</h3>
           </article>
         </div>
       </section>
 
+      <!-- ── CAREER & AWARDS (형광펜 타깃 섹션) ── -->
       <section class="section" id="career-awards">
         <div class="section-heading">
           <p class="eyebrow">CAREER &amp; AWARDS</p>
           <h2>이력 아카이브</h2>
-          <p class="sub-lead">학습, 활동, 성취의 흐름을 한눈에 담은 이력 아카이브</p>
         </div>
         <div class="career-masonry">
           <article class="panel reveal-card">
@@ -214,14 +201,12 @@
         </div>
       </section>
 
+      <!-- ── CONTACT ── -->
       <section class="section contact-section" id="contact">
         <div class="contact-copy reveal-card">
           <p class="eyebrow">CONTACT</p>
           <h2>project with me?</h2>
-          <p>
-            협업 제안과 프로젝트 문의를 위한 연락 섹션입니다.<br>
-            오른쪽 버튼을 클릭할 시 이메일로 이동합니다.
-          </p>
+          <p>협업 제안과 프로젝트 문의를 위한 연락 섹션입니다.</p>
         </div>
         <div class="contact-card reveal-card">
           <p class="contact-label">Available For</p>
@@ -230,14 +215,11 @@
             <li>UI·UX 디자인</li>
             <li>서비스 기획 및 설계</li>
           </ul>
-          <a class="contact-button"
-             href="https://mail.google.com/mail/?view=cm&fs=1&to=d-2535%40e-mirim.hs.kr"
-             target="_blank" rel="noopener noreferrer">
+          <a class="contact-button" href="https://mail.google.com/mail/?view=cm&fs=1&to=d-2535%40e-mirim.hs.kr" target="_blank" rel="noopener noreferrer">
             Let's connect
           </a>
         </div>
       </section>
-
     </div>
   </main>
 
