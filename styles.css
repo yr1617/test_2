@@ -65,6 +65,13 @@ html {
   scrollbar-width: none;
 }
 
+/* ── FIX #6: Hide OS cursor site-wide ── */
+html,
+body,
+* {
+  cursor: none !important;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -93,6 +100,9 @@ a {
   text-decoration: none;
 }
 
+/* ─────────────────────────────────────────
+   BACKGROUND DECOR
+───────────────────────────────────────── */
 .background-orb {
   position: fixed;
   width: 360px;
@@ -126,6 +136,9 @@ a {
   pointer-events: none;
 }
 
+/* ─────────────────────────────────────────
+   TOPBAR
+───────────────────────────────────────── */
 .topbar {
   width: 100%;
   margin: 0;
@@ -218,6 +231,9 @@ a {
   transition: width 0.28s ease;
 }
 
+/* ─────────────────────────────────────────
+   PAGE SHELL
+───────────────────────────────────────── */
 .page-shell {
   width: 100%;
   margin: 0;
@@ -229,6 +245,9 @@ a {
   margin-top: 26px;
 }
 
+/* ─────────────────────────────────────────
+   LANDING
+───────────────────────────────────────── */
 .landing {
   position: relative;
   min-height: calc(100vh - 74px);
@@ -295,22 +314,23 @@ a {
   z-index: 10;
 }
 
+/* ── FIX #1: Landing inner — centered, pulled up ── */
 .landing-inner {
   width: min(1220px, calc(100% - 40px));
   margin: 0 auto;
-  min-height: calc(100vh - 74px);
-  padding: clamp(28px, 4vh, 48px) 0 clamp(30px, 5vh, 56px);
+  /* Pull the content upward toward center of viewport */
+  padding: clamp(16px, 2vh, 32px) 0 clamp(24px, 4vh, 48px);
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.82fr);
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.9fr);
   grid-template-areas:
     "copy model"
     "foot model";
   align-content: center;
   align-items: center;
   column-gap: clamp(40px, 7vw, 104px);
-  row-gap: 24px;
-  min-height: min(840px, calc(100vh - 74px));
+  row-gap: 20px;
+  min-height: min(820px, calc(100vh - 74px));
 }
 
 .landing-copy {
@@ -319,7 +339,7 @@ a {
   position: relative;
   z-index: 10;
   align-self: end;
-  transform: translateY(-18px);
+  transform: translateY(-10px);
 }
 
 .landing-eyebrow {
@@ -344,15 +364,17 @@ a {
   color: rgba(250, 247, 240, 0.88);
 }
 
+/* ── FIX #1: Bigger 3D display shell ── */
 .landing-display-shell {
   grid-area: model;
   position: relative;
   left: auto;
   top: auto;
-  width: clamp(360px, 34vw, 560px);
-  height: clamp(360px, 55vh, 620px);
+  /* Enlarged from original clamp(360px…560px) */
+  width: clamp(400px, 42vw, 640px);
+  height: clamp(400px, 62vh, 680px);
   z-index: 1;
-  pointer-events: none;
+  pointer-events: auto;
   justify-self: end;
   align-self: center;
 }
@@ -365,17 +387,10 @@ a {
   border: 0;
   overflow: visible;
   box-shadow: none;
-  transform:
-    translate(0, 0)
-    scale(1);
+  transform: translate(0, 0) scale(1);
   transform-origin: center center;
-  pointer-events: none;
   will-change: transform;
   z-index: 1;
-}
-
-.landing-display.is-fullscreen {
-  border-color: rgba(255, 255, 255, 0.04);
 }
 
 .display-frame {
@@ -386,50 +401,20 @@ a {
   background: transparent !important;
 }
 
-.display-frame::before {
-  content: none;
-  position: absolute;
-  inset: -14%;
-  background:
-    linear-gradient(115deg, transparent 0 34%, rgba(255, 255, 255, 0.2) 42%, transparent 50% 100%),
-    linear-gradient(68deg, transparent 0 58%, rgba(219, 255, 134, 0.12) 65%, transparent 73% 100%),
-    radial-gradient(circle at 18% 30%, rgba(170, 233, 97, 0.24), transparent 28%),
-    radial-gradient(circle at 80% 26%, rgba(93, 53, 163, 0.28), transparent 32%),
-    radial-gradient(circle at 48% 52%, rgba(255, 255, 255, 0.14), transparent 20%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
-    #050507;
-  transform: scale(var(--frame-scale, 1));
-  transform-origin: center center;
-  will-change: transform;
-}
-
-.landing-display.is-fullscreen .display-frame::before {
-  opacity: 0.56;
-}
-
-.display-frame::after {
-  content: none;
+/* ── FIX #1: Three.js GLB canvas fills display frame ── */
+.model-canvas {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 24%, transparent 72%, rgba(255, 255, 255, 0.06)),
-    radial-gradient(circle at 50% 50%, transparent 0 38%, rgba(255, 255, 255, 0.02) 68%, rgba(255, 255, 255, 0.06) 100%);
-  pointer-events: none;
-}
-
-.crystal-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  width: 100% !important;
+  height: 100% !important;
   display: block;
-  opacity: 0;
-  transition: opacity 0.45s ease;
-  z-index: 1;
+  z-index: 2;
   pointer-events: none;
+  border-radius: 28px;
 }
 
-.display-object {
+/* Crystal fallback (shown only when GLB not loaded) */
+.crystal-fallback {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -445,19 +430,21 @@ a {
   filter:
     drop-shadow(0 0 24px rgba(219, 255, 134, 0.2))
     drop-shadow(0 0 54px rgba(255, 255, 255, 0.14));
-  transition: filter 0.25s ease;
+  transition: filter 0.25s ease, opacity 0.5s ease;
+  z-index: 1;
 }
 
-.landing-display:hover .display-object,
-.landing-display.is-hovering .display-object {
+.crystal-fallback.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.landing-display.is-hovering .crystal-fallback {
   animation-play-state: paused;
-  filter:
-    drop-shadow(0 0 28px rgba(219, 255, 134, 0.34))
-    drop-shadow(0 0 74px rgba(255, 255, 255, 0.2));
 }
 
-.display-object::before,
-.display-object::after,
+.display-object.crystal-fallback::before,
+.display-object.crystal-fallback::after,
 .lobe,
 .prism-core {
   position: absolute;
@@ -476,18 +463,18 @@ a {
   opacity: 0.88;
 }
 
-.display-object::before,
-.display-object::after {
+.crystal-fallback::before,
+.crystal-fallback::after {
   content: "";
   inset: 18%;
   clip-path: polygon(50% 0, 61% 33%, 97% 33%, 68% 54%, 80% 91%, 50% 68%, 20% 91%, 32% 54%, 3% 33%, 39% 33%);
 }
 
-.display-object::before {
+.crystal-fallback::before {
   transform: translateZ(42px) rotateY(-16deg);
 }
 
-.display-object::after {
+.crystal-fallback::after {
   transform: translateZ(-42px) rotateY(16deg) scale(0.92);
   opacity: 0.56;
 }
@@ -531,111 +518,9 @@ a {
   }
 }
 
-.crystal-canvas.is-ready {
-  opacity: 1;
-}
-
-#career-awards,
-#project-list,
-#contact {
-  padding-top: 44px;
-  padding-bottom: 44px;
-}
-
-.landing.section {
-  padding-top: 0;
-  padding-bottom: 0;
-}
-
-.hero.section {
-  padding-top: 12px;
-  padding-bottom: 22px;
-}
-
-.section-heading {
-  margin-bottom: 10px;
-  padding: 28px 30px 30px;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  background: transparent;
-  position: relative;
-  z-index: 1;
-}
-
-.career-grid {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 24px;
-  margin-top: 34px;
-}
-
-.reveal-card {
-  opacity: 0;
-  transform: translateY(42px);
-  transition:
-    opacity 0.8s ease,
-    transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
-    box-shadow 0.28s ease,
-    border-color 0.28s ease;
-}
-
-.reveal-card.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.project-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  border-top: 0;
-  border-left: 0;
-  background: transparent;
-  overflow: visible;
-  perspective: 1400px;
-  margin-top: 18px;
-}
-
-.project-card {
-  background:
-    linear-gradient(180deg, rgba(255, 250, 241, 0.04), rgba(255, 250, 241, 0.02)),
-    linear-gradient(180deg, rgba(17, 17, 19, 0.96), rgba(10, 10, 12, 0.98));
-  min-height: 460px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  border-left: 1px solid var(--line);
-  border-top: 0;
-  border-right: 0;
-  border-bottom: 1px solid var(--line);
-  padding-top: 120px;
-  color: #f6f2ea;
-  filter: grayscale(0.08) brightness(0.9);
-  opacity: 0.94;
-  transform: translateY(0) scale(0.985);
-  transform-origin: center bottom;
-  z-index: 1;
-  overflow: hidden;
-}
-
-.reveal-card.project-card {
-  transform: translateY(42px) scale(0.985);
-}
-
-.reveal-card.project-card.is-visible {
-  transform: translateY(0) scale(0.985);
-}
-
-.project-grid:hover .project-card:hover {
-  opacity: 1;
-  filter: grayscale(0) brightness(1);
-  transform: translateY(-6px) scale(1.01) translateZ(18px);
-  z-index: 5;
-  border-color: rgba(219, 255, 134, 0.22);
-  box-shadow: 0 24px 42px rgba(0, 0, 0, 0.28);
-}
-
+/* ─────────────────────────────────────────
+   LANDING FOOT / SCROLL LINK
+───────────────────────────────────────── */
 .landing-foot {
   grid-area: foot;
   margin-top: 0;
@@ -697,6 +582,9 @@ a {
   transform: scaleX(1);
 }
 
+/* ─────────────────────────────────────────
+   PAGE SPOTLIGHT
+───────────────────────────────────────── */
 .page-spotlight {
   position: absolute;
   left: 0;
@@ -717,6 +605,9 @@ a {
   z-index: 1;
 }
 
+/* ─────────────────────────────────────────
+   CONTENT SHELL
+───────────────────────────────────────── */
 .content-shell {
   width: min(1220px, calc(100% - 40px));
   margin: 44px auto 0;
@@ -728,6 +619,9 @@ a {
   overflow: visible;
 }
 
+/* ─────────────────────────────────────────
+   HERO (PROFILE)
+───────────────────────────────────────── */
 .hero,
 .contact-section {
   display: grid;
@@ -971,6 +865,26 @@ h3 {
   font-size: 0.9rem;
 }
 
+/* ─────────────────────────────────────────
+   SECTION HEADINGS
+───────────────────────────────────────── */
+#career-awards,
+#project-list,
+#contact {
+  padding-top: 44px;
+  padding-bottom: 44px;
+}
+
+.landing.section {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.hero.section {
+  padding-top: 12px;
+  padding-bottom: 22px;
+}
+
 .section-heading {
   margin-bottom: 10px;
   padding: 28px 30px 30px;
@@ -985,39 +899,89 @@ h3 {
   max-width: 24ch;
 }
 
+/* ── FIX #7: Archive subtitle generous line-height ── */
+#career-awards .section-heading h2 {
+  line-height: 1.48;
+}
+
 .section-lead {
   max-width: 48ch;
   margin: 18px 0 0;
   color: var(--muted);
 }
 
+/* ─────────────────────────────────────────
+   CAREER GRID — FIX #2: Masonry / auto height
+───────────────────────────────────────── */
 .career-grid {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 24px;
+  /* Use CSS columns for masonry-like layout */
+  columns: 2;
+  column-gap: 24px;
   margin-top: 34px;
-}
-
-.career-grid .panel:nth-child(1) {
-  grid-column: span 7;
-}
-
-.career-grid .panel:nth-child(2) {
-  grid-column: span 5;
-}
-
-.career-grid .panel:nth-child(3),
-.career-grid .panel:nth-child(4),
-.career-grid .panel:nth-child(5),
-.career-grid .panel:nth-child(6) {
-  grid-column: span 6;
+  /* Prevent the grid from collapsing */
+  display: block;
 }
 
 .career-grid .panel {
+  /* ── Cards auto-size to content — no fixed height ── */
+  height: auto;
+  width: 100%;
+  break-inside: avoid;
+  margin-bottom: 24px;
+  display: inline-block; /* Required for columns layout */
   border-left: 1px solid var(--line);
   border-top: 1px solid var(--line);
 }
 
+/* ── FIX #2: Title ↔ list spacing ── */
+.panel h3 {
+  margin-bottom: 0;
+  /* Space between category title and bullet list */
+  padding-bottom: 4px;
+}
+
+.detail-list {
+  margin: 20px 0 0;
+  padding-left: 18px;
+}
+
+.detail-list li {
+  position: relative;
+  padding: 3px 0;
+  transition: background 0.22s ease;
+}
+
+/* ── FIX #2: Highlighter hover effect per line ── */
+.detail-list li::after {
+  content: "";
+  position: absolute;
+  left: -4px;
+  right: -8px;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, rgba(170, 233, 97, 0.22), rgba(219, 255, 134, 0.14));
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  z-index: -1;
+}
+
+.detail-list li:hover::after {
+  opacity: 1;
+}
+
+.detail-list li + li {
+  margin-top: 9px;
+}
+
+.compact li + li {
+  margin-top: 7px;
+}
+
+/* ─────────────────────────────────────────
+   FIX #3: Scroll fade-in up (Intersection Observer)
+   — already exists in .reveal-card, ensure correct values
+───────────────────────────────────────── */
 .reveal-card {
   opacity: 0;
   transform: translateY(42px);
@@ -1037,54 +1001,16 @@ h3 {
   transform: translateY(-4px) scale(1.018);
 }
 
-.career-grid .reveal-card:nth-child(1) {
-  transition-delay: 0.06s;
-}
+.career-grid .reveal-card:nth-child(1) { transition-delay: 0.06s; }
+.career-grid .reveal-card:nth-child(2) { transition-delay: 0.14s; }
+.career-grid .reveal-card:nth-child(3) { transition-delay: 0.22s; }
+.career-grid .reveal-card:nth-child(4) { transition-delay: 0.3s; }
+.career-grid .reveal-card:nth-child(5) { transition-delay: 0.38s; }
+.career-grid .reveal-card:nth-child(6) { transition-delay: 0.46s; }
 
-.career-grid .reveal-card:nth-child(2) {
-  transition-delay: 0.14s;
-}
-
-.career-grid .reveal-card:nth-child(3) {
-  transition-delay: 0.22s;
-}
-
-.career-grid .reveal-card:nth-child(4) {
-  transition-delay: 0.3s;
-}
-
-.career-grid .reveal-card:nth-child(5) {
-  transition-delay: 0.38s;
-}
-
-.career-grid .reveal-card:nth-child(6) {
-  transition-delay: 0.46s;
-}
-
-.accent-panel {
-  background: linear-gradient(145deg, rgba(93, 53, 163, 0.96), rgba(75, 42, 133, 0.92));
-  color: #fff9ee;
-}
-
-.accent-panel h3,
-.accent-panel .detail-list li,
-.accent-panel p {
-  color: #fff9ee;
-}
-
-.detail-list {
-  margin: 18px 0 0;
-  padding-left: 18px;
-}
-
-.detail-list li + li {
-  margin-top: 9px;
-}
-
-.compact li + li {
-  margin-top: 7px;
-}
-
+/* ─────────────────────────────────────────
+   PROJECT TYPE GRID
+───────────────────────────────────────── */
 .project-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1118,6 +1044,14 @@ h3 {
   transform-origin: center bottom;
   z-index: 1;
   overflow: hidden;
+}
+
+.reveal-card.project-card {
+  transform: translateY(42px) scale(0.985);
+}
+
+.reveal-card.project-card.is-visible {
+  transform: translateY(0) scale(0.985);
 }
 
 .project-card:first-child {
@@ -1211,6 +1145,76 @@ h3 {
   color: #ffffff;
 }
 
+/* ─────────────────────────────────────────
+   MAIN PROJECT GRID — FIX #5 & #8: Uniform image, filled thumbs
+───────────────────────────────────────── */
+.main-project-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 28px;
+}
+
+.main-project-card {
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)),
+    rgba(17, 18, 21, 0.86);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 12px;
+  /* Ensure consistent card height so images are uniform */
+  min-height: 380px;
+}
+
+/* ── FIX #5: Image container always the same height ── */
+.project-thumb {
+  /* Fixed height regardless of title line count */
+  height: 200px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.project-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  border-radius: 13px;
+  transition: transform 0.4s ease;
+}
+
+.main-project-card:hover .project-thumb img {
+  transform: scale(1.04);
+}
+
+.main-project-card span {
+  width: fit-content;
+  padding: 7px 12px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.09);
+  color: #f7f4ec;
+  font-family: var(--eng-font);
+  font-weight: 700;
+}
+
+.main-project-card h3 {
+  font-size: 1.08rem;
+  line-height: 1.4;
+  /* Generous spacing — title can be 2 lines without squishing image */
+  min-height: 2.8em;
+}
+
+/* ─────────────────────────────────────────
+   PANELS (shared card style)
+───────────────────────────────────────── */
 .panel,
 .contact-copy,
 .contact-card,
@@ -1228,6 +1232,80 @@ h3 {
   color: #f6f2ea;
 }
 
+.accent-panel {
+  background: linear-gradient(145deg, rgba(93, 53, 163, 0.96), rgba(75, 42, 133, 0.92));
+  color: #fff9ee;
+}
+
+.accent-panel h3,
+.accent-panel .detail-list li,
+.accent-panel p {
+  color: #fff9ee;
+}
+
+/* ─────────────────────────────────────────
+   FIX #4: CONTACT — generous spacing + Gmail link
+───────────────────────────────────────── */
+.contact-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr);
+  gap: 34px;
+  align-items: stretch;
+}
+
+.contact-copy h2 {
+  max-width: 18ch;
+  /* Extra spacing above h2 */
+  margin-top: 20px;
+}
+
+/* eyebrow ↕ h2 gap */
+.contact-copy .eyebrow {
+  margin-bottom: 20px;
+}
+
+/* h2 ↕ description gap */
+.contact-copy p {
+  margin: 28px 0 0;
+  max-width: 44ch;
+  line-height: 1.9;
+}
+
+.contact-list {
+  margin: 18px 0 0;
+  padding-left: 18px;
+}
+
+.contact-list li + li {
+  margin-top: 8px;
+}
+
+.contact-button {
+  margin-top: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 28px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--strong), #7b56c3);
+  color: #ffffff;
+  font-family: var(--eng-font);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.76;
+  transform: scale(0.96);
+  transition: opacity 0.24s ease, transform 0.24s ease, box-shadow 0.24s ease;
+}
+
+.contact-button:hover {
+  opacity: 1;
+  transform: scale(1.06);
+  box-shadow: 0 18px 36px rgba(93, 53, 163, 0.32);
+}
+
+/* ─────────────────────────────────────────
+   FIX #6: CUSTOM CURSOR
+───────────────────────────────────────── */
 .cursor-follower {
   position: fixed;
   left: 0;
@@ -1245,111 +1323,17 @@ h3 {
   transition: width 0.2s ease, height 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
 
-.cursor-follower.is-dark {
-  background: rgba(219, 255, 134, 0.95);
-  box-shadow: 0 0 16px rgba(219, 255, 134, 0.38);
-}
-
 .cursor-follower.is-link {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
+  background: rgba(219, 255, 134, 0.6);
+  box-shadow: 0 0 24px rgba(219, 255, 134, 0.5);
 }
 
-.contact-copy h2 {
-  max-width: 18ch;
-}
-
-.contact-copy p {
-  margin: 18px 0 0;
-  max-width: 44ch;
-}
-
-.contact-list {
-  margin: 18px 0 0;
-  padding-left: 18px;
-}
-
-.contact-list li + li {
-  margin-top: 8px;
-}
-
-.contact-button {
-  margin-top: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 14px 22px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--strong), #7b56c3);
-  color: #ffffff;
-  font-family: var(--eng-font);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  opacity: 0.68;
-  transform: scale(0.96);
-  transition: opacity 0.24s ease, transform 0.24s ease, box-shadow 0.24s ease;
-}
-
-.contact-button:hover {
-  opacity: 1;
-  transform: scale(1.06);
-  box-shadow: 0 18px 36px rgba(93, 53, 163, 0.32);
-}
-
-.main-project-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-  margin-top: 28px;
-}
-
-.main-project-card {
-  min-height: 330px;
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  padding: 18px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)),
-    rgba(17, 18, 21, 0.86);
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.project-thumb {
-  flex: 1;
-  min-height: 170px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 18px;
-  background:
-    radial-gradient(circle at 50% 20%, rgba(219, 255, 134, 0.12), transparent 38%),
-    rgba(0, 0, 0, 0.18);
-}
-
-.main-project-card span {
-  width: fit-content;
-  padding: 7px 12px;
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.09);
-  color: #f7f4ec;
-  font-family: var(--eng-font);
-  font-weight: 700;
-}
-
-.main-project-card h3 {
-  font-size: 1.18rem;
-  line-height: 1.35;
-}
-
+/* ─────────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────────── */
 @media (max-width: 1080px) {
-  .landing-foot,
-  .hero,
-  .contact-section,
-  .project-grid {
-    grid-template-columns: 1fr;
-  }
-
   .landing-inner {
     grid-template-columns: 1fr;
     grid-template-areas:
@@ -1359,8 +1343,16 @@ h3 {
     align-content: start;
   }
 
-  .career-grid .panel:nth-child(n) {
-    grid-column: span 12;
+  .landing-foot,
+  .hero,
+  .contact-section,
+  .project-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Masonry → single column on tablet */
+  .career-grid {
+    columns: 1;
   }
 
   .hero-copy {
@@ -1381,8 +1373,8 @@ h3 {
 
   .landing-display-shell {
     justify-self: start;
-    width: min(420px, 70vw);
-    height: min(420px, 48vh);
+    width: min(440px, 70vw);
+    height: min(440px, 52vh);
   }
 
   .page-spotlight {
@@ -1404,13 +1396,8 @@ h3 {
     transform: none;
   }
 
-  .project-grid:hover .project-card {
-    opacity: 0.68;
-    filter: grayscale(0.2) brightness(0.72);
-  }
-
-  .project-grid:hover .project-card:hover {
-    transform: translateY(-6px) scale(1.01);
+  .main-project-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1453,13 +1440,6 @@ h3 {
     border-radius: 22px;
   }
 
-  .landing-meta {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-    padding-bottom: 14px;
-  }
-
   .landing-copy {
     padding-top: 42px;
   }
@@ -1469,7 +1449,7 @@ h3 {
   }
 
   .landing-foot {
-    margin-top: 70px;
+    margin-top: 40px;
     gap: 18px;
   }
 
@@ -1478,8 +1458,8 @@ h3 {
     left: auto;
     right: auto;
     top: auto;
-    width: min(100%, 320px);
-    height: 280px;
+    width: min(100%, 340px);
+    height: 300px;
     margin: 12px 0 0;
   }
 
@@ -1524,7 +1504,7 @@ h3 {
   }
 
   .career-grid {
-    gap: 14px;
+    columns: 1;
     margin-top: 20px;
   }
 
@@ -1540,13 +1520,8 @@ h3 {
     padding-top: 92px;
   }
 
-  .project-grid:hover .project-card {
-    opacity: 1;
-    filter: none;
-  }
-
-  .project-grid:hover .project-card:hover {
-    transform: translateY(-4px) scale(1.01);
+  .main-project-grid {
+    grid-template-columns: 1fr;
   }
 
   .cursor-follower {
