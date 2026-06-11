@@ -1,12 +1,14 @@
 /**
- * script.js — 최예린 포트폴리오 (최종 수정본)
+ * script.js — 최예린 포트폴리오
  * ─────────────────────────────────────
  * 1. Landing canvas pointer glow
- * 2. Three.js GLB 3D model (modeling.glb) — 투명하고 알록달록 영롱한 크리스탈 재질 및 얼짱 각도 최적화
- * 3. CSS fallback crystal (GLB 실패 시 노출)
+ * 2. Three.js GLB 3D model (modeling.glb) — crystal/glass material
+ * 3. CSS fallback crystal (shown if GLB fails)
  * 4. Tilt interaction on hover
- * 5. Nav progress bar
- * 6. Scroll reveal (Intersection Observer)
+ * 5. Cursor follower
+ * 6. Nav progress bar
+ * 7. Scroll reveal (Intersection Observer)
+ * 8. Dynamically integrated highlighter effect (형광펜 애니메이션 자동 바인딩)
  */
 
 import * as THREE from 'three';
@@ -35,10 +37,10 @@ const pointer = {
   ty: window.innerHeight * 0.38,
 };
 
-/* ── [수정 사항] 모델링이 누워있거나 정직하게 수직으로 깎여 보이지 않도록, 입체감이 가장 살아나는 황금 사선 각도로 베이스 고정 ── */
+/* ── [수정 사항] 모델이 눕거나(평면형) 정직한 정면/탑뷰가 되지 않도록 입체적인 황금 각도 디폴트값 지정 ── */
 const tilt = {
-  rx: 26, ry: 32, rz: -8,
-  tx: 26, ty: 32, tz: -8,
+  rx: -15, ry: 45, rz: 6,  // 비스듬하면서도 형태가 완전히 살아있는 각도
+  tx: -15, ty: 45, tz: 6,
   hovering: false,
 };
 
@@ -110,26 +112,23 @@ const updateTiltTarget = (clientX, clientY) => {
   landingDisplay.classList.toggle('is-hovering', inside);
 
   if (!inside) {
-    /* 마우스 아웃 시 다시 원래의 입체감 있는 황금 사선 기본 각도로 회귀 */
-    tilt.tx = 26; tilt.ty = 32; tilt.tz = -8;
+    tilt.tx = -15; tilt.ty = 45; tilt.tz = 6; /* 복귀 시에도 정해진 황금 각도로 부드럽게 복원 */
     return;
   }
   const nx = ((clientX - rect.left) / Math.max(rect.width,  1) - 0.5) * 2;
   const ny = ((clientY - rect.top)  / Math.max(rect.height, 1) - 0.5) * 2;
-  
-  /* 호버 시에도 납작해지지 않고 사선 밸런스를 유지하면서 유연하게 틸트되도록 바인딩 */
-  tilt.tx = 26 + ny * -20;
-  tilt.ty = 32 + nx * 26;
-  tilt.tz = -8 + nx * 6;
+  tilt.tx = -15 + ny * -24;
+  tilt.ty =  45 + nx * 34;
+  tilt.tz =   6 + nx * 8;
 };
 
 /* ════════════════════════════════════════
-   THREE.JS — 투명하고 영롱하게 반짝이는 크리스탈 글래스 렌더링
+   THREE.JS — GLB MODEL WITH CRYSTAL MATERIAL
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
 let threeCamera   = null;
-let modelMesh       = null;
+let modelMesh     = null;
 let modelLoaded   = false;
 let animFrameId   = null;
 let modelAutoRotY = 0;
@@ -152,7 +151,7 @@ const initThree = () => {
   threeRenderer.setSize(W, H);
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  threeRenderer.toneMappingExposure = 1.35; // 반짝임을 극대화하기 위해 노출값 미세 상향
+  threeRenderer.toneMappingExposure = 1.35; // 영롱하게 뿜어져 나오는 빛 강도를 미세하게 상향 조정
 
   /* ── Scene ── */
   threeScene = new THREE.Scene();
@@ -160,32 +159,39 @@ const initThree = () => {
 
   /* ── Camera ── */
   threeCamera = new THREE.PerspectiveCamera(38, W / H, 0.1, 100);
-  threeCamera.position.set(0, 0.3, 4.2);
+  threeCamera.position.set(0, 0.4, 4.2);
 
-  /* ── Lights (알록달록하고 영롱한 난반사를 만들어낼 멀티플 조명 레이어) ── */
+  /* ── Lights (투명하고 알록달록하게 빛 반사를 유도하는 다각도 무지갯빛 조명 배치) ── */
   const ambient = new THREE.AmbientLight(0xffffff, 0.7);
   threeScene.add(ambient);
 
-  const keyLight = new THREE.DirectionalLight(0xfff3e0, 2.8);
+  // 메인 광원 - 화이트 오팔 투명 광택 유도
+  const keyLight = new THREE.DirectionalLight(0xfff5ea, 2.5);
   keyLight.position.set(4, 6, 4);
   threeScene.add(keyLight);
 
-  const rimLight = new THREE.DirectionalLight(0xaae961, 2.0); // 형광 그린 하이라이트광
-  rimLight.position.set(-5, 3, -2);
+  // 라임/그린 형광 영롱 림라이트
+  const rimLight = new THREE.DirectionalLight(0xaae961, 2.0);
+  rimLight.position.set(-4, 3, -1);
   threeScene.add(rimLight);
 
-  const backLight = new THREE.DirectionalLight(0xb388ff, 1.8); // 영롱한 보라 배후광
-  backLight.position.set(0, -3, -4);
+  // 반대편을 채워주는 프리즘 바이올렛 림라이트
+  const backLight = new THREE.DirectionalLight(0xbe9eff, 1.8);
+  backLight.position.set(-2, -3, -4);
   threeScene.add(backLight);
 
-  // 표면에 알록달록 무지갯빛 반사광을 한 층 더 더해줄 포인트 조명
-  const ptRainbowA = new THREE.PointLight(0xdbff86, 3.5, 7);
-  ptRainbowA.position.set(2, 2, 2);
-  threeScene.add(ptRainbowA);
+  // 프리즘 알록달록 시머 이펙트를 가속하는 다색 포인트 조명군
+  const ptGreen = new THREE.PointLight(0xdbff86, 3.5, 7);
+  ptGreen.position.set(2, 2, 2);
+  threeScene.add(ptGreen);
 
-  const ptRainbowB = new THREE.PointLight(0x00f5ff, 2.5, 7); // 청량감을 줄 사이언 블루 틴트광
-  ptRainbowB.position.set(-2, -1.5, 2);
-  threeScene.add(ptRainbowB);
+  const ptPurple = new THREE.PointLight(0x8b5cf6, 3.0, 7);
+  ptPurple.position.set(-2, -2, 2);
+  threeScene.add(ptPurple);
+
+  const ptCyan = new THREE.PointLight(0x67e8f9, 2.5, 6); // 청록빛 추가로 영롱함 극대화
+  ptCyan.position.set(0, 3, -1);
+  threeScene.add(ptCyan);
 
   /* ── Environment map ── */
   const pmremGen = new THREE.PMREMGenerator(threeRenderer);
@@ -217,7 +223,7 @@ const initThree = () => {
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
 
-      /* ── 깨지지 않으면서 완벽하게 투명하고 알록달록 영롱한 최고급 유리/크리스탈 텍스처 매핑 ── */
+      /* ── [수정 사항] 투명하고 알록달록 영롱하게 반짝이되 깨짐(파편화) 현상을 차단한 정교한 재질 정의 ── */
       model.traverse((child) => {
         if (!child.isMesh) return;
         child.castShadow    = false;
@@ -225,22 +231,22 @@ const initThree = () => {
 
         const crystal = new THREE.MeshPhysicalMaterial({
           color:              0xffffff,
-          metalness:          0.02,
-          roughness:          0.03,                // 표면을 더 매끄럽고 쨍하게 마감 처리
-          transmission:       0.95,                // 맑고 깨끗하게 투과되는 유리 질감 (깨짐 방지)
-          thickness:          1.6,                 // 영롱함을 배가시키는 굴절 깊이감
-          ior:                1.58,                // 크리스탈에 가까운 고굴절 지수 설정
-          envMapIntensity:    3.5,                 // 환경광 반사율 대폭 상향
-          clearcoat:          1.0,                 // 겉면에 얹어진 완벽한 코팅막 레이어
+          metalness:          0.02,       // 불필요한 메탈 반사를 줄이고 순수 유리 질감 보존
+          roughness:          0.03,       // 표면 매끄러움을 극대화하여 맑고 영롱한 투명도 유지
+          transmission:       0.95,       // 완벽에 가까운 맑은 시스루 투명 글래스
+          thickness:          1.2,        
+          ior:                1.58,       // 굴절률을 살짝 높여 굴절 반사량 증폭 (보석 같은 느낌)
+          envMapIntensity:    3.2,        // 주변 환경 광택 투영 가중치 강화
+          clearcoat:          1.0,
           clearcoatRoughness: 0.02,
-          iridescence:        1.0,                 // [핵심] 알록달록한 오로라빛 반사광을 위한 박막 간섭 최대화
+          iridescence:        1.0,        // 무지갯빛 프리즘 광택 최대치 구현 (알록달록함의 핵심)
           iridescenceIOR:     1.45,
-          iridescenceThicknessRange: [120, 450],   // 영롱한 무지갯빛 스펙트럼 범위 확장
+          iridescenceThicknessRange: [150, 450],
           opacity:            0.92,
           transparent:        true,
           side:               THREE.DoubleSide,
-          attenuationColor:   new THREE.Color(0xe6ffcc), // 고급스러운 네온 라임빛 감쇠색
-          attenuationDistance: 1.8,
+          attenuationColor:   new THREE.Color(0xe6fffa), // 미세한 아쿠아 오팔 틴트 인입
+          attenuationDistance: 1.5,
           reflectivity:       0.98,
         });
 
@@ -280,32 +286,32 @@ const resizeThree = () => {
 const animate = () => {
   animFrameId = requestAnimationFrame(animate);
 
-  /* Smooth pointer lag */
   pointer.x += (pointer.tx - pointer.x) * 0.16;
   pointer.y += (pointer.ty - pointer.y) * 0.16;
 
-  /* Smooth tilt lag */
   tilt.rx += (tilt.tx - tilt.rx) * 0.14;
   tilt.ry += (tilt.ty - tilt.ry) * 0.14;
   tilt.rz += (tilt.tz - tilt.rz) * 0.14;
 
-  /* Landing canvas glow */
+  /* ── [수정 사항] 마우스 포인터가 완벽하게 보이므로, 보조 팔로워는 마우스 뒤를 몽환적으로 흐르듯 따라오게만 보정 ── */
+  if (follower) {
+    follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
+  }
+
   updateLandingVars();
   if (landingCanvasCtrl) landingCanvasCtrl.draw();
 
-  /* Three.js render */
   if (threeRenderer && threeScene && threeCamera) {
     if (modelMesh) {
       if (!tilt.hovering) {
-        /* 마우스가 없을 때도 심심하지 않게 사선축을 기준으로 고급스럽고 부드럽게 자동 자전 */
-        modelAutoRotY += 0.005;
+        modelAutoRotY += 0.005; /* 오리지널 회전 애니메이션 유지 */
       }
-      /* 황금 비율 각도가 보정된 상태 위에서 틸트 애니메이션 구동 */
+      /* 누운 각도나 직탑뷰가 아닌 입체적이고 아름다운 축 회전 렌더링 */
       modelMesh.rotation.x = THREE.MathUtils.degToRad(tilt.rx);
       modelMesh.rotation.y = modelAutoRotY + THREE.MathUtils.degToRad(tilt.ry);
-      modelMesh.rotation.z = THREE.MathUtils.degToRad(tilt.rz);
+      modelMesh.rotation.z = THREE.MathUtils.degToRad(tilt.rz * 0.5);
 
-      /* 공중에 영롱하게 떠 있는 듯한 플로팅 인터랙션 유지 */
+      /* 수면 위를 둥둥 떠다니는 듯한 부드러운 유기적 플로팅 루프 유지 */
       modelMesh.position.y = Math.sin(Date.now() * 0.001) * 0.06;
     }
     threeRenderer.render(threeScene, threeCamera);
@@ -362,13 +368,17 @@ window.addEventListener('pointermove', (e) => {
   pointer.tx = e.clientX;
   pointer.ty = e.clientY;
   updateTiltTarget(e.clientX, e.clientY);
+
+  if (follower) {
+    follower.classList.toggle('is-link', Boolean(e.target.closest('a,button')));
+  }
 });
 
 window.addEventListener('pointerleave', () => {
   pointer.tx = window.innerWidth  * 0.72;
   pointer.ty = window.innerHeight * 0.38;
   tilt.hovering = false;
-  tilt.tx = 26; tilt.ty = 32; tilt.tz = -8;
+  tilt.tx = -15; tilt.ty = 45; tilt.tz = 6; /* 리브 시 마우스 기본 포지션 및 정해진 입체적 황금각도로 복귀 */
   landingDisplay?.classList.remove('is-hovering');
 });
 
