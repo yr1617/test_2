@@ -34,8 +34,6 @@
   --accent: #aae961;
   --accent-rgb: 170, 233, 97;
   --font-sans: 'Google Sans Flex', 'SpokaHanSansNeo', -apple-system, BlinkMacSystemFont, sans-serif;
-  --pointer-x: 72%;
-  --pointer-y: 50%;
 }
 
 * {
@@ -84,7 +82,7 @@ body {
   pointer-events: none;
 }
 
-/* ── FIX: CURSOR FOLLOWER가 어떤 레이어 위에서도 항상 최상단에 마우스 포인터로 뜨도록 보장 ── */
+/* ── CURSOR FOLLOWER (z-index 수정으로 마우스 최상단 보장) ── */
 .cursor-follower {
   position: fixed;
   top: 0;
@@ -95,10 +93,14 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 50%;
   pointer-events: none;
-  z-index: 9999;
+  z-index: 9999; /* 마우스가 3D 모델링 뒤로 숨지 않도록 레이어 최상단 고정 */
   transform: translate(-50%, -50%);
   will-change: transform;
-  transition: width 0.24s cubic-bezier(0.16, 1, 0.3, 1), height 0.24s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.24s, border-color 0.24s;
+  transition: 
+    width 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+    height 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.24s,
+    border-color 0.24s;
 }
 .cursor-follower.is-link {
   width: 38px;
@@ -114,7 +116,6 @@ body {
   width: min(100% - 48px, 1280px);
   margin: 0 auto;
   position: relative;
-  gap: 48px;
 }
 
 /* ── TOPBAR & NAVIGATION ── */
@@ -152,7 +153,8 @@ body {
   letter-spacing: -0.01em;
   transition: color 0.25s;
 }
-.topnav a:hover, .topnav a.is-active {
+.topnav a:hover,
+.topnav a.is-active {
   color: var(--text-main);
 }
 .nav-progress {
@@ -167,14 +169,15 @@ body {
   opacity: 0;
   transition: opacity 0.2s;
 }
-.topnav a.is-active .nav-progress, .topnav a:hover .nav-progress {
+.topnav a.is-active .nav-progress,
+.topnav a:hover .nav-progress {
   opacity: 1;
 }
 
 /* ── LEFT STICKY: LANDING ZONE ── */
 .landing {
   width: 44%;
-  min-height: 100vh;
+  height: 100vh;
   position: relative;
 }
 .landing-sticky {
@@ -182,7 +185,7 @@ body {
   top: 0;
   height: 100vh;
   display: flex;
-  align-items: center; /* FIX: 수직 중앙 정렬로 타이틀 위로 치우침 현상 완벽 차단 */
+  align-items: center; /* FIX: 타이틀과 모델링이 위로 치우치지 않게 완벽한 화면 수직 중앙 정렬 */
 }
 .landing-inner {
   width: 100%;
@@ -247,14 +250,14 @@ body {
   color: var(--text-main);
 }
 
-/* ── FIX: 3D MODEL CONTAINER DISPLAY (위치 치우침 해결 및 완벽 정렬) ── */
+/* ── LANDING INTERACTION DISPLAY BOX (오른쪽 배치 원본 복구) ── */
 .landing-display-shell {
   position: absolute;
-  right: -35px;
+  right: -160px;
   top: 50%;
-  transform: translateY(-50%); /* FIX: 화면 정중앙 배치 밸런싱 */
-  width: min(100%, 460px);
-  height: 500px;
+  transform: translateY(-50%);
+  width: 560px;
+  height: 600px;
   z-index: 1;
 }
 .landing-display {
@@ -269,7 +272,6 @@ body {
   height: 100%;
   display: block;
   outline: none;
-  background: transparent; /* 크리스탈의 투명함을 살리기 위해 투명 배경 지정 */
 }
 
 /* ── FALLBACK CSS CRYSTAL ── */
@@ -301,11 +303,11 @@ body {
 /* ── RIGHT SCROLLABLE: CONTENT SHELL ── */
 .content-shell {
   width: 52%;
-  margin-top: 140px;
+  margin-top: 26vh;
   padding-bottom: 120px;
 }
 .section {
-  padding: 80px 0;
+  padding: 100px 0;
 }
 .section:first-of-type {
   padding-top: 0;
@@ -315,7 +317,7 @@ h2 {
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.03em;
-  margin-bottom: 24px;
+  margin-bottom: 40px;
 }
 
 /* ── PANELS & REVEAL CARDS ── */
@@ -328,23 +330,23 @@ h2 {
   -webkit-backdrop-filter: blur(16px);
 }
 .hero-copy {
-  margin-bottom: 32px;
+  margin-bottom: 44px;
 }
 .hero-copy p {
-  font-size: 1.2rem;
+  font-size: 1.25rem;
   line-height: 1.6;
   color: var(--text-main);
-  font-weight: 400;
+  font-weight: 300;
 }
 .hero-meta {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 24px;
+  gap: 32px;
 }
 .hero-meta h3 {
   font-size: 1.1rem;
   font-weight: 600;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 .detail-list {
   list-style: none;
@@ -371,42 +373,37 @@ h2 {
 /* PROFILE CARD GRID */
 .profile-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 32px;
+  margin-top: 32px;
 }
 .profile-main-card {
+  grid-column: span 2;
   display: flex;
-  flex-direction: column;
   gap: 32px;
+  align-items: center;
 }
 .portrait-frame {
-  width: 100%;
-  border-radius: 20px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
   overflow: hidden;
+  flex-shrink: 0;
   background-color: #141419;
-  border: 1px solid rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
 }
 .portrait-frame img {
   width: 100%;
-  height: auto;
-  display: block;
+  height: 100%;
   object-fit: cover;
-}
-.profile-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 24px;
 }
 
 /* PROJECT CARD */
-.project-list-section h2 {
-  margin-bottom: 40px;
-}
 .project-card {
   margin-bottom: 32px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 28px;
 }
 .project-card:last-child {
   margin-bottom: 0;
@@ -417,7 +414,7 @@ h2 {
   align-items: flex-start;
 }
 .project-title-area h3 {
-  font-size: 1.4rem;
+  font-size: 1.45rem;
   font-weight: 600;
   margin-bottom: 6px;
 }
@@ -426,10 +423,10 @@ h2 {
   color: var(--text-sub);
 }
 .project-link-icon {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background-color: rgba(255,255,255,0.03);
+  background-color: rgba(255,255,255,0.02);
   border: 1px solid rgba(255,255,255,0.05);
   display: flex;
   align-items: center;
@@ -439,8 +436,8 @@ h2 {
   transition: background-color 0.2s, border-color 0.2s, color 0.2s;
 }
 .project-link-icon:hover {
-  background-color: var(--accent);
-  border-color: var(--accent);
+  background-color: var(--text-main);
+  border-color: var(--text-main);
   color: #000;
 }
 .project-link-icon svg {
@@ -461,18 +458,21 @@ h2 {
 .tag {
   font-size: 0.78rem;
   font-weight: 500;
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 100px;
-  background-color: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.04);
+  background-color: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
   color: var(--text-sub);
 }
 
-/* CONTACT */
+/* CONTACT (원본의 보라색 포인트 패널 강조색상 복구) */
 .contact-section {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 32px;
+}
+.contact-copy {
+  grid-column: span 2;
 }
 .contact-copy p {
   color: var(--text-sub);
@@ -483,6 +483,10 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 28px;
+}
+.accent-panel {
+  background-gradient: linear-gradient(135deg, rgba(93,53,163,0.2) 0%, rgba(16,16,18,0) 100%);
+  border-color: rgba(155, 111, 245, 0.15);
 }
 .contact-label {
   font-size: 0.82rem;
@@ -498,7 +502,6 @@ h2 {
   font-size: 1.3rem;
   font-weight: 500;
   margin-bottom: 12px;
-  color: var(--text-main);
 }
 .contact-button {
   display: inline-flex;
@@ -511,7 +514,6 @@ h2 {
   text-decoration: none;
   font-size: 1rem;
   font-weight: 600;
-  width: 100%;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s;
 }
 .contact-button:hover {
@@ -531,20 +533,19 @@ h2 {
   transform: translateY(0);
 }
 
-/* ── RESPONSIVE MOBILE BREAKPOINT ── */
+/* RESPONSIVE MOBILE BREAKPOINT */
 @media (max-width: 991px) {
-  .main-layout { display: flex; width: min(100% - 20px, 100%); padding: 14px 0; align-items: flex-start; flex-direction: column; }
-  .topnav { gap: 12px 16px; }
-  .topnav a { min-width: 0; width: 100%; }
-  .landing { min-height: auto; width: 100%; }
-  .landing-sticky { top: 0; min-height: auto; display: block; padding-top: 100px; }
-  .landing-inner, .content-shell { width: 100%; }
-  .content-shell { border-radius: 22px; margin-top: 24px; }
-  .landing-copy { padding-top: 42px; }
+  .main-layout { display: block; }
+  .topnav { gap: 20px; }
+  .landing { width: 100%; height: auto; }
+  .landing-sticky { position: relative; height: auto; display: block; }
+  .landing-inner, .content-shell { width: min(100% - 20px, 100%); margin: 0 auto; }
+  .landing-copy { padding-top: 140px; }
   .landing-title { font-size: clamp(3.4rem, 17vw, 5.4rem); }
   .landing-foot { margin-top: 40px; gap: 18px; }
-  .landing-display-shell { position: relative; left: auto; right: auto; top: auto; transform: none; width: min(100%, 340px); height: 300px; margin: 24px auto 0; }
+  .landing-display-shell { position: relative; left: auto; right: auto; top: auto; transform: none; width: min(100%, 340px); height: 300px; margin: 12px 0 0; }
   .landing-display { transform: none; }
+  .content-shell { margin-top: 24px; }
   .hero-copy, .panel, .project-card, .contact-copy, .contact-card { padding: 26px; }
   .portrait-frame img { max-height: 240px; }
   .hero-meta { grid-template-columns: 1fr; }
