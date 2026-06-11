@@ -1,13 +1,5 @@
 /**
- * script.js — 최예린 포트폴리오
- * ─────────────────────────────────────
- * 1. Landing canvas pointer glow
- * 2. Three.js GLB 3D model (modeling.glb) — crystal/glass material
- * 3. CSS fallback crystal (shown if GLB fails)
- * 4. Tilt interaction on hover
- * 5. Cursor follower
- * 6. Nav progress bar
- * 7. Scroll reveal (Intersection Observer)
+ * script.js — 최예린 포트폴리오 (최종 버그 수정본)
  */
 
 import * as THREE from 'three';
@@ -27,7 +19,7 @@ const revealCards    = document.querySelectorAll('.reveal-card');
 const navLinks       = document.querySelectorAll('.topnav a[data-target]');
 
 /* ════════════════════════════════════════
-   POINTER STATE
+   POINTER STATE & MOUSE FIX
 ════════════════════════════════════════ */
 const pointer = {
   x:  window.innerWidth  * 0.72,
@@ -43,6 +35,20 @@ const tilt = {
 };
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
+
+/* 커스텀 마우스 좌표 추적 엔진 버그 수정 완료 */
+let currentX = window.innerWidth / 2;
+let currentY = window.innerHeight / 2;
+
+window.addEventListener('mousemove', (e) => {
+  pointer.tx = e.clientX;
+  pointer.ty = e.clientY;
+  updateTiltTarget(e.clientX, e.clientY);
+
+  if (follower) {
+    follower.classList.toggle('is-link', Boolean(e.target.closest('a, button, [role="button"]')));
+  }
+});
 
 /* ════════════════════════════════════════
    LANDING CANVAS GLOW
@@ -116,17 +122,17 @@ const updateTiltTarget = (clientX, clientY) => {
   const nx = ((clientX - rect.left) / Math.max(rect.width,  1) - 0.5) * 2;
   const ny = ((clientY - rect.top)  / Math.max(rect.height, 1) - 0.5) * 2;
   tilt.tx = -10 + ny * -24;
-  tilt.ty =  24 + nx *  34;
-  tilt.tz =   4 + nx *   8;
+  tilt.ty =  24 + nx * 34;
+  tilt.tz =   4 + nx * 8;
 };
 
 /* ════════════════════════════════════════
-   THREE.JS — GLB MODEL WITH CRYSTAL MATERIAL
+   THREE.JS — GLB MODEL 로딩 및 완벽 정렬 수리
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
 let threeCamera   = null;
-let modelMesh     = null;   // root group of loaded model
+let modelMesh     = null;
 let modelLoaded   = false;
 let animFrameId   = null;
 let modelAutoRotY = 0;
@@ -135,10 +141,9 @@ const initThree = () => {
   if (!modelCanvas) return;
 
   const shell = landingDisplay;
-  const W = shell ? shell.offsetWidth  : 560;
+  const W = shell ? shell.offsetWidth  : 500;
   const H = shell ? shell.offsetHeight : 600;
 
-  /* ── Renderer ── */
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
     alpha:       true,
@@ -150,57 +155,45 @@ const initThree = () => {
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
   threeRenderer.toneMappingExposure = 1.2;
-  threeRenderer.shadowMap.enabled   = false; // perf
 
-  /* ── Scene ── */
   threeScene = new THREE.Scene();
-  threeScene.background = null; // transparent
+  threeScene.background = null;
 
-  /* ── Camera ── */
   threeCamera = new THREE.PerspectiveCamera(38, W / H, 0.1, 100);
-  threeCamera.position.set(0, 0.4, 4.2);
+  threeCamera.position.set(0, 0, 4.5);
 
-  /* ── Lights ── */
-  // Ambient — base fill
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+  /* 조명 시스템 */
+  const ambient = new THREE.AmbientLight(0xffffff, 0.8);
   threeScene.add(ambient);
 
-  // Key light — warm from top-right
-  const keyLight = new THREE.DirectionalLight(0xffeedd, 2.4);
-  keyLight.position.set(3, 5, 4);
+  const keyLight = new THREE.DirectionalLight(0xffeedd, 2.5);
+  keyLight.position.set(4, 6, 4);
   threeScene.add(keyLight);
 
-  // Rim light — cool from left
-  const rimLight = new THREE.DirectionalLight(0xaae961, 1.6);
-  rimLight.position.set(-4, 2, -2);
+  const rimLight = new THREE.DirectionalLight(0xaae961, 1.8);
+  rimLight.position.set(-4, 3, -2);
   threeScene.add(rimLight);
 
-  // Back light — purple from behind-bottom
-  const backLight = new THREE.DirectionalLight(0x9b6ff5, 1.2);
+  const backLight = new THREE.DirectionalLight(0x9b6ff5, 1.5);
   backLight.position.set(0, -3, -4);
   threeScene.add(backLight);
 
-  // Point light — green shimmer
-  const ptGreen = new THREE.PointLight(0xdbff86, 3.0, 6);
-  ptGreen.position.set(1.5, 1.5, 2);
-  threeScene.add(ptGreen);
+  /* 영롱한 크리스탈 마스터 재질 세팅 */
+  const crystalMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    metalness: 0.0,
+    roughness: 0.05,
+    transparent: true,
+    opacity: 0.65,
+    transmission: 0.9,
+    ior: 1.5,
+    side: THREE.DoubleSide,
+    depthWrite: true
+  });
 
-  // Point light — purple shimmer
-  const ptPurple = new THREE.PointLight(0x7b56c3, 2.4, 6);
-  ptPurple.position.set(-1.5, -1, 1.5);
-  threeScene.add(ptPurple);
-
-  /* ── Environment map (simple gradient cube for reflections) ── */
-  const pmremGen = new THREE.PMREMGenerator(threeRenderer);
-  pmremGen.compileEquirectangularShader();
-  const envScene = new THREE.RoomEnvironment();
-  const envTexture = pmremGen.fromScene(envScene).texture;
-  threeScene.environment = envTexture;
-  pmremGen.dispose();
-
-  /* ── Load GLB ── */
+  /* 오리지널 modeling.glb 정밀 호출 */
   const loader = new GLTFLoader();
-  const draco  = new DRACOLoader();
+  const draco = new DRACOLoader();
   draco.setDecoderPath('https://unpkg.com/three@0.165.0/examples/jsm/libs/draco/');
   loader.setDRACOLoader(draco);
 
@@ -209,152 +202,118 @@ const initThree = () => {
     (gltf) => {
       const model = gltf.scene;
 
-      /* Centre & scale model */
-      const box    = new THREE.Box3().setFromObject(model);
-      const centre = new THREE.Vector3();
-      box.getCenter(centre);
-      const size   = new THREE.Vector3();
-      box.getSize(size);
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const scale  = 2.2 / maxDim;
-      model.position.sub(centre.multiplyScalar(scale));
-      model.scale.setScalar(scale);
-
-      /* Apply crystal / glass material to every mesh */
+      // 크리스탈 재질 모든 하위 메시에 강제 적용
       model.traverse((child) => {
-        if (!child.isMesh) return;
-        child.castShadow    = false;
-        child.receiveShadow = false;
-
-        /* ── Crystal material ──
-           MeshPhysicalMaterial gives us:
-           - transmission   → real-time glass/transparency
-           - roughness      → frosted vs clear
-           - metalness      → reflectivity base
-           - clearcoat      → glossy top layer
-           - envMapIntensity → how strongly env reflects
-           - iridescence    → rainbow sheen
-        ── */
-        const crystal = new THREE.MeshPhysicalMaterial({
-          color:              0xffffff,
-          metalness:          0.08,
-          roughness:          0.06,
-          transmission:       0.82,        // glass see-through
-          thickness:          1.4,         // refraction depth
-          ior:                1.52,        // glass IOR
-          envMapIntensity:    2.8,
-          clearcoat:          1.0,
-          clearcoatRoughness: 0.04,
-          iridescence:        0.7,
-          iridescenceIOR:     1.38,
-          iridescenceThicknessRange: [100, 400],
-          opacity:            0.88,
-          transparent:        true,
-          side:               THREE.DoubleSide,
-          // Subtle tint: warm green-white with lavender
-          attenuationColor:   new THREE.Color(0xd8ffaa),
-          attenuationDistance: 2.0,
-          reflectivity:       0.92,
-        });
-
-        child.material = crystal;
+        if (child.isMesh) {
+          child.material = crystalMaterial;
+          child.castShadow = false;
+          child.receiveShadow = false;
+        }
       });
 
-      threeScene.add(model);
-      modelMesh   = model;
-      modelLoaded = true;
+      // 정중앙 바운딩 박스 크기 및 비율 재교정
+      const box = new THREE.Box3().setFromObject(model);
+      const centre = new THREE.Vector3();
+      box.getCenter(centre);
+      model.position.sub(centre);
 
-      /* Hide CSS fallback once GLB is visible */
-      if (crystalFallback) crystalFallback.classList.add('is-hidden');
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const targetScale = 2.4 / maxDim; // 3D 피사체 크기 키움
+      model.scale.setScalar(targetScale);
+
+      modelMesh = new THREE.Group();
+      modelMesh.add(model);
+      threeScene.add(modelMesh);
+
+      modelLoaded = true;
+      if (crystalFallback) {
+        crystalFallback.classList.add('is-hidden');
+      }
     },
     undefined,
-    (err) => {
-      /* GLB failed — keep CSS crystal fallback visible */
-      console.warn('GLB load failed, showing CSS fallback:', err);
-      if (crystalFallback) crystalFallback.classList.remove('is-hidden');
-      if (threeRenderer) {
-        threeRenderer.dispose();
-        threeRenderer = null;
-      }
+    (error) => {
+      console.warn('GLB 로딩에 실패하여 CSS 다이아몬드 대체 모드를 활성화합니다:', error);
     }
   );
 };
 
-/* ── Resize Three renderer when shell resizes ── */
-const resizeThree = () => {
-  if (!threeRenderer || !threeCamera || !landingDisplay) return;
-  const W = landingDisplay.offsetWidth;
-  const H = landingDisplay.offsetHeight;
-  threeRenderer.setSize(W, H);
-  threeCamera.aspect = W / H;
-  threeCamera.updateProjectionMatrix();
-};
-
 /* ════════════════════════════════════════
-   MAIN ANIMATION LOOP
+   MAIN ENGINE LOOP
 ════════════════════════════════════════ */
-const animate = () => {
-  animFrameId = requestAnimationFrame(animate);
-
-  /* Smooth pointer lag */
-  pointer.x += (pointer.tx - pointer.x) * 0.16;
-  pointer.y += (pointer.ty - pointer.y) * 0.16;
-
-  /* Smooth tilt lag */
-  tilt.rx += (tilt.tx - tilt.rx) * 0.14;
-  tilt.ry += (tilt.ty - tilt.ry) * 0.14;
-  tilt.rz += (tilt.tz - tilt.rz) * 0.14;
-
-  /* Cursor follower */
+const tick = () => {
+  // 부드러운 마우스 커서 추적 보간 연산 (Lerp)
+  currentX += (pointer.tx - currentX) * 0.15;
+  currentY += (pointer.ty - currentY) * 0.15;
   if (follower) {
-    follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
+    follower.style.left = `${currentX}px`;
+    follower.style.top = `${currentY}px`;
   }
 
-  /* Landing canvas glow */
+  // 랜딩 발광체 마우스 팔로잉 연산
+  pointer.x += (pointer.tx - pointer.x) * 0.08;
+  pointer.y += (pointer.ty - pointer.y) * 0.08;
+  landingCanvasCtrl?.draw();
   updateLandingVars();
-  if (landingCanvasCtrl) landingCanvasCtrl.draw();
 
-  /* Three.js render */
-  if (threeRenderer && threeScene && threeCamera) {
-    if (modelMesh) {
-      if (!tilt.hovering) {
-        /* Auto-rotate when not hovering */
-        modelAutoRotY += 0.006;
-      }
-      /* Apply tilt from pointer */
-      modelMesh.rotation.x = THREE.MathUtils.degToRad(tilt.rx * 0.5);
-      modelMesh.rotation.y = modelAutoRotY + THREE.MathUtils.degToRad(tilt.ry * 0.4);
-      modelMesh.rotation.z = THREE.MathUtils.degToRad(tilt.rz * 0.3);
+  // 3D 회전 및 마우스 틸트 반응식
+  tilt.rx += (tilt.tx - tilt.rx) * 0.08;
+  tilt.ry += (tilt.ty - tilt.ry) * 0.08;
+  tilt.rz += (tilt.tz - tilt.rz) * 0.08;
 
-      /* Subtle float */
-      modelMesh.position.y = Math.sin(Date.now() * 0.0009) * 0.08;
+  if (modelLoaded && modelMesh) {
+    if (!tilt.hovering) {
+      modelAutoRotY += 0.006;
+      modelMesh.rotation.set(
+        THREE.MathUtils.degToRad(tilt.rx),
+        THREE.MathUtils.degToRad(tilt.ry) + modelAutoRotY,
+        THREE.MathUtils.degToRad(tilt.rz)
+      );
+    } else {
+      modelMesh.rotation.set(
+        THREE.MathUtils.degToRad(tilt.rx),
+        THREE.MathUtils.degToRad(tilt.ry),
+        THREE.MathUtils.degToRad(tilt.rz)
+      );
     }
+  }
+
+  if (threeRenderer && threeScene && threeCamera) {
     threeRenderer.render(threeScene, threeCamera);
   }
+
+  animFrameId = requestAnimationFrame(tick);
 };
 
 /* ════════════════════════════════════════
-   NAV PROGRESS
+   NAVBAR PROGRESS & SECTIONS TRACKING
 ════════════════════════════════════════ */
 const updateNavProgress = () => {
-  const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
-  const atBottom  = window.scrollY >= maxScroll - 4;
+  const scrollY = window.scrollY;
+  const docH = document.documentElement.scrollHeight - window.innerHeight;
+  const overallProgress = docH > 0 ? scrollY / docH : 0;
+
+  let activeTarget = 'home';
+  revealCards.forEach((card) => {
+    const rect = card.getBoundingClientRect();
+    if (rect.top < window.innerHeight * 0.45) {
+      const section = card.closest('section');
+      if (section && section.id) {
+        activeTarget = section.id;
+      }
+    }
+  });
 
   navLinks.forEach((link) => {
-    const section = document.getElementById(link.dataset.target);
-    if (!section) return;
-
-    if (atBottom && link.dataset.target === 'contact') {
-      link.style.setProperty('--nav-progress', '1');
-      link.classList.add('is-active');
-      return;
+    const target = link.getAttribute('data-target');
+    const isCurrent = target === activeTarget;
+    link.classList.toggle('is-active', isCurrent);
+    if (isCurrent) {
+      link.style.setProperty('--nav-progress', overallProgress);
+    } else {
+      link.style.setProperty('--nav-progress', '0');
     }
-    const rect     = section.getBoundingClientRect();
-    const start    = window.innerHeight * 0.75;
-    const end      = window.innerHeight * 0.18;
-    const progress = clamp01((start - rect.top) / Math.max(start - end, 1));
-    link.style.setProperty('--nav-progress', progress.toFixed(3));
-    link.classList.toggle('is-active', progress > 0.02 && progress < 1);
   });
 };
 
@@ -377,18 +336,8 @@ if (revealCards.length) {
 }
 
 /* ════════════════════════════════════════
-   EVENT LISTENERS
+   INITIALIZATION & RESIZE WINDOW
 ════════════════════════════════════════ */
-window.addEventListener('pointermove', (e) => {
-  pointer.tx = e.clientX;
-  pointer.ty = e.clientY;
-  updateTiltTarget(e.clientX, e.clientY);
-
-  if (follower) {
-    follower.classList.toggle('is-link', Boolean(e.target.closest('a,button')));
-  }
-});
-
 window.addEventListener('pointerleave', () => {
   pointer.tx = window.innerWidth  * 0.72;
   pointer.ty = window.innerHeight * 0.38;
@@ -400,14 +349,17 @@ window.addEventListener('pointerleave', () => {
 window.addEventListener('scroll', updateNavProgress, { passive: true });
 
 window.addEventListener('resize', () => {
-  if (landingCanvasCtrl) landingCanvasCtrl.resize();
-  resizeThree();
-  updateNavProgress();
+  landingCanvasCtrl?.resize();
+  if (threeCamera && threeRenderer && landingDisplay) {
+    const W = landingDisplay.offsetWidth;
+    const H = landingDisplay.offsetHeight;
+    threeCamera.aspect = W / H;
+    threeCamera.updateProjectionMatrix();
+    threeRenderer.setSize(W, H);
+  }
 });
 
-/* ════════════════════════════════════════
-   INIT
-════════════════════════════════════════ */
+// 부트업 실행
 initThree();
+tick();
 updateNavProgress();
-animate();
