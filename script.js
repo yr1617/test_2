@@ -282,3 +282,26 @@ window.addEventListener('resize', () => {
     threeCamera.updateProjectionMatrix();
   }
 });
+/* ════════════════════════════════════════
+    상단 메뉴바 스크롤 진행도(Active) 연동 로직
+════════════════════════════════════════ */
+window.addEventListener("scroll", () => {
+  const scrollTop = window.scrollY || document.documentElement.scrollTop;
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+  
+  // 전체 스크롤 진행 비율 계산 (0 ~ 1)
+  const scrollPercentage = docHeight > 0 ? scrollTop / docHeight : 0;
+
+  // 상단 메뉴바의 모든 링크를 찾아 하단 게이지와 active 상태 업데이트
+  document.querySelectorAll(".topnav a").forEach((link) => {
+    // 1단계에서 CSS에 추가한 --nav-progress 변수에 수치를 실시간으로 주입
+    link.style.setProperty("--nav-progress", scrollPercentage);
+    
+    // 스크롤이 조금이라도 내려가면 active 클래스를 켜서 텍스트 불빛 활성화
+    if (scrollPercentage > 0.01) {
+      link.classList.add("active");
+    } else {
+      link.classList.remove("active");
+    }
+  });
+});
