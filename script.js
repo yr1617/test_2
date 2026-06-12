@@ -13,6 +13,16 @@ const crystalFallback = document.querySelector('#crystal-fallback');
 const follower        = document.querySelector('.cursor-follower');
 const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li');
 
+// 💡 [초긴급 조치] 아래 콘텐츠가 절대 가려지지 않도록 Canvas와 주변 레이어 CSS 강제 투명화
+if (modelCanvas) {
+  modelCanvas.style.backgroundColor = 'transparent';
+  modelCanvas.style.mixBlendMode = 'screen'; // 검은 배경판을 강제로 날려버리는 블렌딩 모드
+}
+if (landingDisplay) {
+  landingDisplay.style.background = 'transparent';
+  landingDisplay.style.overflow = 'visible';
+}
+
 /* ════════════════════════════════════════
     INTERACTION STATE
 ════════════════════════════════════════ */
@@ -90,53 +100,46 @@ let animFrameId   = null;
 const initThree = () => {
   if (!modelCanvas) return;
 
-  if (animFrameId) {
-    cancelAnimationFrame(animFrameId);
-    animFrameId = null;
-  }
-  if (threeRenderer) {
-    threeRenderer.dispose();
-    threeRenderer = null;
-  }
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+  if (threeRenderer) threeRenderer.dispose();
 
   const shell = landingDisplay || { offsetWidth: window.innerWidth, offsetHeight: window.innerHeight };
   const W = shell.offsetWidth;
   const H = shell.offsetHeight;
 
+  // 렌더러 설정 리셋 (alpha 필수)
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
-    alpha:       true, // 배경 투명화 필수
-    antialias:   true,
-    powerPreference: 'high-performance',
+    alpha:       true, 
+    antialias:   true
   });
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   threeRenderer.setSize(W, H);
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
-  
-  threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  threeRenderer.toneMappingExposure = 1.3; 
 
   threeScene = new THREE.Scene();
 
-  threeCamera = new THREE.PerspectiveCamera(26, W / H, 0.1, 100);
-  threeCamera.position.set(0, 0, 4.6); 
+  // 구도 리셋
+  threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
+  threeCamera.position.set(0, 0, 4.5); 
 
-  // 오로라 광택용 3점 조명 세팅
-  const ambient = new THREE.AmbientLight(0xffffff, 1.2); 
+  // 조명 기본 배치
+  const ambient = new THREE.AmbientLight(0xffffff, 1.0); 
   threeScene.add(ambient);
 
-  const mainLight = new THREE.DirectionalLight(0xffffff, 3.0);
+  const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
   mainLight.position.set(5, 5, 4);
   threeScene.add(mainLight);
 
-  const laserMagenta = new THREE.DirectionalLight(0xff00cc, 2.0); 
-  laserMagenta.position.set(-4, 3, 3);
-  threeScene.add(laserMagenta);
+  const sideLight1 = new THREE.DirectionalLight(0xff00bb, 1.5); 
+  sideLight1.position.set(-5, 3, 2);
+  threeScene.add(sideLight1);
 
-  const laserCyan = new THREE.DirectionalLight(0x00ffff, 2.0); 
-  laserCyan.position.set(3, -4, 3);
-  threeScene.add(laserCyan);
+  const sideLight2 = new THREE.DirectionalLight(0x00f6ff, 1.5); 
+  sideLight2.position.set(3, -5, 2);
+  threeScene.add(sideLight2);
 
+  // 로더 가동
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
@@ -146,32 +149,8 @@ const initThree = () => {
     './modeling.glb',
     (gltf) => {
       const model = gltf.scene;
-      
-      // 바운딩 박스 계산 전에 화면을 가리는 거대 배경판 메쉬들을 완전히 걸러내기
-      const meshesToLayer = [];
-      model.traverse((child) => {
-        if (child.isMesh) {
-          // 💡 핵심: 이름에 'plane', 'bg', 'ground', 'floor' 등이 들어가거나 
-          // 가로세로가 비정상적으로 거대해서 화면을 가리는 판때기 메쉬는 무대에서 제거합니다.
-          const name = child.name.toLowerCase();
-          if (name.includes('plane') || name.includes('bg') || name.includes('ground') || name.includes('canvas')) {
-            child.visible = false; 
-            return;
-          }
-          meshesToLayer.push(child);
-        }
-      });
 
-      // 진짜 '별' 오브젝트들만 모아서 크기 및 중앙 정렬 계산
-      if (meshesToLayer.length === 0) meshesToLayer.push(model);
-      
-      const tempGroup = new THREE.Group();
-      meshesToLayer.forEach(m => {
-        if(m.parent && m.parent !== model && m.parent !== tempGroup) {
-          // 원래 계층 유지 구조가 필요 없다면 안전하게 가시성만 확보
-        }
-      });
-
+      // 크기 조절 및 센터링
       const box    = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
@@ -179,32 +158,27 @@ const initThree = () => {
       box.getSize(size);
       
       const maxDim = Math.max(size.x, size.y, size.z);
-      const scale   = 1.9 / (maxDim || 1); 
+      const scale   = 1.8 / (maxDim || 1); 
       
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
-      
-      // 누워있던 원본 파일 기본 정면 정렬 각도
       model.rotation.set(Math.PI / 2.3, 0, 0); 
 
-      // 진짜 알맹이 별 메쉬에만 극강의 투명 프리즘 재질 주입
+      // 💡 [재질 초안 복구] 꼬이지 않는 확실한 반투명 유리 재질로 안전 세팅
       model.traverse((child) => {
-        if (!child.isMesh || child.visible === false) return;
+        if (!child.isMesh) return;
         
         if (child.material.map) child.material.map = null;
         
-        child.material = new THREE.MeshPhysicalMaterial({
-          color:              0xffffff,   
-          metalness:          0.0,        
-          roughness:          0.01,        // 지직거림의 원인인 표면 거칠기 면도하듯 깎아내기
-          transparent:        true,
-          transmission:       0.98,        // 완벽하게 뒤쪽 글씨들이 투과되어 보이도록 투과율 98% 세팅
-          ior:                2.417,       // 다이아몬드급 프리즘 굴절
-          thickness:          0.3,         
-          specularIntensity:  2.0,         
-          opacity:            1.0,
-          side:               THREE.DoubleSide, 
-          depthWrite:         true         // 투명 정렬 꼬임 방지
+        // 오류 위험이 있는 복잡한 물리 계산을 빼고 반투명도를 칼같이 강제 적용
+        child.material = new THREE.MeshStandardMaterial({
+          color:        0xffffff,
+          roughness:    0.05,
+          metalness:    0.1,
+          transparent:  true,
+          opacity:      0.45,             // 맑게 뚫려 보이도록 투명도 확실히 부여
+          side:         THREE.DoubleSide,
+          blending:     THREE.NormalBlending
         });
       });
 
@@ -214,22 +188,27 @@ const initThree = () => {
       
       if (crystalFallback) crystalFallback.style.display = 'none';
 
-      const siteLoader = document.querySelector('#site-loader');
-      if (siteLoader) {
-        setTimeout(() => {
-          siteLoader.classList.add('is-loaded');
-          siteLoader.style.opacity = '0';
-          setTimeout(() => siteLoader.style.display = 'none', 600);
-        }, 300);
-      }
+      // 💡 [중요] 어떤 에러가 나더라도 무조건 로딩창을 파괴하고 본문을 보여주는 안전장치
+      forceRemoveLoader();
     },
     undefined,
     (err) => {
-      console.warn("GLB 로드 에러", err);
-      const siteLoader = document.querySelector('#site-loader');
-      if (siteLoader) siteLoader.style.display = 'none';
+      console.warn("GLB 로드 실패", err);
+      forceRemoveLoader();
     }
   );
+};
+
+// 로딩창 강제 제거 함수 (본문 실종 방지)
+const forceRemoveLoader = () => {
+  const siteLoader = document.querySelector('#site-loader');
+  if (siteLoader) {
+    siteLoader.style.opacity = '0';
+    siteLoader.style.pointerEvents = 'none';
+    setTimeout(() => {
+      siteLoader.style.display = 'none';
+    }, 500);
+  }
 };
 
 const resizeThree = () => {
@@ -259,4 +238,75 @@ const animate = () => {
   if (threeRenderer && threeScene && threeCamera) {
     if (modelAnchor) {
       if (!rotationState.isDragging) {
-        modelAutoRotY
+        modelAutoRotY += 0.002;
+        rotationState.targetY += 0.002;
+      }
+      rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.08;
+      rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.08;
+
+      modelAnchor.rotation.x = rotationState.currentX;
+      modelAnchor.rotation.y = rotationState.currentY;
+    }
+    threeRenderer.render(threeScene, threeCamera);
+  }
+};
+
+/* ════════════════════════════════════════
+    DRAG EVENTS
+════════════════════════════════════════ */
+const setupDragEvents = () => {
+  if (!landingDisplay) return;
+
+  landingDisplay.addEventListener('pointerdown', (e) => {
+    rotationState.isDragging = true;
+    rotationState.previousMouseX = e.clientX;
+    rotationState.previousMouseY = e.clientY;
+  });
+
+  window.addEventListener('pointermove', (e) => {
+    pointer.tx = e.clientX;
+    pointer.ty = e.clientY;
+    if (!rotationState.isDragging || !modelAnchor) return;
+
+    const deltaX = e.clientX - rotationState.previousMouseX;
+    const deltaY = e.clientY - rotationState.previousMouseY;
+
+    rotationState.targetY += deltaX * 0.006;
+    rotationState.targetX += deltaY * 0.006;
+
+    rotationState.previousMouseX = e.clientX;
+    rotationState.previousMouseY = e.clientY;
+  });
+
+  window.addEventListener('pointerup', () => { rotationState.isDragging = false; });
+};
+
+/* ════════════════════════════════════════
+    INITIALIZE
+════════════════════════════════════════ */
+const initAll = () => {
+  if (window.__threeInitialized) return; 
+  window.__threeInitialized = true;
+
+  landingCanvasCtrl = setupLandingCanvas();
+  setupDragEvents(); 
+
+  highlightElements.forEach((el) => {
+    el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
+    el.addEventListener('mouseleave', () => el.classList.remove('is-hovered'));
+  });
+
+  initThree();
+  animate();
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAll);
+} else {
+  initAll();
+}
+
+window.addEventListener('resize', () => {
+  if (landingCanvasCtrl) landingCanvasCtrl.resize();
+  resizeThree();
+});
