@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QUIET BUT SOLID</title>
+    <title>YERIN CHOI | Portfolio</title>
     
     <link rel="stylesheet" href="./style.css">
     
@@ -15,6 +15,24 @@
         }
       }
     </script>
+
+    <style>
+        body {
+            overflow-y: auto !important; /* 스크롤 무조건 강제 허용 */
+            background-color: #101012 !important; /* 원래의 어두운 배경 고정 */
+        }
+        .landing {
+            position: relative;
+            width: 100%;
+            height: 100vh; /* 첫 화면만 3D 영역 차지 */
+        }
+        #landing-display {
+            pointer-events: none; /* 별 이외의 영역은 마우스가 관통하여 스크롤 되도록 설정 */
+        }
+        #model-canvas {
+            pointer-events: auto; /* 진짜 별을 드래그할 때만 마우스가 먹히도록 설정 */
+        }
+    </style>
 </head>
 <body>
 
@@ -34,27 +52,56 @@
         <canvas class="landing-canvas"></canvas>
         <div id="landing-display">
             <canvas id="model-canvas"></canvas>
-            <div id="crystal-fallback"></div>
         </div>
         <div class="cursor-follower"></div>
     </main>
 
     <div class="main-content">
+        
         <section id="profile" class="panel">
             <div class="hero-copy">
-                </div>
+                <p class="sub-title">QUIET BUT SOLID</p>
+                <h1>DESIGNER<br>YERIN CHOI</h1>
+                <p class="description">UI/UX Designer / Student Designer</p>
+            </div>
             <div class="reveal-card">
-                </div>
+                <h3>PROFILE</h3>
+                <ul>
+                    <li class="point-highlight">Name: 최예린 (Yerin Choi)</li>
+                    <li class="point-highlight">Motto: Quiet but Solid</li>
+                </ul>
+            </div>
         </section>
 
         <section id="project-type" class="accent-panel">
-            </section>
+            <h2>프로젝트 유형</h2>
+            <div class="project-grid">
+                <div class="card">UI/UX Design</div>
+                <div class="card">Interaction Design</div>
+                <div class="card">Branding</div>
+            </div>
+        </section>
 
-        <section id="career" class="panel">
-            </section>
+        <section id="main-project" class="panel">
+            <h2>주요 프로젝트</h2>
+            <div class="main-project-grid">
+                </div>
+        </section>
+
+        <section id="career" class="accent-panel">
+            <h2>CAREER & AWARDS</h2>
+            <div class="career-grid">
+                <ul>
+                    <li>2026 UI/UX 디자인 포트폴리오 프로젝트 진행 중</li>
+                </ul>
+            </div>
+        </section>
 
         <section id="contact" class="contact-section">
-            </section>
+            <h2>CONTACT</h2>
+            <p>함께 성장할 영감을 나누어주세요.</p>
+        </section>
+        
     </div>
 
     <script type="module" src="./script.js"></script>
