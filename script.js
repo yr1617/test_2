@@ -3,42 +3,14 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    DOM ELEMENT REFS & FORCE REVEAL
+    DOM ELEMENT REFS
 ════════════════════════════════════════ */
 const landing        = document.querySelector('.landing');
 const landingCanvas  = document.querySelector('.landing-canvas');
 const landingDisplay = document.querySelector('#landing-display');
 const modelCanvas    = document.querySelector('#model-canvas');   
-const crystalFallback = document.querySelector('#crystal-fallback');
 const follower        = document.querySelector('.cursor-follower');
 const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li');
-
-// 💡 [콘텐츠 강제 심폐소생] 3D와 상관없이 본문이 즉시 보이도록 레이어 투명도 및 클릭 잠금 해제
-if (modelCanvas) {
-  modelCanvas.style.backgroundColor = 'transparent';
-  modelCanvas.style.pointerEvents = 'auto'; // 마우스 드래그 먹통 해결
-}
-if (landingDisplay) {
-  landingDisplay.style.background = 'transparent';
-  landingDisplay.style.overflow = 'visible';
-  landingDisplay.style.pointerEvents = 'none'; // 하단 콘텐츠 클릭 방해 금지
-}
-
-// 혹시 모를 다른 이름의 로딩 레이어들까지 전부 강제 종료하는 킬러 함수
-const killAllLoaders = () => {
-  const loaders = document.querySelectorAll('#site-loader, .site-loader, [class*="loader"], [id*="loader"]');
-  loaders.forEach(loader => {
-    loader.style.opacity = '0';
-    loader.style.pointerEvents = 'none';
-    setTimeout(() => { loader.style.display = 'none'; }, 400);
-  });
-  // 숨겨진 본문 wrapper가 있다면 강제로 오픈
-  const mainContent = document.querySelector('.main-content, #app, #wrapper');
-  if (mainContent) {
-    mainContent.style.opacity = '1';
-    mainContent.style.visibility = 'visible';
-  }
-};
 
 /* ════════════════════════════════════════
     INTERACTION STATE
@@ -126,33 +98,36 @@ const initThree = () => {
 
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
-    alpha:       true, 
+    alpha:       true, // 배경 투명화 필수
     antialias:   true
   });
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   threeRenderer.setSize(W, H);
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  threeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+  threeRenderer.toneMappingExposure = 1.3;
 
   threeScene = new THREE.Scene();
 
-  threeCamera = new THREE.PerspectiveCamera(26, W / H, 0.1, 100);
-  threeCamera.position.set(0, 0, 4.6); 
+  // 구도 리셋
+  threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
+  threeCamera.position.set(0, 0, 4.5); 
 
-  // 조명 강화 (유리 광택 극대화)
-  const ambient = new THREE.AmbientLight(0xffffff, 1.5); 
+  // 조명 기본 배치 (유리 질감을 쨍하게 살려줄 광원들)
+  const ambient = new THREE.AmbientLight(0xffffff, 1.2); 
   threeScene.add(ambient);
 
-  const mainLight = new THREE.DirectionalLight(0xffffff, 3.5);
+  const mainLight = new THREE.DirectionalLight(0xffffff, 3.0);
   mainLight.position.set(5, 5, 4);
   threeScene.add(mainLight);
 
-  const neonMagenta = new THREE.DirectionalLight(0xff00bb, 2.0); 
-  neonMagenta.position.set(-5, 4, 3);
-  threeScene.add(neonMagenta);
+  const sideLight1 = new THREE.DirectionalLight(0xff00bb, 1.8); 
+  sideLight1.position.set(-5, 3, 2);
+  threeScene.add(sideLight1);
 
-  const neonCyan = new THREE.DirectionalLight(0x00f6ff, 2.0); 
-  neonCyan.position.set(4, -5, 3);
-  threeScene.add(neonCyan);
+  const sideLight2 = new THREE.DirectionalLight(0x00f6ff, 1.8); 
+  sideLight2.position.set(3, -5, 2);
+  threeScene.add(sideLight2);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -164,7 +139,6 @@ const initThree = () => {
     (gltf) => {
       const model = gltf.scene;
 
-      // 크기 조절 및 센터링
       const box    = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
@@ -172,7 +146,7 @@ const initThree = () => {
       box.getSize(size);
       
       const maxDim = Math.max(size.x, size.y, size.z);
-      const scale   = 1.9 / (maxDim || 1); 
+      const scale   = 1.8 / (maxDim || 1); 
       
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
@@ -182,17 +156,16 @@ const initThree = () => {
       model.traverse((child) => {
         if (!child.isMesh) return;
         
-        // 원본의 텁텁한 파스텔 색상 텍스처 맵을 완전히 삭제하여 투명도 확보
         if (child.material.map) child.material.map = null;
         
         child.material = new THREE.MeshPhysicalMaterial({
           color:              0xffffff,   
           metalness:          0.0,        
-          roughness:          0.0,        // 노이즈 완벽 면도
+          roughness:          0.01,        // 지직거림 완전 면도
           transparent:        true,
-          transmission:       0.95,       // 투명도 95% 강제 주입
-          ior:                2.2,        // 크리스탈 굴절률
-          thickness:          0.4,        // 두께감 부여
+          transmission:       0.96,       // 통유리 투과율
+          ior:                2.42,       // 크리스탈 굴절률
+          thickness:          0.4,         
           opacity:            1.0,
           side:               THREE.DoubleSide, 
           depthWrite:         true         
@@ -204,14 +177,27 @@ const initThree = () => {
       threeScene.add(modelAnchor);
       
       if (crystalFallback) crystalFallback.style.display = 'none';
-      killAllLoaders();
+      revealHiddenContent();
     },
     undefined,
     (err) => {
       console.warn("GLB 로드 실패", err);
-      killAllLoaders();
+      revealHiddenContent();
     }
   );
+};
+
+// 💡 [핵심 안전장치] 본문 실종 박멸 함수
+const revealHiddenContent = () => {
+  const loaders = document.querySelectorAll('#site-loader, .site-loader, [id*="loader"], [class*="loader"]');
+  loaders.forEach(l => l.remove()); // 로딩막 물리적 파괴
+  // CSS가 노출을 보장하지만, 자바스크립트로 한 번 더 강제 봉인 해제
+  const elementsToReveal = document.querySelectorAll('.hero-copy, .reveal-card, .panel, .accent-panel, .main-project-grid, .project-grid');
+  elementsToReveal.forEach(el => {
+    el.style.opacity = '1';
+    el.style.visibility = 'visible';
+    el.style.display = 'block';
+  });
 };
 
 const resizeThree = () => {
@@ -222,19 +208,10 @@ const resizeThree = () => {
   threeCamera.updateProjectionMatrix();
 };
 
-/* ════════════════════════════════════════
-    MAIN ANIMATION LOOP
-════════════════════════════════════════ */
 const animate = () => {
   animFrameId = requestAnimationFrame(animate);
-
   pointer.x += (pointer.tx - pointer.x) * 0.08;
   pointer.y += (pointer.ty - pointer.y) * 0.08;
-
-  if (follower) {
-    follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
-  }
-
   updateLandingVars();
   if (landingCanvasCtrl) landingCanvasCtrl.draw();
 
@@ -246,39 +223,33 @@ const animate = () => {
       }
       rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.08;
       rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.08;
-
       modelAnchor.rotation.x = rotationState.currentX;
       modelAnchor.rotation.y = rotationState.currentY;
-      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.005; // 부드러운 위아래 둥둥 효과
     }
     threeRenderer.render(threeScene, threeCamera);
   }
 };
 
-/* ════════════════════════════════════════
-    DRAG EVENTS (클릭 타겟 수정)
-════════════════════════════════════════ */
 const setupDragEvents = () => {
-  // 드래그 이벤트를 캔버스 자체에 직접 걸어 어떤 레이어 방해도 안 받게 만듭/니다.
-  const targetElement = modelCanvas || landingDisplay || window;
-
-  targetElement.addEventListener('pointerdown', (e) => {
-    rotationState.isDragging = true;
-    rotationState.previousMouseX = e.clientX;
-    rotationState.previousMouseY = e.clientY;
+  // 이벤트 타겟을 가장 확실한 '창(window)'으로 변경하여 어떤 레이어 꼬임도 무시
+  window.addEventListener('pointerdown', (e) => {
+    // 💡 캔버스 영역 위에서만 드래그 시작하게 보완
+    const rect = modelCanvas.getBoundingClientRect();
+    if(e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+        rotationState.isDragging = true;
+        rotationState.previousMouseX = e.clientX;
+        rotationState.previousMouseY = e.clientY;
+    }
   });
 
   window.addEventListener('pointermove', (e) => {
     pointer.tx = e.clientX;
     pointer.ty = e.clientY;
     if (!rotationState.isDragging || !modelAnchor) return;
-
     const deltaX = e.clientX - rotationState.previousMouseX;
     const deltaY = e.clientY - rotationState.previousMouseY;
-
     rotationState.targetY += deltaX * 0.006;
     rotationState.targetX += deltaY * 0.006;
-
     rotationState.previousMouseX = e.clientX;
     rotationState.previousMouseY = e.clientY;
   });
@@ -286,33 +257,21 @@ const setupDragEvents = () => {
   window.addEventListener('pointerup', () => { rotationState.isDragging = false; });
 };
 
-/* ════════════════════════════════════════
-    INITIALIZE
-════════════════════════════════════════ */
 const initAll = () => {
   if (window.__threeInitialized) return; 
   window.__threeInitialized = true;
-
   landingCanvasCtrl = setupLandingCanvas();
   setupDragEvents(); 
-
-  highlightElements.forEach((el) => {
+  highlightElements.forEach(el => {
     el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
     el.addEventListener('mouseleave', () => el.classList.remove('is-hovered'));
   });
-
   initThree();
   animate();
-
-  // 💡 [핵심 안전장치] 3D 로딩 속도와 무관하게 0.1초 뒤 무조건 로딩 레이어를 부수고 본문을 강제 개방
-  setTimeout(killAllLoaders, 100);
 };
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAll);
-} else {
-  initAll();
-}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initAll);
+else initAll();
 
 window.addEventListener('resize', () => {
   if (landingCanvasCtrl) landingCanvasCtrl.resize();
