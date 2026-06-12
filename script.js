@@ -150,3 +150,210 @@ const initThree = () => {
   threeScene.add(ambient);
 
   const keyLight = new THREE.DirectionalLight(0xfff8f0, 3.0);
+  keyLight.position.set(5, 5, 4);
+  threeScene.add(keyLight);
+
+  const rimLight = new THREE.DirectionalLight(0xaae961, 2.5); 
+  rimLight.position.set(-5, 3, -2);
+  threeScene.add(rimLight);
+
+  const backLight = new THREE.DirectionalLight(0xb18bff, 2.0); 
+  backLight.position.set(-2, -3, -3);
+  threeScene.add(backLight);
+
+  const loader = new GLTFLoader();
+  const draco  = new DRACOLoader();
+  draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+  loader.setDRACOLoader(draco);
+
+  loader.load(
+    './modeling.glb',
+    (gltf) => {
+      const model = gltf.scene;
+      const box    = new THREE.Box3().setFromObject(model);
+      const centre = new THREE.Vector3();
+      box.getCenter(centre);
+      const size   = new THREE.Vector3();
+      box.getSize(size);
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scale   = 2.0 / maxDim; 
+      
+      model.position.sub(centre.multiplyScalar(scale));
+      model.scale.setScalar(scale);
+
+      model.traverse((child) => {
+        if (!child.isMesh) return;
+        child.material = new THREE.MeshPhysicalMaterial({
+          color:              0xffffff,
+          metalness:          0.1,
+          roughness:          0.05,       
+          transmission:       0.92,       
+          thickness:          1.2,        
+          ior:                1.52,       
+          clearcoat:          1.0,
+          clearcoatRoughness: 0.02,
+          iridescence:        0.85,       
+          iridescenceIOR:     1.4,
+          opacity:            0.95,
+          transparent:        true,
+          side:               THREE.DoubleSide,
+        });
+      });
+
+      // 복잡한 Group 래퍼 구조를 생략하고 씬에 다이렉트로 주입하여 로딩 꼬임 방지
+      threeScene.add(model);
+      modelMesh   = model; 
+      modelLoaded = true;
+      
+      // 모델 로드가 확실히 끝났으므로 대체용 큐브를 확실하게 강제 숨김 처리
+      if (crystalFallback) crystalFallback.style.display = 'none';
+    },
+    undefined,
+    (err) => {
+      console.warn("GLB 로드 실패", err);
+      if (crystalFallback) crystalFallback.style.display = 'block';
+    }
+  );
+};
+
+const resizeThree = () => {
+  if (!threeRenderer || !threeCamera || !landingDisplay) return;
+  const W = landingDisplay.offsetWidth;
+  const H = landingDisplay.offsetHeight;
+  threeRenderer.setSize(W, H);
+  threeCamera.aspect = W / H;
+  threeCamera.updateProjectionMatrix();
+};
+
+/* ════════════════════════════════════════
+    MAIN ANIMATION LOOP
+════════════════════════════════════════ */
+const animate = () => {
+  animFrameId = requestAnimationFrame(animate);
+
+  pointer.x += (pointer.tx - pointer.x) * 0.12;
+  pointer.y += (pointer.ty - pointer.y) * 0.12;
+
+  tilt.rx += (tilt.tx - tilt.rx) * 0.1;
+  tilt.ry += (tilt.ty - tilt.ry) * 0.1;
+  tilt.rz += (tilt.tz - tilt.rz) * 0.1;
+
+  if (follower) {
+    follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
+  }
+
+  updateLandingVars();
+  if (landingCanvasCtrl) landingCanvasCtrl.draw();
+
+  if (threeRenderer && threeScene && threeCamera) {
+    if (modelMesh) {
+      if (!tilt.hovering) {
+        modelAutoRotY += 0.003; 
+      } else {
+        modelAutoRotY += (0 - modelAutoRotY) * 0.05;
+      }
+      
+      // 🚨 [축 보정 매트릭스] 외부 그룹 없이 정면 앵글(Math.PI / 2.2)을 유지하며 호버 효과 연동
+      modelMesh.rotation.x = THREE.MathUtils.degToRad(tilt.rx) + (Math.PI / 2.2);
+      modelMesh.rotation.y = modelAutoRotY + THREE.MathUtils.degToRad(tilt.ry);
+      modelMesh.rotation.z = THREE.MathUtils.degToRad(tilt.rz) + (Math.PI / 4);
+      
+      modelMesh.position.y = Math.sin(Date.now() * 0.001) * 0.03;
+    }
+    threeRenderer.render(threeScene, threeCamera);
+  }
+};
+
+/* ════════════════════════════════════════
+    NAV PROGRESS
+════════════════════════════════════════ */
+const updateNavProgress = () => {
+  const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
+  const atBottom  = window.scrollY >= maxScroll - 4;
+
+  navLinks.forEach((link) => {
+    const section = document.getElementById(link.dataset.target);
+    if (!section) return;
+
+    if (atBottom && link.dataset.target === 'contact') {
+      link.style.setProperty('--nav-progress', '1');
+      link.classList.add('is-active');
+      return;
+    }
+    const rect     = section.getBoundingClientRect();
+    const start    = window.innerHeight * 0.75;
+    const end      = window.innerHeight * 0.18;
+    const progress = clamp01((start - rect.top) / Math.max(start - end, 1));
+    link.style.setProperty('--nav-progress', progress.toFixed(3));
+    link.classList.toggle('is-active', progress > 0.02 && progress < 1);
+  });
+};
+
+/* ════════════════════════════════════════
+    INITIALIZE ENTRY
+════════════════════════════════════════ */
+const initAll = () => {
+  landingCanvasCtrl = setupLandingCanvas();
+
+  highlightElements.forEach((el) => {
+    el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
+    el.addEventListener('mouseleave', () => el.classList.remove('is-hovered'));
+  });
+
+  const revealCards = document.querySelectorAll('.reveal-card');
+  if (revealCards.length) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
+    );
+    revealCards.forEach(card => observer.observe(card));
+  }
+
+  initThree();
+  updateNavProgress();
+  animate();
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAll);
+} else {
+  initAll();
+}
+
+/* ════════════════════════════════════════
+    EVENT LISTENERS
+════════════════════════════════════════ */
+window.addEventListener('pointermove', (e) => {
+  pointer.tx = e.clientX;
+  pointer.ty = e.clientY;
+  updateTiltTarget(e.clientX, e.clientY);
+
+  if (follower) {
+    const target = e.target;
+    const isInteractive = target.closest('a, button, .project-card, .main-project-card, .scroll-link, li, .point-highlight');
+    follower.classList.toggle('is-link', !!isInteractive);
+  }
+});
+
+window.addEventListener('pointerleave', () => {
+  pointer.tx = window.innerWidth  * 0.5;
+  pointer.ty = window.innerHeight * 0.5;
+  tilt.hovering = false;
+  tilt.tx = -5; tilt.ty = 0; tilt.tz = 0;
+  landingDisplay?.classList.remove('is-hovering');
+  if (follower) follower.classList.remove('is-link');
+});
+
+window.addEventListener('scroll', updateNavProgress, { passive: true });
+window.addEventListener('resize', () => {
+  if (landingCanvasCtrl) landingCanvasCtrl.resize();
+  resizeThree();
+  updateNavProgress();
+});
