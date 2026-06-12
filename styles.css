@@ -768,3 +768,60 @@ body {
     backface-visibility: hidden;
     will-change: transform;
 }
+/* ==========================================
+   ✨ 예린님 포트폴리오 상단바 정상화 및 콘텐츠 복구 스타일
+   ========================================== */
+
+/* 1. 상단바 세로폭 정상화 및 완벽 고정 */
+header, .topbar, .navbar, .nav-container, #header {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 80px !important; /* 세로폭이 줄어들지 않도록 80px로 안정적으로 고정 */
+    min-height: 80px !important;
+    z-index: 99999 !important; /* 모든 본문 콘텐츠보다 최상위에 위치 */
+    background-color: rgba(16, 16, 18, 0.9) !important; /* 반투명 다크 배경 */
+    backdrop-filter: blur(12px) !important; /* 배경 블러 효과 */
+    display: flex !important;
+    align-items: center !important;
+    box-sizing: border-box !important;
+}
+
+/* 2. 유실된 본문 콘텐츠 레이어 무조건 복구 및 노출 */
+main, .main-content, #main-content, section, .grid-container {
+    position: relative !important;
+    z-index: 10 !important; /* 3D 캔버스 뒤로 파묻히지 않게 위로 올림 */
+    display: block !important; /* 숨겨진 콘텐츠 강제 노출 */
+    visibility: visible !important;
+    opacity: 1 !important;
+    padding-top: 100px !important; /* 상단바가 콘텐츠를 가리지 않도록 넉넉한 여백 확보 */
+}
+
+/* 3. 첫 화면(Landing)과 3D 영역이 본문을 짓누르지 않도록 제한 */
+.landing, #landing-display {
+    position: relative !important;
+    height: 100vh !important;
+    min-height: 600px !important;
+    overflow: hidden !important;
+    z-index: 1 !important;
+}
+
+/* 4. 스크롤 렉 및 흰색 화면 깜빡임 차단 (GPU 가속 활성화) */
+html, body {
+    background-color: #101012 !important;
+    overflow-y: auto !important;
+    height: auto !important;
+}
+
+body * {
+    will-change: transform;
+    transform: translateZ(0); /* 스크롤할 때 브라우저 찢어짐 현상 방지 */
+}
+
+/* 5. 마우스 커서가 3D 영역을 벗어나도 전 영역에서 정상 작동 */
+.cursor-follower {
+    position: fixed !important;
+    pointer-events: none !important;
+    z-index: 100000 !important; 
+}
