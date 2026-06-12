@@ -11,11 +11,13 @@ const landingDisplay = document.querySelector('#landing-display');
 const modelCanvas    = document.querySelector('#model-canvas');
 const crystalFallback = document.querySelector('#crystal-fallback');
 const follower        = document.querySelector('.cursor-follower');
-const revealCards    = document.querySelectorAll('.reveal-card');
 const navLinks       = document.querySelectorAll('.topnav a[data-target]');
 
+// 예린님이 원하신 '마우스 호버 시 형광펜 효과'를 줄 대상들 (.reveal-card 내부의 li나 강조 단어)
+const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li');
+
 /* ════════════════════════════════════════
-    POINTER & TILT STATE
+    POINTER & TILT STATE (원본 앵글 유지)
 ════════════════════════════════════════ */
 const pointer = {
   x:  window.innerWidth  * 0.5,
@@ -111,7 +113,7 @@ const updateTiltTarget = (clientX, clientY) => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (오류 원인 완벽 제거 버전)
+    THREE.JS ENGINE (안전 피드백 로딩)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -146,8 +148,8 @@ const initThree = () => {
   threeCamera = new THREE.PerspectiveCamera(35, W / H, 0.1, 100);
   threeCamera.position.set(0, 0.0, 3.8); 
 
-  // [수정] 룸 인바이런먼트 에러 라인을 삭제하고, 고품질 스튜디오 조명 세팅으로 전면 교체
-  const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+  // 조명 강도를 확보하여 유리/크리스탈 질감 극대화
+  const ambient = new THREE.AmbientLight(0xffffff, 0.9);
   threeScene.add(ambient);
 
   const keyLight = new THREE.DirectionalLight(0xfff8f0, 3.0);
@@ -162,15 +164,12 @@ const initThree = () => {
   backLight.position.set(-2, -3, -3);
   threeScene.add(backLight);
 
-  const fillLight = new THREE.PointLight(0xffffff, 1.5, 10);
-  fillLight.position.set(0, 2, 2);
-  threeScene.add(fillLight);
-
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
   loader.setDRACOLoader(draco);
 
+  // 무조건 현재 폴더 기준 최상위 경로의 modeling.glb 로드
   loader.load(
     './modeling.glb',
     (gltf) => {
@@ -192,15 +191,13 @@ const initThree = () => {
           color:              0xffffff,
           metalness:          0.1,
           roughness:          0.05,       
-          transmission:       0.90,       
+          transmission:       0.92,       
           thickness:          1.2,        
           ior:                1.52,       
-          envMapIntensity:    1.5,
           clearcoat:          1.0,
           clearcoatRoughness: 0.02,
           iridescence:        0.85,       
           iridescenceIOR:     1.4,
-          iridescenceThicknessRange: [100, 400],
           opacity:            0.95,
           transparent:        true,
           side:               THREE.DoubleSide,
@@ -214,7 +211,7 @@ const initThree = () => {
     },
     undefined,
     (err) => {
-      console.warn('GLB load failed, loading fallback:', err);
+      console.warn("GLB 파일 로드 실패 - 대체 박스를 활성화합니다.", err);
       if (crystalFallback) crystalFallback.classList.remove('is-hidden');
     }
   );
@@ -268,107 +265,4 @@ const animate = () => {
 ════════════════════════════════════════ */
 const updateNavProgress = () => {
   const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
-  const atBottom  = window.scrollY >= maxScroll - 4;
-
-  navLinks.forEach((link) => {
-    const section = document.getElementById(link.dataset.target);
-    if (!section) return;
-
-    if (atBottom && link.dataset.target === 'contact') {
-      link.style.setProperty('--nav-progress', '1');
-      link.classList.add('is-active');
-      return;
-    }
-    const rect     = section.getBoundingClientRect();
-    const start    = window.innerHeight * 0.75;
-    const end      = window.innerHeight * 0.18;
-    const progress = clamp01((start - rect.top) / Math.max(start - end, 1));
-    link.style.setProperty('--nav-progress', progress.toFixed(3));
-    link.classList.toggle('is-active', progress > 0.02 && progress < 1);
-  });
-};
-
-/* ════════════════════════════════════════
-    SCROLL REVEAL & HIGHLIGHT OBSERVER (형광펜 모션 싱크 최적화)
-════════════════════════════════════════ */
-const highlightObserver = new IntersectionObserver(
-  (entries) => {
-    entries.forEach((entry) => {
-      // 해당 텍스트가 뷰포트 중간 영역에 실질적으로 들어왔을 때만 애니메이션 작동
-      if (entry.isIntersecting) {
-        entry.target.classList.add('is-highlighted');
-      }
-    });
-  },
-  { 
-    threshold: 0.1, 
-    rootMargin: '0px 0px -15% 0px' // 하단에서 15% 정도 올라왔을 때 자연스럽게 슥 그어지도록 오프셋 조절
-  }
-);
-
-/* ════════════════════════════════════════
-    INITIALIZE ENTRY
-════════════════════════════════════════ */
-const initAll = () => {
-  landingCanvasCtrl = setupLandingCanvas();
-  
-  document.querySelectorAll('.point-highlight').forEach((el) => {
-    highlightObserver.observe(el);
-  });
-
-  if (revealCards.length) {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('is-visible');
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
-    );
-    revealCards.forEach(card => observer.observe(card));
-  }
-
-  initThree();
-  updateNavProgress();
-  animate();
-};
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAll);
-} else {
-  initAll();
-}
-
-/* ════════════════════════════════════════
-    EVENT LISTENERS
-════════════════════════════════════════ */
-window.addEventListener('pointermove', (e) => {
-  pointer.tx = e.clientX;
-  pointer.ty = e.clientY;
-  updateTiltTarget(e.clientX, e.clientY);
-
-  if (follower) {
-    const target = e.target;
-    const isInteractive = target.closest('a, button, .project-card, .main-project-card, .scroll-link');
-    follower.classList.toggle('is-link', !!isInteractive);
-  }
-});
-
-window.addEventListener('pointerleave', () => {
-  pointer.tx = window.innerWidth  * 0.5;
-  pointer.ty = window.innerHeight * 0.5;
-  tilt.hovering = false;
-  tilt.tx = -8; tilt.ty = 35; tilt.tz = 0;
-  landingDisplay?.classList.remove('is-hovering');
-  if (follower) follower.classList.remove('is-link');
-});
-
-window.addEventListener('scroll', updateNavProgress, { passive: true });
-window.addEventListener('resize', () => {
-  if (landingCanvasCtrl) landingCanvasCtrl.resize();
-  resizeThree();
-  updateNavProgress();
-});
+  const at
