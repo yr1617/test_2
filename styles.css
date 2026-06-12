@@ -704,3 +704,37 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
   transform: scale(1.05);
   visibility: hidden;
 }
+/* 💡 [긴급 조치] Three.js 영역이 본문을 가리지 못하게 마우스 이벤트 전면 차단 */
+#landing-display {
+    pointer-events: none !important;
+    z-index: 10 !important;
+    overflow: visible !important;
+    background: transparent !important;
+}
+
+/* 💡 [핵심] 마우스 드래그를 해야 하는 '알맹이' 캔버스만 마우스를 먹게 설정 */
+#model-canvas {
+    pointer-events: auto !important;
+    background: transparent !important;
+    mix-blend-mode: screen !important; /* 지직거리는 파스텔 배경판 강제 삭제 */
+    z-index: 10 !important;
+}
+
+/* 💡 [최후의 수단] 에러로 인해 숨겨져 있을지 모르는 모든 본문 콘텐츠를 강제 노출 */
+.topbar, 
+.hero-copy, .reveal-card, 
+.project-grid, .main-project-grid, 
+.career-grid, .panel, .accent-panel, 
+.contact-section {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    display: flex !important; /* 원래 flex였던 레이아웃 복원 */
+}
+
+/* 💡 본문을 잠그고 있던 로딩 레이어를 아예 물리적으로 소멸 */
+#site-loader, .site-loader, [id*="loader"], [class*="loader"] {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
