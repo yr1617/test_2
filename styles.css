@@ -623,3 +623,31 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
   .reveal-card,.reveal-card.is-visible,.page-spotlight,.cursor-follower{transition:none !important;animation:none !important;}
   .reveal-card{opacity:1;transform:none;}
 }
+/* ⚡ 1. 모델링 3D 애니메이션 하드웨어 GPU 가속 강제 (부드럽게 최적화) */
+.crystal-fallback {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* 🔓 2. 겹쳐서 유실된 본문 영역 강제 격리 및 스크롤 복구 */
+.content-shell {
+  position: relative !important;
+  clear: both !important;
+  margin-top: 120px !important; /* 랜딩 화면과 본문이 겹치지 않게 완전 격리 */
+  z-index: 10 !important;
+}
+
+/* 🎯 3. 자바스크립트 바인딩용 스크롤 채우기 베이스 스타일 */
+.topnav a {
+  position: relative;
+}
+.topnav a .nav-progress::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0%; /* 기본값 0 */
+  background: linear-gradient(90deg, var(--sub), rgba(255,255,255,0.92));
+  transition: width 0.15s linear !important; /* 스크롤 속도에 즉각 반응하도록 변경 */
+}
