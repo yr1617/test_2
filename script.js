@@ -88,7 +88,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    TILT TARGET UPDATE (감도 5배 대폭 상향 조정 및 완전 정방향)
+    TILT TARGET UPDATE (감도 조절: 덜 휙휙 돌고 부드럽게)
 ════════════════════════════════════════ */
 const updateTiltTarget = (clientX, clientY) => {
   if (!landingDisplay) return;
@@ -105,18 +105,17 @@ const updateTiltTarget = (clientX, clientY) => {
     return;
   }
   
-  // 마우스의 위치 레이시오 (-1 ~ 1 변환)
   const nx = ((clientX - rect.left) / Math.max(rect.width,  1) - 0.5) * 2;
   const ny = ((clientY - rect.top)  / Math.max(rect.height, 1) - 0.5) * 2;
   
-  // 💡 마우스가 우측/상단으로 갈 때 각도가 시원하게 커지도록 한계치를 수십도 단위로 뻥튀기했습니다.
-  tilt.tx = ny * 45;       // 위아래로 최대 45도까지 경사
-  tilt.ty = nx * 55;       // 마우스 따라 좌우로 최대 55도까지 정방향 회전
-  tilt.tz = nx * -15;
+  // 💡 너무 가볍게 휙휙 돌지 않도록 회전 반경을 20~25도 내외로 묵직하게 제한했습니다.
+  tilt.tx = ny * 22;       
+  tilt.ty = nx * 25;       
+  tilt.tz = nx * -5;
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (수동 축 뒤틀기 보정 + 오로라 프리즘)
+    THREE.JS ENGINE (분산 프리즘 유리 재질 적용)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -143,7 +142,7 @@ const initThree = () => {
   threeRenderer.setSize(W, H);
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  threeRenderer.toneMappingExposure = 2.2; // 탁한 느낌을 지우기 위해 노출을 대폭 올림
+  threeRenderer.toneMappingExposure = 1.8; // 유리 투명도를 살리기 위해 밝기 최적화
 
   threeScene = new THREE.Scene();
   threeScene.background = null;
@@ -151,19 +150,20 @@ const initThree = () => {
   threeCamera = new THREE.PerspectiveCamera(32, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.2); 
 
-  // 조명이 사방에서 강렬하게 비추도록 다이내믹 컬러 라이팅 추가
-  const ambient = new THREE.AmbientLight(0xffffff, 1.5);
+  // 에러를 유발하던 RoomEnvironment를 지우고 고성능 다방향 입체 조명으로 대체
+  const ambient = new THREE.AmbientLight(0xffffff, 1.0);
   threeScene.add(ambient);
 
-  const sunLight = new THREE.DirectionalLight(0xffffff, 4.0);
+  const sunLight = new THREE.DirectionalLight(0xffffff, 3.5);
   sunLight.position.set(5, 8, 5);
   threeScene.add(sunLight);
 
-  const magentaLight = new THREE.DirectionalLight(0xff00ff, 4.5); // 알록달록함을 강제로 입힐 핑크/마젠타 조명
+  // 무지개 분광을 더 돋보이게 만들어 줄 유색 조명 배치
+  const magentaLight = new THREE.DirectionalLight(0xff45ff, 3.0); 
   magentaLight.position.set(-6, 3, 2);
   threeScene.add(magentaLight);
 
-  const cyanLight = new THREE.DirectionalLight(0x00ffff, 4.5); // 크리스탈 특유의 청량함을 더해줄 사이안 조명
+  const cyanLight = new THREE.DirectionalLight(0x00ffff, 3.0); 
   cyanLight.position.set(3, -4, 3);
   threeScene.add(cyanLight);
 
@@ -187,33 +187,33 @@ const initThree = () => {
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
 
-      // 💡 [초강력 축 반전 처방] 모델이 왼쪽을 보고 누워있으므로, Y축과 Z축을 강제로 반대 각도로 세게 뒤틀어 정면을 보게 만듭니다.
+      // 모델 수동 축 보정
       model.rotation.set(Math.PI / 2, Math.PI / 1.15, -Math.PI / 4);
 
       model.traverse((child) => {
         if (!child.isMesh) return;
         
-        // 💎 하얗고 둔탁한 느낌을 지우고 맑게 투과되는 홀로그램 유리 질감 커스텀
+        // 💎 [예린님 전용: 프리즘 분산 글래스 재질]
         child.material = new THREE.MeshPhysicalMaterial({
           color:              0xffffff,
           metalness:          0.0,        
-          roughness:          0.001,       // 완전 매끄러운 크리스탈 유리 거울면
-          transmission:       1.0,         // 100% 투명하게 통과시킴으로써 하얗고 탁한 면 소멸
-          thickness:          2.0,        
-          ior:                2.4,         // 다이아몬드급 굴절률 적용하여 내부 반사 극대화
+          roughness:          0.01,       // 극도로 매끄러운 유리 표면
+          transmission:       1.0,        // 100% 완전 투명 유리 (하얀 탁함 제거)
+          ior:                2.4,        // 다이아몬드급 높은 굴절률로 프리즘 유도
+          thickness:          1.8,        
           clearcoat:          1.0,        
           clearcoatRoughness: 0.0,
           
-          // ✨ 빛반사 없이도 알록달록하게 광채가 나도록 자체 간섭 무늬 풀 가동
-          iridescence:        1.0,        
-          iridescenceIOR:     2.5,        
-          iridescenceThicknessRange: [200, 700], 
+          // ✨ [핵심] 빛을 무지갯빛으로 쪼개주는 프리즘 분산 속성 가동!
+          dispersion:         7.0,        // 이 수치가 높을수록 알록달록한 분광이 화려해집니다!
+          
+          // 오로라 광택 레이어 백업
+          iridescence:        0.8,        
+          iridescenceIOR:     1.7,        
           
           opacity:            1.0,
           transparent:        true,
           side:               THREE.DoubleSide,
-          depthWrite:         true,
-          depthTest:          true
         });
       });
 
@@ -252,7 +252,7 @@ const resizeThree = () => {
 };
 
 /* ════════════════════════════════════════
-    MAIN ANIMATION LOOP
+    MAIN ANIMATION LOOP (회전 감도 묵직하게 보정)
 ════════════════════════════════════════ */
 const animate = () => {
   animFrameId = requestAnimationFrame(animate);
@@ -260,9 +260,10 @@ const animate = () => {
   pointer.x += (pointer.tx - pointer.x) * 0.1;
   pointer.y += (pointer.ty - pointer.y) * 0.1;
 
-  tilt.rx += (tilt.tx - tilt.rx) * 0.08;
-  tilt.ry += (tilt.ty - tilt.ry) * 0.08;
-  tilt.rz += (tilt.tz - tilt.rz) * 0.08;
+  // 💡 보간 계수를 0.08에서 0.04로 낮춰서 스프링처럼 튕기지 않고 슬로우 모션처럼 부드럽고 묵직하게 움직이게 바꿨습니다.
+  tilt.rx += (tilt.tx - tilt.rx) * 0.04;
+  tilt.ry += (tilt.ty - tilt.ry) * 0.04;
+  tilt.rz += (tilt.tz - tilt.rz) * 0.04;
 
   if (follower) {
     follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
@@ -274,17 +275,16 @@ const animate = () => {
   if (threeRenderer && threeScene && threeCamera) {
     if (modelAnchor) {
       if (!tilt.hovering) {
-        modelAutoRotY += 0.005; // 평소에는 좀 더 역동적으로 자동 회전
+        modelAutoRotY += 0.002; // 기본 자동 회전 속도도 반으로 줄여 은은하게 조절
       } else {
-        // 마우스를 올리면 겉 부모 앵커가 마우스 각도를 쫀득하게 직관적으로 쫓아갑니다
-        modelAutoRotY += (0 - modelAutoRotY) * 0.1;
+        modelAutoRotY += (0 - modelAutoRotY) * 0.04;
       }
       
       modelAnchor.rotation.x = THREE.MathUtils.degToRad(tilt.rx);
       modelAnchor.rotation.y = modelAutoRotY + THREE.MathUtils.degToRad(tilt.ry);
       modelAnchor.rotation.z = THREE.MathUtils.degToRad(tilt.rz);
       
-      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.04;
+      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.02;
     }
     threeRenderer.render(threeScene, threeCamera);
   }
