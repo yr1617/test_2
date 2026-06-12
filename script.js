@@ -24,7 +24,6 @@ const pointer = {
   ty: window.innerHeight * 0.5,
 };
 
-// [앵글 튜닝] 정면을 기준으로 상하좌우 부드럽게 틸트되도록 기본 타깃 수정
 const tilt = {
   rx: -5,   
   ry: 0,   
@@ -51,8 +50,8 @@ const setupLandingCanvas = () => {
     state.dpr    = Math.min(window.devicePixelRatio || 1, 1.5);
     landingCanvas.width  = Math.max(1, Math.floor(rect.width  * state.dpr));
     landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
-    landingCanvas.style.width  = `${rect.width}px`;
-    landingCanvas.style.height = `${rect.height}px`;
+    landingCanvasCanvas.style.width  = `${rect.width}px`;
+    landingCanvasCanvas.style.height = `${rect.height}px`;
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
   };
 
@@ -106,13 +105,13 @@ const updateTiltTarget = (clientX, clientY) => {
   }
   const nx = ((clientX - rect.left) / Math.max(rect.width,  1) - 0.5) * 2;
   const ny = ((clientY - rect.top)  / Math.max(rect.height, 1) - 0.5) * 2;
-  tilt.tx = -5 + ny * -12; // 마우스 상하 반응 범위
-  tilt.ty = nx * 15;       // 마우스 좌우 반응 범위
+  tilt.tx = -5 + ny * -12;
+  tilt.ty = nx * 15;      
   tilt.tz = nx * 3;
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (정면 배치 튜닝)
+    THREE.JS ENGINE (직관적 다이렉트 로드)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -131,3 +130,23 @@ const initThree = () => {
 
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
+    alpha:       true,
+    antialias:   true,
+    powerPreference: 'high-performance',
+  });
+  threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  threeRenderer.setSize(W, H);
+  threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
+  threeRenderer.toneMappingExposure = 1.5; 
+
+  threeScene = new THREE.Scene();
+  threeScene.background = null;
+
+  threeCamera = new THREE.PerspectiveCamera(35, W / H, 0.1, 100);
+  threeCamera.position.set(0, 0.0, 3.8); 
+
+  const ambient = new THREE.AmbientLight(0xffffff, 0.9);
+  threeScene.add(ambient);
+
+  const keyLight = new THREE.DirectionalLight(0xfff8f0, 3.0);
