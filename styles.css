@@ -1,5 +1,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&display=swap');
 
+@font-face {
+  font-family: 'SpokaHanSansNeo';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SpoqaHanSansNeo-Regular.woff') format('woff');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'SpokaHanSansNeo';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SpoqaHanSansNeo-Bold.woff') format('woff');
+  font-weight: 700;
+  font-display: swap;
+}
+
 :root {
   --bg: #151517;
   --bg-deep: #101013;
@@ -7,54 +20,63 @@
   --text: #f3efe7;
   --muted: #b7b0a6;
   --line: rgba(255,255,255,0.12);
+  --primary: #aae961;
   --sub: #dbff86;
   --strong: #5d35a3;
-  --eng-font: 'Google Sans Flex', sans-serif;
+  --body-font: 'SpokaHanSansNeo','Apple SD Gothic Neo',sans-serif;
+  --eng-font: 'Google Sans Flex',sans-serif;
 }
 
-* {
-  box-sizing: border-box;
+* { box-sizing: border-box; }
+html, body, * { cursor: none !important; }
+
+html {
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  background-color: #101012;
 }
 
-html, body {
+body {
   margin: 0;
-  padding: 0;
-  background-color: var(--bg-deep);
+  min-height: 100vh;
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--body-font);
   overflow-x: hidden;
+  background: linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%);
+  padding-top: 92px !important; 
 }
+body::-webkit-scrollbar { display: none; }
 
+/* 배경 장식 선 및 이펙트 */
 .background-grid {
   position: fixed;
   inset: 0;
-  background-image: 
-    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-  background-size: 80px 80px;
-  opacity: 0.6;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 100px 100px;
+  opacity: 0.3;
   pointer-events: none;
-  z-index: 1;
+  z-index: 0;
 }
 
 /* ════════════════════════════════════════
-    상단 헤더 네비게이션 영역
+    TOPBAR 네비게이션 고정 상단바
 ════════════════════════════════════════ */
 .topbar {
+  width: 100%;
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 80px;
-  background: linear-gradient(180deg, rgba(23,23,25,0.92) 0%, rgba(16,16,19,0.82) 100%);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  z-index: 99999;
   border-bottom: 1px solid var(--line);
-  z-index: 9999;
+  background: linear-gradient(180deg, rgba(23,23,25,0.96) 0%, rgba(15,15,16,0.92) 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  height: 92px;
   display: flex;
   align-items: center;
 }
-
 .topbar-inner {
   width: min(1220px, calc(100% - 40px));
   margin: 0 auto;
@@ -62,79 +84,53 @@ html, body {
   justify-content: space-between;
   align-items: center;
 }
-
 .brand {
-  font-family: var(--eng-font);
-  font-weight: 700;
-  font-size: 1.1rem;
-  letter-spacing: 0.08em;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
+  width: 58px;
+  height: 58px;
 }
+.brand img { width: 100%; height: 100%; object-fit: contain; }
 
-.brand-logo img {
-  width: 32px;
-  height: 32px;
-  object-fit: contain;
-}
-
-.brand-name {
-  color: var(--text);
-}
-
-.topnav {
-  display: flex;
-  gap: 32px;
-}
-
+.topnav { display: flex; gap: 24px; }
 .topnav a {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   font-family: var(--eng-font);
-  font-weight: 500;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: rgba(243,239,231,0.4);
-  text-decoration: none;
-  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: color 0.3s ease;
 }
+.topnav a.active, .topnav a:hover { color: #ffffff; }
 
-.topnav a:hover,
-.topnav a.active {
-  color: var(--text);
-}
-
-/* 스크롤 가이드 바 (진행 바 색상 원본 계승) */
+/* 3번 요구사항: 원본 게이지 형태 및 프로그레스 컬러 유지 */
 .nav-progress {
-  width: 45px;
+  display: block;
+  width: 50px;
   height: 2px;
-  background: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.16);
   position: relative;
-  border-radius: 1px;
   overflow: hidden;
 }
-
 .nav-progress::after {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
   width: calc(var(--nav-progress, 0) * 100%);
-  background-color: var(--sub);
+  background: linear-gradient(90deg, var(--sub), rgba(255,255,255,0.92));
 }
 
 /* ════════════════════════════════════════
-    메인 인트로 랜딩 영역
+    INTRO LANDING 구역
 ════════════════════════════════════════ */
 .landing {
-  height: 100vh;
+  position: relative;
+  min-height: calc(100vh - 92px);
   display: flex;
   align-items: center;
-  position: relative;
-  padding-top: 80px;
-  z-index: 2;
+  background: linear-gradient(180deg, #171717 0%, #0f0f10 100%);
 }
-
 .landing-inner {
   width: min(1220px, calc(100% - 40px));
   margin: 0 auto;
@@ -143,222 +139,201 @@ html, body {
   align-items: center;
   gap: 40px;
 }
-
-.landing-copy {
-  display: flex;
-  flex-direction: column;
-}
-
 .landing-title {
   font-family: var(--eng-font);
-  font-size: clamp(3.2rem, 5.5vw, 5.8rem);
+  font-size: clamp(4rem, 7.5vw, 6.5rem);
   font-weight: 800;
-  line-height: 1.02;
-  margin: 0 0 24px;
-  text-transform: uppercase;
-  letter-spacing: -0.02em;
+  line-height: 0.95;
+  margin: 0 0 16px;
 }
-
 .landing-subtitle {
-  font-size: 1.15rem;
+  font-size: 1.3rem;
   color: var(--muted);
-  line-height: 1.7;
+  margin: 0;
 }
-
 .landing-display-shell {
   width: 100%;
   aspect-ratio: 1;
   position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
+.model-canvas { width: 100%; height: 100%; display: block; }
 
 /* ════════════════════════════════════════
-    메인 콘텐츠 컨테이너 쉘 구조
+    CONTENT LAYOUT 쉘 구조
 ════════════════════════════════════════ */
 .content-shell {
-  position: relative;
   width: min(1220px, calc(100% - 40px));
-  margin: 0 auto 120px;
+  margin: 60px auto 0;
+  position: relative;
   z-index: 2;
 }
-
 .section {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 28px;
-  padding: 70px 50px;
-  margin-bottom: 70px;
+  border-radius: 24px;
+  padding: 60px 44px;
+  margin-bottom: 50px;
 }
 
-/* 6번 요구사항: 메인 섹션 타이틀 텍스트 크기 축소 보정 */
-.section-title {
+/* 6번 요구사항: 프로젝트 유형, 주요 프로젝트 텍스트 크기 일관 다운스케일 */
+.eyebrow {
   font-family: var(--eng-font);
-  font-size: 2.2rem;
-  margin-bottom: 35px;
-  color: #ffffff;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-/* ════════════════════════════════════════
-    이력 (Career) 리스트 구역 (4번, 7번 연동)
-════════════════════════════════════════ */
-.career-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-/* 7번 요구사항: 마우스 호버 시 카드 확대 모션을 전면 삭제하고 테두리 색상만 자연스럽게 변경 */
-.career-card {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 24px 30px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.career-card:hover {
-  border-color: var(--sub); /* 하단 contact 카드와 완벽히 대칭되는 스트로크 반응 인터랙션 */
-}
-
-.career-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-/* 4번 요구사항: 유실되었던 기본 텍스트 칼라 복구 */
-.career-title {
-  font-size: 1.05rem;
-  font-weight: 400;
-  color: var(--muted);
-}
-
-/* 4번 요구사항: 주요 프로젝트 한 줄 전체 볼드 처리 적용 */
-.career-card.highlight .career-title {
-  font-weight: 700 !important;
-  color: var(--text) !important;
-}
-
-.career-date {
-  font-family: var(--eng-font);
-  font-size: 0.9rem;
-  color: var(--muted);
-}
-
-/* ════════════════════════════════════════
-    프로젝트 (Projects) 리스트 구역 (2번, 5번, 6번 연동)
-════════════════════════════════════════ */
-/* 6번 요구사항: 프로젝트 유형 글자 타이틀 크기 축소 */
-.project-type-title {
-  font-family: var(--eng-font);
-  font-size: 1.1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
   color: var(--sub);
-  font-weight: 700;
-  margin-bottom: 25px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.22em;
+  margin: 0 0 12px;
 }
-
-.project-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 30px;
-  margin-bottom: 60px;
-}
-
-.project-card {
-  background: rgba(255, 255, 255, 0.015);
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 5번 요구사항: 프로젝트 이미지 썸네일 컨테이너 영역 크기 고정 및 비율 왜곡 방지 */
-.project-img-wrapper {
-  width: 100%;
-  height: 240px;
-  overflow: hidden;
-  border-bottom: 1px solid var(--line);
-}
-
-.project-img-wrapper img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover; /* 어떤 이미지 크기가 들어와도 균일하게 잘 맞춰 채워짐 */
-  transition: transform 0.4s ease;
-}
-
-.project-card:hover .project-img-wrapper img {
-  transform: scale(1.03);
-}
-
-.project-meta {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* 2번 요구사항: 너무 컸던 프로젝트명 크기 축소 정돈 */
-.project-card h4 {
-  font-size: 1.4rem;
+.section-heading { margin-bottom: 36px; }
+.section-heading h2 {
+  font-size: 2rem;
   font-weight: 700;
   color: #ffffff;
   margin: 0;
+  line-height: 1.3;
 }
+.section-lead { color: var(--muted); margin-top: 14px; font-size: 0.95rem; }
 
-.project-card p {
-  font-size: 0.95rem;
-  color: var(--muted);
-  line-height: 1.5;
-  margin: 0;
-}
+/* ─── ABOUT SECTION ─── */
+.hero { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 40px; }
+.hero-copy { display: flex; flex-direction: column; justify-content: center; }
+.hero-copy h2 { font-size: 2.2rem; margin: 0 0 20px; }
+.intro { font-size: 1.05rem; line-height: 1.75; margin: 0; color: var(--text); }
+.portrait-frame { width: 100%; border-radius: 16px; overflow: hidden; }
+.portrait-frame img { width: 100%; display: block; object-fit: cover; }
+.keyword-list { display: flex; gap: 12px; margin-top: 24px; }
+.keyword-list span { color: var(--sub); font-size: 0.95rem; font-weight: 700; }
 
-/* ════════════════════════════════════════
-    하단 연락처 (Contact) 구역
-════════════════════════════════════════ */
-.contact-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-
-.contact-card {
+/* ─── PROJECT TYPE (3열 그리드) ─── */
+.project-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.project-card {
   background: rgba(255,255,255,0.02);
   border: 1px solid var(--line);
   border-radius: 16px;
-  padding: 24px;
-  text-decoration: none;
-  color: inherit;
+  padding: 32px;
+}
+.project-card h3 { font-size: 1.35rem; color: #ffffff; margin: 12px 0; }
+
+/* ════════════════════════════════════════
+    MAIN PROJECT 리스트 (2번, 5번 연동)
+════════════════════════════════════════ */
+.main-project-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.main-project-card {
+  background: rgba(255,255,255,0.015);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  transition: border-color 0.3s ease;
+  gap: 14px;
 }
 
-.contact-card:hover {
-  border-color: var(--sub);
+/* 5번 요구사항: 썸네일 박스 규격 완전 통일 및 비율 크롭 유지 */
+.project-thumb {
+  width: 100%;
+  height: 220px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.project-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; 
+  object-position: center;
 }
 
-.contact-label {
-  font-family: var(--eng-font);
-  font-size: 0.75rem;
-  color: var(--sub);
+.main-project-card span { font-size: 0.8rem; color: var(--sub); font-weight: 700; }
+
+/* 2번 요구사항: 너무 지나치게 비대했던 프로젝트 제목 타이틀 축소 */
+.main-project-card h3 {
+  font-size: 1.15rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  color: #ffffff;
+  margin: 0;
+  line-height: 1.4;
 }
 
-.contact-value {
-  font-size: 1.05rem;
-  color: var(--text);
-  font-weight: 500;
+/* ════════════════════════════════════════
+    CAREER 이력 리스트 (4번, 7번 연동)
+════════════════════════════════════════ */
+.career-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+.panel {
+  background: rgba(255,255,255,0.01);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 30px;
+}
+.panel h3 { font-size: 1.3rem; margin: 0 0 20px; color: #ffffff; }
+
+/* 이력 카드 내부 텍스트 복구 스타일 */
+.detail-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+
+/* 7번 요구사항: 스케일 확대 모션 전면 제거, 하단 contact처럼 스트로크 색상만 대칭 변경 */
+.detail-list li {
+  background: rgba(255,255,255,0.015);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: border-color 0.25s ease, background-color 0.25s ease;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.85); /* 4번: 가려지거나 사라진 텍스트 투명도 완전 복원 */
+}
+.detail-list li:hover {
+  border-color: var(--sub); /* 하단 연락처 카드와 통일된 간결한 스트로크 이펙트 */
+  background: rgba(255,255,255,0.03);
+}
+
+.detail-list li span:first-child { line-height: 1.4; }
+.detail-list li span:last-child { font-family: var(--eng-font); font-size: 0.85rem; color: var(--muted); flex-shrink: 0; margin-left: 14px; }
+
+/* 4번 요구사항: 특정 주요 프로젝트 타겟 리스트 한 줄 전체 볼드 굵기 가중치 부여 */
+.detail-list li.bold-project {
+  font-weight: 700 !important;
+  color: #ffffff !important;
+}
+.detail-list li.bold-project span:first-child {
+  font-weight: 700 !important;
+}
+
+/* ─── CONTACT SECTION ─── */
+.contact-section { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+.contact-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: border-color 0.25s ease;
+}
+.contact-card:hover { border-color: var(--sub); }
+.contact-list { list-style: none; padding: 0; margin: 20px 0; display: flex; flex-direction: column; gap: 10px; }
+.contact-button {
+  align-self: flex-start;
+  padding: 12px 24px;
+  border-radius: 30px;
+  background: var(--sub);
+  color: #101013;
+  font-weight: 700;
+  font-family: var(--eng-font);
+}
+
+/* 마우스 추적 포인터 */
+.cursor-follower {
+  position: fixed;
+  left: 0; top: 0; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--sub);
+  pointer-events: none;
+  z-index: 100000;
+}
+
+@media (max-width: 960px) {
+  .landing-inner, .hero, .project-grid, .main-project-grid, .career-grid, .contact-section { grid-template-columns: 1fr; }
+  .topbar { height: auto; padding: 14px 0; }
+  .topbar-inner { flex-direction: column; gap: 14px; }
 }
