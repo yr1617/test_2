@@ -11,11 +11,10 @@ const landingDisplay = document.querySelector('#landing-display');
 const modelCanvas    = document.querySelector('#model-canvas');   
 const crystalFallback = document.querySelector('#crystal-fallback');
 const follower        = document.querySelector('.cursor-follower');
-const navLinks       = document.querySelectorAll('.topnav a[data-target]');
 const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li');
 
 /* ════════════════════════════════════════
-    POINTER & TILT STATE
+    POINTER & INTERACTION STATE (기획 복원)
 ════════════════════════════════════════ */
 const pointer = {
   x:  window.innerWidth  * 0.5,
@@ -27,7 +26,7 @@ const pointer = {
 const tilt = {
   rx: 0, ry: 0, rz: 0,
   tx: 0, ty: 0, tz: 0,
-  hovering: true,
+  hovering: false, // 💡 기본 상태는 false! 마우스가 별 영역에 들어왔을 때만 true로 변합니다.
 };
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
@@ -89,8 +88,9 @@ const updateLandingVars = () => {
     TILT TARGET UPDATE
 ════════════════════════════════════════ */
 const updateTiltTarget = (clientX, clientY) => {
-  const rect = landingDisplay ? landingDisplay.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+  if (!tilt.hovering) return; // 💡 호버 상태가 아닐 때는 마우스 계산을 생략합니다.
   
+  const rect = landingDisplay ? landingDisplay.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
   const nx = ((clientX - rect.left) / Math.max(rect.width,  1) - 0.5) * 2;
   const ny = ((clientY - rect.top)  / Math.max(rect.height, 1) - 0.5) * 2;
   
@@ -100,7 +100,7 @@ const updateTiltTarget = (clientX, clientY) => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (노이즈 완전 소멸 및 오로라 프리즘 질감)
+    THREE.JS ENGINE (노이즈 소멸 + 분산 프리즘 복원)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -108,7 +108,7 @@ let threeCamera   = null;
 let modelAnchor   = null; 
 let modelLoaded   = false;
 let animFrameId   = null;
-let modelAutoRotY = 0;
+let modelAutoRotY = 0; // 자동 회전용 변수
 
 const initThree = () => {
   if (!modelCanvas) return;
@@ -127,34 +127,28 @@ const initThree = () => {
   threeRenderer.setSize(W, H);
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  threeRenderer.toneMappingExposure = 1.4; // 오로라 광택을 극대화하기 위한 안정적인 광량
+  threeRenderer.toneMappingExposure = 1.6; 
 
   threeScene = new THREE.Scene();
-  threeScene.background = null;
 
   threeCamera = new THREE.PerspectiveCamera(32, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.2); 
 
-  // 전체적인 크리스탈 기저를 밝혀줄 환경 조명
-  const ambient = new THREE.AmbientLight(0xffffff, 1.2); 
+  // 조명 구성
+  const ambient = new THREE.AmbientLight(0xffffff, 1.0); 
   threeScene.add(ambient);
 
-  // 면 충돌 노이즈를 빛으로 지워내기 위한 전후방 서라운드 광원 배치
-  const sunLight = new THREE.DirectionalLight(0xffffff, 3.0);
-  sunLight.position.set(5, 8, 5);
+  const sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
+  sunLight.position.set(5, 10, 5);
   threeScene.add(sunLight);
 
-  const backLight = new THREE.DirectionalLight(0xffffff, 1.5);
-  backLight.position.set(-5, -8, -5);
-  threeScene.add(backLight);
-
-  // 🌈 별의 칼각 경계면에 투명하게 스며들 무지갯빛 컬러 스펙트럼 조명
-  const magentaLight = new THREE.DirectionalLight(0xff55cc, 5.0); 
-  magentaLight.position.set(-6, 4, 3);
+  // 🌈 분산 렌더링을 극대화해 줄 다채로운 스펙트럼 광원
+  const magentaLight = new THREE.DirectionalLight(0xff33aa, 4.0); 
+  magentaLight.position.set(-6, 5, 2);
   threeScene.add(magentaLight);
 
-  const cyanLight = new THREE.DirectionalLight(0x00f2ff, 5.0); 
-  cyanLight.position.set(6, -4, 3);
+  const cyanLight = new THREE.DirectionalLight(0x33eeff, 4.0); 
+  cyanLight.position.set(5, -5, 3);
   threeScene.add(cyanLight);
 
   const loader = new GLTFLoader();
@@ -176,32 +170,32 @@ const initThree = () => {
       
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
-      model.rotation.set(Math.PI / 2, Math.PI / 1.15, -Math.PI / 4);
+      
+      // 모델 초기 경사 세팅
+      model.rotation.set(Math.PI / 6, 0, -Math.PI / 12);
 
       model.traverse((child) => {
         if (!child.isMesh) return;
         
         if (child.material.map) child.material.map = null;
         
-        // 💎 [노이즈 전면 제거 + 오로라 프리즘 극대화 세팅]
+        // 💎 [구조 지직거림 소멸 + 프리즘 광채 복원 튜닝]
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0xffffff,   // 깨끗하고 새하얀 기본 베이스
+          color:              0xffffff,   
           metalness:          0.0,        
-          roughness:          0.05,       // 💡 표면에 미세한 입자감을 주어 지지직거리던 빗살무늬 그래픽 깨짐을 완전히 상쇄합니다.
-          transmission:       0.9,        // 💡 90% 투명도로 조율해 얇은 면들이 겹치면서 생기던 렌더링 노이즈 버그를 차단합니다.
-          ior:                1.45,       // 자연스러운 굴절률로 고정
-          thickness:          0.0,        // 💡 두께 굴절 자체를 0으로 만들어 내부 연산 충돌을 원천 봉쇄합니다! (노이즈 해결의 핵심)
-          clearcoat:          1.0,        // 상단에 매끄러운 유리 코팅 레이어 추가
+          roughness:          0.0,        // 거칠기를 완전히 빼서 다시 거울처럼 맑게 세팅
+          transmission:       0.95,       // 속이 시원하게 들여다보이는 투명도
+          ior:                2.4,        // 💡 다이아몬드급 높은 굴절률로 프리즘 분산 효과 유도
+          thickness:          0.8,        // 💡 얇은 면 구조가 충돌하지 않도록 두께 렌더링 값 최적화
+          clearcoat:          1.0,        
           clearcoatRoughness: 0.0,
           
-          // ✨ 진보된 분산형 오로라 이펙트
-          iridescence:        1.0,        // 💡 오로라 광택을 100% 최대로 끌어올려 유리 표면에 무지갯빛 필름을 입힙니다.
-          iridescenceIOR:     1.9,        // 굴절에 따라 컬러풀하게 스펙트럼이 뿜어져 나오도록 유도
-          iridescenceThicknessRange: [100, 400], // 보는 각도에 따라 핑크, 블루, 민트빛이 자연스럽게 교차됨
+          // ✨ 프리즘 분산 효과 복원
+          dispersion:         5.0,        // 💡 지직거리는 그래픽 깨짐 없이 외곽선에 영롱하게 색이 쪼개지는 연산 부여
           
           opacity:            1.0,
           transparent:        true,
-          side:               THREE.DoubleSide, // 양면 렌더링으로 복귀해도 이제 노이즈가 끼지 않습니다.
+          side:               THREE.DoubleSide, // 구조가 깨져 보이지 않도록 다시 양면 렌더링으로 안정화
         });
       });
 
@@ -237,7 +231,7 @@ const resizeThree = () => {
 };
 
 /* ════════════════════════════════════════
-    MAIN ANIMATION LOOP
+    MAIN ANIMATION LOOP (회전 및 호버 분리)
 ════════════════════════════════════════ */
 const animate = () => {
   animFrameId = requestAnimationFrame(animate);
@@ -245,9 +239,21 @@ const animate = () => {
   pointer.x += (pointer.tx - pointer.x) * 0.07;
   pointer.y += (pointer.ty - pointer.y) * 0.07;
 
-  tilt.rx += (tilt.tx - tilt.rx) * 0.04;
-  tilt.ry += (tilt.ty - tilt.ry) * 0.04;
-  tilt.rz += (tilt.tz - tilt.rz) * 0.04;
+  // 💡 마우스 호버 상태가 아닐 때는 목표 틸트 각도를 부드럽게 0(제자리)으로 되돌립니다.
+  if (!tilt.hovering) {
+    tilt.tx = 0;
+    tilt.ty = 0;
+    tilt.tz = 0;
+    // 혼자 자연스럽게 도는 자동 회전 값 증가
+    modelAutoRotY += 0.005; 
+  } else {
+    // 💡 마우스가 올라왔을 때는 혼자 도는 회전을 멈추고 마우스 반응에 집중하도록 보정 가능 (선택)
+    modelAutoRotY += 0.001; // 호버 시에는 아주 미세하게만 회전
+  }
+
+  tilt.rx += (tilt.tx - tilt.rx) * 0.05;
+  tilt.ry += (tilt.ty - tilt.ry) * 0.05;
+  tilt.rz += (tilt.tz - tilt.rz) * 0.05;
 
   if (follower) {
     follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
@@ -258,21 +264,34 @@ const animate = () => {
 
   if (threeRenderer && threeScene && threeCamera) {
     if (modelAnchor) {
+      // 자동 회전과 마우스 틸트 각도를 우아하게 결합
       modelAnchor.rotation.x = THREE.MathUtils.degToRad(tilt.rx);
       modelAnchor.rotation.y = modelAutoRotY + THREE.MathUtils.degToRad(tilt.ry);
       modelAnchor.rotation.z = THREE.MathUtils.degToRad(tilt.rz);
       
-      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.01;
+      // 공중 부양 효과
+      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.02;
     }
     threeRenderer.render(threeScene, threeCamera);
   }
 };
 
 /* ════════════════════════════════════════
-    INITIALIZE & EVENT LISTENERS
+    INITIALIZE & INTERACTION LISTENERS
 ════════════════════════════════════════ */
 const initAll = () => {
   landingCanvasCtrl = setupLandingCanvas();
+  
+  // 💡 [핵심] 마우스가 메인 영역(#landing-display)에 들어왔을 때만 호버 반응 켜기
+  if (landingDisplay) {
+    landingDisplay.addEventListener('mouseenter', () => {
+      tilt.hovering = true;
+    });
+    landingDisplay.addEventListener('mouseleave', () => {
+      tilt.hovering = false;
+    });
+  }
+
   highlightElements.forEach((el) => {
     el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
     el.addEventListener('mouseleave', () => el.classList.remove('is-hovered'));
