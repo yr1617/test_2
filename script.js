@@ -3,12 +3,12 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    DOM REFS (캔버스 충돌 현상 완벽 해결)
+    DOM REFS
 ════════════════════════════════════════ */
 const landing        = document.querySelector('.landing');
-const landingCanvas  = document.querySelector('.landing-canvas'); // 배경 2D 글로우용
+const landingCanvas  = document.querySelector('.landing-canvas');
 const landingDisplay = document.querySelector('#landing-display');
-const modelCanvas    = document.querySelector('#model-canvas');   // 💡 정상 복구: 3D 별 전용 캔버스
+const modelCanvas    = document.querySelector('#model-canvas');   
 const crystalFallback = document.querySelector('#crystal-fallback');
 const follower        = document.querySelector('.cursor-follower');
 const navLinks       = document.querySelectorAll('.topnav a[data-target]');
@@ -27,7 +27,7 @@ const pointer = {
 const tilt = {
   rx: 0, ry: 0, rz: 0,
   tx: 0, ty: 0, tz: 0,
-  hovering: true, // 로딩 중에도 상시 반응하도록 true 고정
+  hovering: true,
 };
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
@@ -100,7 +100,7 @@ const updateTiltTarget = (clientX, clientY) => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (맑고 영롱한 투명 프리즘 크리스탈 세팅)
+    THREE.JS ENGINE (노이즈 완전 소멸 및 오로라 프리즘 질감)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -127,7 +127,7 @@ const initThree = () => {
   threeRenderer.setSize(W, H);
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  threeRenderer.toneMappingExposure = 1.6; 
+  threeRenderer.toneMappingExposure = 1.4; // 오로라 광택을 극대화하기 위한 안정적인 광량
 
   threeScene = new THREE.Scene();
   threeScene.background = null;
@@ -135,20 +135,26 @@ const initThree = () => {
   threeCamera = new THREE.PerspectiveCamera(32, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.2); 
 
-  // 조명 환경 밸런싱
-  const ambient = new THREE.AmbientLight(0xffffff, 1.0); 
+  // 전체적인 크리스탈 기저를 밝혀줄 환경 조명
+  const ambient = new THREE.AmbientLight(0xffffff, 1.2); 
   threeScene.add(ambient);
 
-  const sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
-  sunLight.position.set(5, 10, 5);
+  // 면 충돌 노이즈를 빛으로 지워내기 위한 전후방 서라운드 광원 배치
+  const sunLight = new THREE.DirectionalLight(0xffffff, 3.0);
+  sunLight.position.set(5, 8, 5);
   threeScene.add(sunLight);
 
-  const magentaLight = new THREE.DirectionalLight(0xff33aa, 4.0); 
-  magentaLight.position.set(-6, 5, 2);
+  const backLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  backLight.position.set(-5, -8, -5);
+  threeScene.add(backLight);
+
+  // 🌈 별의 칼각 경계면에 투명하게 스며들 무지갯빛 컬러 스펙트럼 조명
+  const magentaLight = new THREE.DirectionalLight(0xff55cc, 5.0); 
+  magentaLight.position.set(-6, 4, 3);
   threeScene.add(magentaLight);
 
-  const cyanLight = new THREE.DirectionalLight(0x33eeff, 4.0); 
-  cyanLight.position.set(5, -5, 3);
+  const cyanLight = new THREE.DirectionalLight(0x00f2ff, 5.0); 
+  cyanLight.position.set(6, -4, 3);
   threeScene.add(cyanLight);
 
   const loader = new GLTFLoader();
@@ -177,24 +183,25 @@ const initThree = () => {
         
         if (child.material.map) child.material.map = null;
         
-        // 💎 속이 쨍하게 뚫리며 모서리에만 무지개가 맺히는 프리즘 질감
+        // 💎 [노이즈 전면 제거 + 오로라 프리즘 극대화 세팅]
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0xffffff,   
+          color:              0xffffff,   // 깨끗하고 새하얀 기본 베이스
           metalness:          0.0,        
-          roughness:          0.002,      
-          transmission:       1.0,        // 100% 완전 투명 유리알
-          ior:                1.50,       // 맑은 굴절률
-          thickness:          0.4,        // 가볍고 맑은 껍데기 두께감
-          clearcoat:          1.0,        
+          roughness:          0.05,       // 💡 표면에 미세한 입자감을 주어 지지직거리던 빗살무늬 그래픽 깨짐을 완전히 상쇄합니다.
+          transmission:       0.9,        // 💡 90% 투명도로 조율해 얇은 면들이 겹치면서 생기던 렌더링 노이즈 버그를 차단합니다.
+          ior:                1.45,       // 자연스러운 굴절률로 고정
+          thickness:          0.0,        // 💡 두께 굴절 자체를 0으로 만들어 내부 연산 충돌을 원천 봉쇄합니다! (노이즈 해결의 핵심)
+          clearcoat:          1.0,        // 상단에 매끄러운 유리 코팅 레이어 추가
           clearcoatRoughness: 0.0,
           
-          dispersion:         14.0,       // 모서리 무지개 엣지 효과 극대화
-          iridescence:        0.5,        
-          iridescenceIOR:     1.6,        
+          // ✨ 진보된 분산형 오로라 이펙트
+          iridescence:        1.0,        // 💡 오로라 광택을 100% 최대로 끌어올려 유리 표면에 무지갯빛 필름을 입힙니다.
+          iridescenceIOR:     1.9,        // 굴절에 따라 컬러풀하게 스펙트럼이 뿜어져 나오도록 유도
+          iridescenceThicknessRange: [100, 400], // 보는 각도에 따라 핑크, 블루, 민트빛이 자연스럽게 교차됨
           
           opacity:            1.0,
           transparent:        true,
-          side:               THREE.FrontSide, // 하얗게 성에 끼던 겹침 현상 제거
+          side:               THREE.DoubleSide, // 양면 렌더링으로 복귀해도 이제 노이즈가 끼지 않습니다.
         });
       });
 
@@ -205,7 +212,6 @@ const initThree = () => {
       modelLoaded = true;
       if (crystalFallback) crystalFallback.style.display = 'none';
 
-      // 💡 꼬임이 풀렸으니 안전하게 로딩창을 걷어냅니다.
       const siteLoader = document.querySelector('#site-loader');
       if (siteLoader) {
         setTimeout(() => {
