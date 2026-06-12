@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    DOM ELEMENT REFS
+    DOM ELEMENTS (예린님 원본 마크업 철저 보존)
 ════════════════════════════════════════ */
 const landing        = document.querySelector('.landing');
 const landingCanvas  = document.querySelector('.landing-canvas');
@@ -12,9 +12,7 @@ const modelCanvas    = document.querySelector('#model-canvas');
 const crystalFallback = document.querySelector('#crystal-fallback');
 const follower        = document.querySelector('.cursor-follower');
 
-/* ════════════════════════════════════════
-    INTERACTION STATE (마우스 독립 추적)
-════════════════════════════════════════ */
+// 🎯 화면 전체 전역 마우스 좌표 (마우스 가두기 버그 원천 차단)
 const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, tx: window.innerWidth * 0.5, ty: window.innerHeight * 0.5 };
 
 const rotationState = {
@@ -27,39 +25,37 @@ let modelAutoRotY = 0;
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
 /* ════════════════════════════════════════
-    LANDING CANVAS BACKGROUND
+    LANDING BACKGROUND GLOW
 ════════════════════════════════════════ */
 const setupLandingCanvas = () => {
   if (!landing || !landingCanvas) return null;
   const ctx = landingCanvas.getContext('2d');
   if (!ctx) return null;
-  const state = { width: 0, height: 0, dpr: 1 };
+  const state = { width: 0, height: 0 };
 
   const resize = () => {
     const rect = landing.getBoundingClientRect();
     state.width  = rect.width;
     state.height = rect.height;
-    state.dpr    = Math.min(window.devicePixelRatio || 1, 1.2); // 과부하 방지
-    landingCanvas.width  = Math.max(1, Math.floor(rect.width  * state.dpr));
-    landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
+    landingCanvas.width  = rect.width;
+    landingCanvas.height = rect.height;
     landingCanvas.style.width  = `${rect.width}px`;
     landingCanvas.style.height = `${rect.height}px`;
-    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   };
 
   const draw = () => {
-    const { width, height } = state;
-    if (!width || !height) return;
-    ctx.clearRect(0, 0, width, height);
+    if (!state.width || !state.height) return;
+    ctx.clearRect(0, 0, state.width, state.height);
     const rect = landing.getBoundingClientRect();
     const px = pointer.x - rect.left;
     const py = pointer.y - rect.top;
-    const glow = ctx.createRadialGradient(px, py, 0, px, py, Math.max(width, height) * 0.52);
-    glow.addColorStop(0,    'rgba(255,255,255,0.06)');
-    glow.addColorStop(0.3,  'rgba(150,100,255,0.03)');
+    const glow = ctx.createRadialGradient(px, py, 0, px, py, Math.max(state.width, state.height) * 0.52);
+    glow.addColorStop(0,    'rgba(255,255,255,0.05)');
+    glow.addColorStop(0.3,  'rgba(150,100,255,0.02)');
     glow.addColorStop(1,    'rgba(16,16,18,0)');
     ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, state.width, state.height);
   };
 
   resize();
@@ -77,7 +73,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (오로라 물방울 크리스탈 별)
+    THREE.JS ENGINE (초경량 세팅으로 스크롤 렉 차단)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -89,25 +85,25 @@ const initThree = () => {
   if (!modelCanvas) return;
 
   const shell = landingDisplay || { offsetWidth: window.innerWidth, offsetHeight: window.innerHeight };
-  const W = shell.offsetWidth;
-  const H = shell.offsetHeight;
-
+  
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
     alpha:       true,
-    antialias:   true,
+    antialias:   false, // ⚡ 그래픽 연산 최소화로 렉 발생 방지
+    powerPreference: 'high-performance',
   });
-  threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-  threeRenderer.setSize(W, H);
+  threeRenderer.setPixelRatio(1); // ⚡ 픽셀 밀도 고정으로 스크롤 버벅임 완전 차단
+  threeRenderer.setSize(shell.offsetWidth, shell.offsetHeight);
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.LinearToneMapping; 
   threeRenderer.toneMappingExposure = 1.4; 
 
   threeScene = new THREE.Scene();
-  threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
+  threeCamera = new THREE.PerspectiveCamera(28, shell.offsetWidth / shell.offsetHeight, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
+  // 조명 구성
   const ambient = new THREE.AmbientLight(0xffffff, 0.9); 
   threeScene.add(ambient);
 
@@ -132,7 +128,6 @@ const initThree = () => {
     './modeling.glb',
     (gltf) => {
       const model = gltf.scene;
-      
       if (modelAnchor) threeScene.remove(modelAnchor);
 
       const box    = new THREE.Box3().setFromObject(model);
@@ -153,13 +148,11 @@ const initThree = () => {
         child.material = new THREE.MeshPhysicalMaterial({
           color:              0xffffff,
           metalness:          0.0,
-          roughness:          0.0,        
-          transmission:       0.99,       
+          roughness:          0.1,        
+          transmission:       0.95,       
           ior:                1.46,       
-          thickness:          1.5,        
-          clearcoat:          1.0,        
-          clearcoatRoughness: 0.0,
-          dispersion:         4.0,        
+          thickness:          1.0,        
+          clearcoat:          0.5,        
           opacity:            1.0,
           transparent:        true,
           side:               THREE.DoubleSide
@@ -191,12 +184,12 @@ const hideSiteLoader = () => {
 };
 
 /* ════════════════════════════════════════
-    MAIN ANIMATION LOOP (순수 렌더 루프로 렉 제거)
+    MAIN ANIMATION LOOP
 ════════════════════════════════════════ */
 const animate = () => {
   animFrameId = requestAnimationFrame(animate);
 
-  // 마우스 트래킹은 윈도우 창 전체를 부드럽게 따라다님 (마우스 가두기 현상 완벽 박멸)
+  // 🎯 마우스는 브라우저 화면 전체 창을 자유롭게 따라다닙니다.
   pointer.x += (pointer.tx - pointer.x) * 0.08;
   pointer.y += (pointer.ty - pointer.y) * 0.08;
 
@@ -209,18 +202,18 @@ const animate = () => {
 
   if (modelAnchor) {
     if (!rotationState.isHovered) {
-      // 🔄 평소 상태: 느릿하게 무한 자동 회전
+      // 🔄 평소 상태: 느릿하게 자동으로 계속 무한 회전
       modelAutoRotY += 0.002;
       rotationState.targetX = 0;
       rotationState.targetY = modelAutoRotY;
     } else {
-      // 🎯 호버 상태: 자동 회전을 일시정지하고 마우스 방향을 끈끈하게 추적
+      // 🎯 마우스 호버 상태: 자동 회전을 일시 정지하고 오직 마우스 방향에 따라 정밀 회전
       if (landingDisplay) {
         const rect = landingDisplay.getBoundingClientRect();
         const normX = (pointer.x - rect.left) / rect.width - 0.5;
         const normY = (pointer.y - rect.top) / rect.height - 0.5;
-        rotationState.targetX = normY * 1.0; 
-        rotationState.targetY = modelAutoRotY + normX * 1.2; 
+        rotationState.targetX = normY * 0.8; 
+        rotationState.targetY = modelAutoRotY + normX * 1.0; 
       }
     }
 
@@ -229,20 +222,19 @@ const animate = () => {
 
     modelAnchor.rotation.x = rotationState.currentX;
     modelAnchor.rotation.y = rotationState.currentY;
-    modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.004;
   }
 
-  // 렉을 유발하던 스크롤 조건문을 삭제하고 안정적으로 렌더링 유지
+  // 브라우저 돔을 건드리지 않고 순수 쓰리제스 영역만 렌더링 유지 (렉 해제)
   if (threeRenderer && threeScene && threeCamera) {
     threeRenderer.render(threeScene, threeCamera);
   }
 };
 
 /* ════════════════════════════════════════
-    EVENT LISTENERS (화면 전체 감지 및 타겟 설정)
+    EVENT LISTENERS
 ════════════════════════════════════════ */
 const setupEvents = () => {
-  // 마우스 좌표는 화면 어디서든 끊김 없이 받아옵니다.
+  // 브라우저 화면 전체에서 마우스 좌표 전역 추적
   window.addEventListener('pointermove', (e) => {
     pointer.tx = e.clientX;
     pointer.ty = e.clientY;
@@ -250,12 +242,12 @@ const setupEvents = () => {
 
   if (!landingDisplay) return;
 
-  // 오직 별 컨테이너 영역 안에 들어왔을 때만 호버 회전 모드로 전환
+  // 오직 물체 주변(#landing-display) 영역에 들어왔을 때만 호버 제어 모드 활성화
   landingDisplay.addEventListener('pointerenter', () => {
     rotationState.isHovered = true;
   });
 
-  // 별 영역을 벗어나면 다시 평화롭게 자동 회전
+  // 영역을 벗어나면 다시 자동 회전
   landingDisplay.addEventListener('pointerleave', () => {
     rotationState.isHovered = false;
   });
