@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YERIN CHOI | Portfolio</title>
+    
     <link rel="stylesheet" href="./style.css">
     
     <script type="importmap">
@@ -35,12 +36,10 @@
 
     <main id="home" class="landing">
         <canvas class="landing-canvas"></canvas>
-
         <div id="landing-display">
             <canvas id="model-canvas"></canvas>
             <div id="crystal-fallback"></div>
         </div>
-
         <div class="cursor-follower"></div>
     </main>
 
@@ -96,10 +95,6 @@
         
     </div>
 
-    <script type="module" href="./script.js"></script>
-    <script type="module">
-        // 브라우저 캐시 독하게 남는걸 방지하기 위해 쿼리스트링 강제 주입하여 모듈 로드
-        import './script.js?v=' + Date.now();
-    </script>
+    <script type="module" src="./script.js"></script>
 </body>
 </html>
