@@ -1,215 +1,345 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
-// 1. 전역 상태 및 변수 정의
-let scene, camera, renderer, crystalStar;
-let isDragging = false;
-let previousMousePosition = { x: 0, y: 0 };
-let targetRotation = { x: 0.3, y: 0.5 }; // 초기 기본 각도 예쁘게 세팅
+/* ════════════════════════════════════════
+    DOM ELEMENT REFS
+════════════════════════════════════════ */
+const landing        = document.querySelector('.landing');
+const landingCanvas  = document.querySelector('.landing-canvas');
+const landingDisplay = document.querySelector('#landing-display');
+const modelCanvas    = document.querySelector('#model-canvas');   
+const crystalFallback = document.querySelector('#crystal-fallback');
+const follower        = document.querySelector('.cursor-follower');
+const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li');
 
-const container = document.getElementById('landing-display');
-const canvas = document.getElementById('model-canvas');
-const fallback = document.getElementById('crystal-fallback');
+// 💡 [추가] 가짜 코덱스 3D 유령 박멸용 타겟팅 (HTML에 존재하는 기존 컴포넌트 ID나 클래스에 맞게 체크)
+const codexFakeModel = document.querySelector('.codex-3d, #codex-fallback, .display-frame > svg, .display-frame > img');
 
-// 2. 초기화 함수
-function init() {
-  if (!container || !canvas) return;
+/* ════════════════════════════════════════
+    INTERACTION STATE
+════════════════════════════════════════ */
+const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, tx: window.innerWidth * 0.5, ty: window.innerHeight * 0.5 };
 
-  // 가짜 껍데기 레이어 완벽히 제거
-  if (fallback) fallback.style.display = 'none';
+const rotationState = {
+  currentX: 0, currentY: 0,
+  targetX:  0, targetY:  0,
+  isDragging: false,
+  previousMouseX: 0, previousMouseY: 0
+};
 
-  // [씬 세팅] 배경은 투명하게 하여 HTML 그래디언트와 결합
-  scene = new THREE.Scene();
+let modelAutoRotY = 0; 
+const clamp01 = v => Math.max(0, Math.min(1, v));
 
-  // [카메라 세팅]
-  const width = container.clientWidth;
-  const height = container.clientHeight;
-  camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-  camera.position.z = 7;
+/* ════════════════════════════════════════
+    LANDING CANVAS BACKGROUND
+════════════════════════════════════════ */
+const setupLandingCanvas = () => {
+  if (!landing || !landingCanvas) return null;
+  const ctx = landingCanvas.getContext('2d');
+  if (!ctx) return null;
+  const state = { width: 0, height: 0, dpr: 1 };
 
-  // [렌더러 세팅] 이미지처럼 깨끗한 경계선을 위해 안티앨리어싱 및 고해상도 대응
-  renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
-  renderer.setSize(width, height);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
-  
-  // 프리즘 광택을 위한 물리적 톤매핑 적용
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
-
-  // 3D 별 지오메트리 생성 (중앙이 뚫린 구조 형상화)
-  createStarGeometry();
-
-  // 조명 세팅 (유리의 꺾인 면들을 칼같이 살려줄 다방면 조명)
-  setupLights();
-
-  // 마우스 인터랙션 이벤트 바인딩
-  setupEvents();
-
-  // 애니메이션 루프 시작
-  animate();
-
-  // 사이트 로딩창 걷어내기 트리거
-  const loader = document.getElementById('site-loader');
-  if (loader) {
-    setTimeout(() => {
-      loader.style.opacity = '0';
-      loader.style.transform = 'scale(1.02)';
-      setTimeout(() => {
-        loader.style.display = 'none';
-      }, 500);
-    }, 400);
-  }
-}
-
-// 3. 지오메트리 및 '프리즘 유리' 재질 생성
-function createStarGeometry() {
-  // 압출 베벨 설정을 통해 보석 같은 각진 모서리 구현
-  const starShape = new THREE.Shape();
-  const points = 6; // 6각 별 형태
-  const outerRadius = 1.8;
-  const innerRadius = 0.9;
-
-  for (let i = 0; i < points * 2; i++) {
-    const angle = (i * Math.PI) / points;
-    const radius = i % 2 === 0 ? outerRadius : innerRadius;
-    const x = Math.cos(angle) * radius;
-    const y = Math.sin(angle) * radius;
-    if (i === 0) starShape.moveTo(x, y);
-    else starShape.lineTo(x, y);
-  }
-  starShape.closePath();
-
-  const extrudeSettings = {
-    steps: 1,
-    depth: 0.4,
-    bevelEnabled: true,
-    bevelThickness: 0.15,
-    bevelSize: 0.1,
-    bevelSegments: 3
+  const resize = () => {
+    const rect = landing.getBoundingClientRect();
+    state.width  = rect.width;
+    state.height = rect.height;
+    state.dpr    = Math.min(window.devicePixelRatio || 1, 1.5);
+    landingCanvas.width  = Math.max(1, Math.floor(rect.width  * state.dpr));
+    landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
+    landingCanvas.style.width  = `${rect.width}px`;
+    landingCanvas.style.height = `${rect.height}px`;
+    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
   };
 
-  const geometry = new THREE.ExtrudeGeometry(starShape, extrudeSettings);
-  geometry.center(); // 회전축을 별의 정중앙으로 일치
+  const draw = () => {
+    const { width, height } = state;
+    if (!width || !height) return;
+    ctx.clearRect(0, 0, width, height);
+    const rect = landing.getBoundingClientRect();
+    const px = pointer.x - rect.left;
+    const py = pointer.y - rect.top;
+    const glow = ctx.createRadialGradient(px, py, 0, px, py, Math.max(width, height) * 0.52);
+    glow.addColorStop(0,    'rgba(255,255,255,0.08)');
+    glow.addColorStop(0.3,  'rgba(150,100,255,0.04)');
+    glow.addColorStop(1,    'rgba(16,16,18,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, width, height);
+  };
 
-  // ✨ 핵심: 뿌연 노이즈를 없애고 맑고 영롱한 두 번째 이미지 재질을 구현하는 물리 재治
-  const glassMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff,
-    metalness: 0.0,
-    roughness: 0.03,            // 표면 지직거림을 잡기 위해 극도로 매끄럽게 설정 (0에 수렴)
-    transparent: true,
-    opacity: 0.4,               // 맑게 투과되는 기본 불투명도
-    transmission: 0.95,         // 빛이 내부를 완전히 통과하는 투과율 극대화
-    ior: 2.417,                 // 다이아몬드 급 굴절률로 가장자리 무지갯빛 왜곡 유도
-    thickness: 0.5,             // 유리의 두께감 지정
-    specularIntensity: 2.0,     // 하이라이트 광택 강화
-    specularColor: new THREE.Color(0xffffff),
-    sheen: 1.0,
-    sheenColor: new THREE.Color(0xddf0ff), // 미세한 푸른빛 프리즘 기운 가미
-    side: THREE.DoubleSide
-  });
+  resize();
+  return { resize, draw };
+};
 
-  crystalStar = new THREE.Mesh(geometry, glassMaterial);
-  scene.add(crystalStar);
-}
+let landingCanvasCtrl = null;
+const updateLandingVars = () => {
+  if (!landing) return;
+  const rect = landing.getBoundingClientRect();
+  const x = ((pointer.x - rect.left) / Math.max(rect.width,  1)) * 100;
+  const y = ((pointer.y - rect.top)  / Math.max(rect.height, 1)) * 100;
+  landing.style.setProperty('--pointer-x', `${clamp01(x / 100) * 100}%`);
+  landing.style.setProperty('--pointer-y', `${clamp01(y / 100) * 100}%`);
+};
 
-// 4. 프리즘 면을 살려줄 광원 배치
-function setupLights() {
-  const ambientLight = new THREE.AmbientLight(0x222233, 1.5);
-  scene.add(ambientLight);
+/* ════════════════════════════════════════
+    THREE.JS ENGINE (지직거림 완벽 소독 버전)
+════════════════════════════════════════ */
+let threeRenderer = null;
+let threeScene    = null;
+let threeCamera   = null;
+let modelAnchor   = null; 
+let animFrameId   = null;
 
-  // 정면 메인 하이라이트 빛
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 3.0);
-  dirLight1.position.set(5, 5, 5);
-  scene.add(dirLight1);
+const initThree = () => {
+  if (!modelCanvas) return;
 
-  // 무지갯빛 반사 느낌을 시뮬레이션하기 위한 측면 유색 보조광들
-  const dirLight2 = new THREE.DirectionalLight(0xff00aa, 1.5); // 핑크 스펙트럼
-  dirLight2.position.set(-5, 3, 2);
-  scene.add(dirLight2);
-
-  const dirLight3 = new THREE.DirectionalLight(0x00f0ff, 2.0); // 사이안 스펙트럼
-  dirLight3.position.set(0, -5, 3);
-  scene.add(dirLight3);
-
-  const pointLight = new THREE.PointLight(0xffffff, 2.0, 10);
-  pointLight.position.set(2, 2, 4);
-  scene.add(pointLight);
-}
-
-// 5. 드래그 인터랙션 마우스 이벤트
-function setupEvents() {
-  // 마우스 누름
-  container.addEventListener('mousedown', (e) => {
-    isDragging = true;
-    previousMousePosition = { x: e.clientX, y: e.clientY };
-  });
-
-  // 마우스 움직임 (회전 값 누적)
-  window.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-
-    const deltaMove = {
-      x: e.clientX - previousMousePosition.x,
-      y: e.clientY - previousMousePosition.y
-    };
-
-    targetRotation.y += deltaMove.x * 0.007;
-    targetRotation.x += deltaMove.y * 0.007;
-
-    previousMousePosition = { x: e.clientX, y: e.clientY };
-  });
-
-  // 마우스 뗌
-  window.addEventListener('mouseup', () => {
-    isDragging = false;
-  });
-
-  // 터치 스크린 대응 (모바일)
-  container.addEventListener('touchstart', (e) => {
-    isDragging = true;
-    previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  });
-
-  window.addEventListener('touchmove', (e) => {
-    if (!isDragging) return;
-    const deltaMove = {
-      x: e.touches[0].clientX - previousMousePosition.x,
-      y: e.touches[0].clientY - previousMousePosition.y
-    };
-    targetRotation.y += deltaMove.x * 0.007;
-    targetRotation.x += deltaMove.y * 0.007;
-    previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  });
-
-  window.addEventListener('touchend', () => { isDragging = false; });
-
-  // 윈도우 리사이즈 대응
-  window.addEventListener('resize', () => {
-    const w = container.clientWidth;
-    const h = container.clientHeight;
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-    renderer.setSize(w, h);
-  });
-}
-
-// 6. 프레임 렌더링 루프
-function animate() {
-  requestAnimationFrame(animate);
-
-  if (crystalStar) {
-    // 드래그 마우스 조작감을 쫀득하고 부드럽게 만들어주는 댐핑(Lerp) 적용
-    crystalStar.rotation.x += (targetRotation.x - crystalStar.rotation.x) * 0.08;
-    crystalStar.rotation.y += (targetRotation.y - crystalStar.rotation.y) * 0.08;
-
-    // 마우스를 안 대고 가만히 있어도 스스로 영롱하게 미세 자전하는 효과 추가
-    if (!isDragging) {
-      targetRotation.y += 0.002;
-    }
+  // 💡 [중요] 지직거림(Z-Fighting) 원천 차단: 기존에 돌던 프레임과 렌더러 메모리를 완전히 폭파 청소
+  if (animFrameId) {
+    cancelAnimationFrame(animFrameId);
+    animFrameId = null;
+  }
+  if (threeRenderer) {
+    threeRenderer.dispose();
+    threeRenderer = null;
   }
 
-  renderer.render(scene, camera);
+  // 자바스크립트가 켜지자마자 기존 가짜 코덱스 그래픽이 있다면 강제로 증발시킵니다.
+  if (codexFakeModel) {
+    codexFakeModel.style.display = 'none';
+    codexFakeModel.style.opacity = '0';
+  }
+
+  const shell = landingDisplay || { offsetWidth: window.innerWidth, offsetHeight: window.innerHeight };
+  const W = shell.offsetWidth;
+  const H = shell.offsetHeight;
+
+  threeRenderer = new THREE.WebGLRenderer({
+    canvas:      modelCanvas,
+    alpha:       true,
+    antialias:   true,
+    powerPreference: 'high-performance',
+  });
+  threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  threeRenderer.setSize(W, H);
+  threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  threeRenderer.toneMapping      = THREE.NeutralToneMapping;
+  threeRenderer.toneMappingExposure = 2.0; 
+
+  threeScene = new THREE.Scene();
+
+  // 💡 아래로 처박히는 현상 해결: 카메라의 Y축을 0으로 완전히 맞추고 정중앙을 쳐다보게 세팅
+  threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
+  threeCamera.position.set(0, 0, 4.4); 
+
+  // 광원 시스템
+  const ambient = new THREE.AmbientLight(0xffffff, 0.4); 
+  threeScene.add(ambient);
+
+  const backLight = new THREE.DirectionalLight(0xffffff, 4.0);
+  backLight.position.set(-2, 4, -4);
+  threeScene.add(backLight);
+
+  const laserCyan = new THREE.SpotLight(0x00f6ff, 12.0, 15, Math.PI / 4, 0.5, 1);
+  laserCyan.position.set(4, 5, 3);
+  threeScene.add(laserCyan);
+
+  const laserMagenta = new THREE.SpotLight(0xff00bb, 15.0, 15, Math.PI / 4, 0.5, 1);
+  laserMagenta.position.set(-5, -2, 2);
+  threeScene.add(laserMagenta);
+
+  const loader = new GLTFLoader();
+  const draco  = new DRACOLoader();
+  draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+  loader.setDRACOLoader(draco);
+
+  loader.load(
+    './modeling.glb',
+    (gltf) => {
+      const model = gltf.scene;
+      
+      // 혹시 남아있을지 모를 무대 위 찌꺼기 메쉬 완전 삭제
+      while(threeScene.children.length > 5) { 
+        threeScene.remove(threeScene.children[threeScene.children.length - 1]);
+      }
+
+      const box    = new THREE.Box3().setFromObject(model);
+      const centre = new THREE.Vector3();
+      box.getCenter(centre);
+      const size   = new THREE.Vector3();
+      box.getSize(size);
+      
+      const maxDim = Math.max(size.x, size.y, size.z);
+      // 박스 크기에 너무 꽉 차서 잘리지 않도록 스케일 살짝 축소 보정 (2.2 -> 1.95)
+      const scale   = 1.95 / maxDim; 
+      
+      model.position.sub(centre.multiplyScalar(scale));
+      model.scale.setScalar(scale);
+      
+      // 💡 누워있던 기본 모델링 축 보정 각도 셋업
+      model.rotation.set(Math.PI / 2.3, 0, 0); 
+
+      model.traverse((child) => {
+        if (!child.isMesh) return;
+        if (child.material.map) child.material.map = null;
+        
+        // 프리즘 최고급 크리스탈 글래스 재질 
+        child.material = new THREE.MeshPhysicalMaterial({
+          color:              0xffffff,   
+          metalness:          0.05,        
+          roughness:          0.01,        
+          transmission:       0.95,       
+          ior:                2.42,       
+          thickness:          0.8,        
+          clearcoat:          1.0,        
+          clearcoatRoughness: 0.0,
+          dispersion:         11.0,       // 레퍼런스 특유의 무지갯빛 프리즘 분산 강렬하게 유지
+          opacity:            1.0,
+          transparent:        true,
+          side:               THREE.FrontSide, 
+        });
+      });
+
+      modelAnchor = new THREE.Group();
+      modelAnchor.add(model);
+      threeScene.add(modelAnchor);
+      
+      if (crystalFallback) crystalFallback.style.display = 'none';
+
+      const siteLoader = document.querySelector('#site-loader');
+      if (siteLoader) {
+        setTimeout(() => {
+          siteLoader.classList.add('is-loaded');
+        }, 300);
+      }
+    },
+    undefined,
+    (err) => {
+      console.warn("GLB 로드 에러", err);
+      const siteLoader = document.querySelector('#site-loader');
+      if (siteLoader) siteLoader.classList.add('is-loaded');
+    }
+  );
+};
+
+const resizeThree = () => {
+  if (!threeRenderer || !threeCamera) return;
+  const shell = landingDisplay || { offsetWidth: window.innerWidth, offsetHeight: window.innerHeight };
+  threeRenderer.setSize(shell.offsetWidth, shell.offsetHeight);
+  threeCamera.aspect = shell.offsetWidth / shell.offsetHeight;
+  threeCamera.updateProjectionMatrix();
+};
+
+/* ════════════════════════════════════════
+    MAIN ANIMATION LOOP
+════════════════════════════════════════ */
+const animate = () => {
+  animFrameId = requestAnimationFrame(animate);
+
+  pointer.x += (pointer.tx - pointer.x) * 0.08;
+  pointer.y += (pointer.ty - pointer.y) * 0.08;
+
+  if (follower) {
+    follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
+  }
+
+  updateLandingVars();
+  if (landingCanvasCtrl) landingCanvasCtrl.draw();
+
+  if (threeRenderer && threeScene && threeCamera) {
+    if (modelAnchor) {
+      if (!rotationState.isDragging) {
+        modelAutoRotY += 0.003;
+        rotationState.targetY += 0.003;
+      }
+
+      rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
+      rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
+
+      modelAnchor.rotation.x = rotationState.currentX;
+      modelAnchor.rotation.y = rotationState.currentY;
+
+      // 💡 아래로 처박혀 잘리는 위험을 방지하기 위해 상하 바운싱 폭을 최소화
+      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.005;
+    }
+    threeRenderer.render(threeScene, threeCamera);
+  }
+};
+
+/* ════════════════════════════════════════
+    DRAG EVENTS
+════════════════════════════════════════ */
+const setupDragEvents = () => {
+  if (!landingDisplay) return;
+
+  landingDisplay.addEventListener('pointerdown', (e) => {
+    rotationState.isDragging = true;
+    rotationState.previousMouseX = e.clientX;
+    rotationState.previousMouseY = e.clientY;
+  });
+
+  window.addEventListener('pointermove', (e) => {
+    pointer.tx = e.clientX;
+    pointer.ty = e.clientY;
+
+    if (!rotationState.isDragging || !modelAnchor) return;
+
+    const deltaX = e.clientX - rotationState.previousMouseX;
+    const deltaY = e.clientY - rotationState.previousMouseY;
+
+    rotationState.targetY += deltaX * 0.008;
+    rotationState.targetX += deltaY * 0.008;
+
+    rotationState.previousMouseX = e.clientX;
+    rotationState.previousMouseY = e.clientY;
+  });
+
+  window.addEventListener('pointerup', () => {
+    rotationState.isDragging = false;
+  });
+};
+
+/* ════════════════════════════════════════
+    INITIALIZE
+════════════════════════════════════════ */
+const initAll = () => {
+  if (window.__threeInitialized) return; 
+  window.__threeInitialized = true;
+
+  landingCanvasCtrl = setupLandingCanvas();
+  setupDragEvents(); 
+
+  highlightElements.forEach((el) => {
+    el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
+    el.addEventListener('mouseleave', () => el.classList.remove('is-hovered'));
+  });
+
+  const revealCards = document.querySelectorAll('.reveal-card');
+  if (revealCards.length) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
+    );
+    revealCards.forEach(card => observer.observe(card));
+  }
+
+  initThree();
+  animate();
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAll);
+} else {
+  initAll();
 }
 
-// 엔진 가동
-window.addEventListener('DOMContentLoaded', init);
+window.addEventListener('resize', () => {
+  if (landingCanvasCtrl) landingCanvasCtrl.resize();
+  resizeThree();
+});
