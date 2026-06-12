@@ -1,159 +1,191 @@
-document.addEventListener("DOMContentLoaded", () => {
-  
-  /* ════════════════════════════════════════
-      1. 로고가 회전하는 전역 로딩 화면 (Loading Mask)
-  ════════════════════════════════════════ */
-  // HTML에 로딩 스크린이 없을 경우를 대비해 스크립트에서 동적 생성합니다.
-  let loadingScreen = document.getElementById("loading-screen");
-  if (!loadingScreen) {
-    loadingScreen = document.createElement("div");
-    loadingScreen.id = "loading-screen";
-    // 스타일 주입
-    Object.assign(loadingScreen.style, {
-      position: "fixed",
-      inset: "0",
-      backgroundColor: "#101013",
-      zIndex: "999999",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      transition: "opacity 0.6s ease, visibility 0.6s ease"
-    });
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&display=swap');
 
-    // 회전할 로고 생성 (브랜드 로고 이미지 소스 활용)
-    const brandImg = document.querySelector(".brand-logo img");
-    const loaderLogo = document.createElement("img");
-    loaderLogo.src = brandImg ? brandImg.src : "logo.png"; // 로고 경로 자동 매칭
-    
-    Object.assign(loaderLogo.style, {
-      width: "80px",
-      height: "80px",
-      objectFit: "contain",
-      animation: "logo-spin 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite"
-    });
+:root {
+  --bg-deep: #101013;
+  --surface: #17181c;
+  --text: #f3efe7;
+  --muted: #b7b0a6;
+  --line: rgba(255,255,255,0.12);
+  --sub: #dbff86;
+  --eng-font: 'Google Sans Flex', sans-serif;
+}
 
-    // 키프레임 애니메이션 주입
-    const styleSheet = document.createElement("style");
-    styleSheet.innerText = `
-      @keyframes logo-spin {
-        0% { transform: rotateY(0deg); }
-        100% { transform: rotateY(360deg); }
-      }
-    `;
-    document.head.appendChild(styleSheet);
-    
-    loadingScreen.appendChild(loaderLogo);
-    document.body.appendChild(loadingScreen);
-  }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-  // 페이지 로드 완료 시 로딩 화면 페이드아웃 및 제거, 본문 강제 표시
-  window.addEventListener("load", () => {
-    setTimeout(() => {
-      loadingScreen.style.opacity = "0";
-      loadingScreen.style.visibility = "hidden";
-      
-      // 콘텐츠 유실 방지: 본문 영역 확실하게 깨우기
-      const contentShell = document.querySelector(".content-shell");
-      if (contentShell) {
-        contentShell.style.opacity = "1";
-        contentShell.style.visibility = "visible";
-        contentShell.style.display = "block";
-      }
-      
-      // 쓸데없는 Three.js용 캔버스가 존재한다면 완벽 박멸
-      const badCanvas = document.querySelector(".model-canvas");
-      if (badCanvas) badCanvas.remove();
-    }, 800); // 은은한 여운을 주는 대기 시간
-  });
+body {
+  background-color: var(--bg-deep);
+  color: var(--text);
+  font-family: sans-serif;
+  overflow-x: hidden;
+}
 
+/* ════════════════════════════════════════
+    상단 메뉴바 및 독립 진행 바 세팅
+════════════════════════════════════════ */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 80px;
+  background: rgba(16, 16, 19, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+}
 
-  /* ════════════════════════════════════════
-      2. 겹침 버그 박멸 및 오색빛깔 원래 모델링 활성화
-  ════════════════════════════════════════ */
-  const fallbackModel = document.querySelector(".crystal-fallback");
-  const displayContainer = document.querySelector(".landing-display-shell");
+.topbar-inner {
+  width: min(1220px, calc(100% - 40px));
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
-  if (fallbackModel) {
-    // 숨겨져 있던 예린님의 원래 모델링 클래스를 강제로 깨웁니다.
-    fallbackModel.classList.remove("is-hidden");
-    fallbackModel.style.opacity = "1";
-    fallbackModel.style.display = "block";
-  }
+.topnav {
+  display: flex;
+  gap: 32px;
+}
 
+.topnav a {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: rgba(243,239,231,0.5);
+  text-decoration: none;
+  transition: color 0.3s;
+  font-family: var(--eng-font);
+  font-weight: 500;
+}
 
-  /* ════════════════════════════════════════
-      3. 마우스 호버 인터랙션 (CSS 변수 제어 연동)
-  ════════════════════════════════════════ */
-  if (displayContainer && fallbackModel) {
-    displayContainer.addEventListener("mousemove", (e) => {
-      const rect = displayContainer.getBoundingClientRect();
-      // 마우스 좌표를 -25deg ~ 25deg 사이의 정교한 각도로 치환
-      const rotateX = -((e.clientY - rect.top) / rect.height - 0.5) * 50;
-      const rotateY = ((e.clientX - rect.left) / rect.width - 0.5) * 50;
+.topnav a.active {
+  color: var(--text);
+  font-weight: 700;
+}
 
-      fallbackModel.style.setProperty("--object-rotate-x", `${rotateX - 10}deg`);
-      fallbackModel.style.setProperty("--object-rotate-y", `${rotateY + 24}deg`);
-    });
+/* 🔥 개별 섹션 스크롤에만 독립적으로 반응하는 진행 바 */
+.nav-progress {
+  width: 50px;
+  height: 2px;
+  background: rgba(255,255,255,0.1);
+  position: relative;
+  border-radius: 1px;
+  overflow: hidden;
+}
 
-    // 마우스가 나가면 원래 예린님이 설정해둔 기본 각도로 스무스하게 복귀
-    displayContainer.addEventListener("mouseleave", () => {
-      fallbackModel.style.setProperty("--object-rotate-x", "-10deg");
-      fallbackModel.style.setProperty("--object-rotate-y", "24deg");
-    });
-  }
+.nav-progress::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--nav-progress, 0) * 100%);
+  background: var(--sub);
+  transition: width 0.05s linear;
+}
 
+/* ════════════════════════════════════════
+    오색빛깔 오리지널 CSS 3D 오브젝트 스타일
+════════════════════════════════════════ */
+.landing-display-shell {
+  width: 100%;
+  aspect-ratio: 1;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  perspective: 1200px;
+}
 
-  /* ════════════════════════════════════════
-      4. 개별 메뉴바 스크롤 완벽 격리 (동시 작동 해결)
-  ════════════════════════════════════════ */
-  const navLinks = document.querySelectorAll(".topnav a");
-  const sections = Array.from(navLinks).map(link => {
-    const targetId = link.getAttribute("href");
-    return targetId && targetId.startsWith("#") ? document.querySelector(targetId) : null;
-  });
+/* ❌ 문제를 일으키던 코덱스 3D 캔버스는 완벽히 숨김 처리 */
+.model-canvas {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
 
-  function updateScrollNavigation() {
-    const scrollTop = window.scrollY || document.documentElement.scrollTop;
-    const viewportHeight = window.innerHeight;
+/* ✨ 파스텔톤 입체 재질 및 광택 복구 */
+.crystal-fallback {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--object-rotate-x, -10deg)) rotateY(var(--object-rotate-y, 24deg));
+  transition: transform 0.15s ease-out;
+  z-index: 5;
+  display: block !important;
+  opacity: 1 !important;
+}
 
-    navLinks.forEach((link, index) => {
-      const section = sections[index];
-      
-      // 홈(기본) 링크 처리
-      if (!section) {
-        if (scrollTop < viewportHeight * 0.4) {
-          link.classList.add("active");
-          link.style.setProperty("--nav-progress", "1");
-        } else {
-          link.classList.remove("active");
-          link.style.setProperty("--nav-progress", "0");
-        }
-        return;
-      }
+.crystal-fallback::before, 
+.crystal-fallback::after, 
+.lobe {
+  position: absolute;
+  inset: 0;
+  display: block;
+  content: "";
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: linear-gradient(135deg, rgba(229, 255, 202, 0.85) 0%, rgba(209, 196, 233, 0.85) 100%);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: inset 0 0 25px rgba(255, 255, 255, 0.5), 0 0 40px rgba(229, 255, 202, 0.15);
+}
 
-      const rect = section.getBoundingClientRect();
-      const sectionTopOnPage = rect.top + scrollTop;
-      const sectionHeight = rect.height;
+.crystal-fallback::before { 
+  transform: translateZ(40px); 
+  background: linear-gradient(135deg, rgba(240, 255, 220, 0.9) 0%, rgba(220, 210, 245, 0.6) 100%); 
+}
 
-      // 🎯 핵심 교정: 현재 뷰포트 영역 안에 '실제' 들어왔을 때만 바를 계산합니다.
-      if (scrollTop + viewportHeight > sectionTopOnPage && scrollTop < sectionTopOnPage + sectionHeight) {
-        // 해당 섹션 스크롤 진행도 독립 계산 (0 ~ 1)
-        const currentProgress = (scrollTop + viewportHeight - sectionTopOnPage) / (sectionHeight + viewportHeight);
-        link.style.setProperty("--nav-progress", Math.min(Math.max(currentProgress, 0), 1));
-      } else {
-        // 화면 밖에 있는 섹션의 메뉴바는 철저하게 0으로 잠금
-        link.style.setProperty("--nav-progress", "0");
-      }
+.crystal-fallback::after { 
+  transform: translateZ(-40px); 
+  opacity: 0.5; 
+}
 
-      // 화면 중앙(50%)을 지날 때 해당 메뉴 글자 불빛(Active) 활성화
-      if (rect.top <= viewportHeight * 0.5 && rect.bottom >= viewportHeight * 0.5) {
-        link.classList.add("active");
-      } else {
-        link.classList.remove("active");
-      }
-    });
-  }
+.lobe-a { 
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%); 
+  transform: rotateX(45deg) translateZ(20px); 
+}
 
-  window.addEventListener("scroll", updateScrollNavigation);
-  updateScrollNavigation(); // 초기 실행
-});
+.lobe-b { 
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%); 
+  transform: rotateX(-45deg) translateZ(-20px); 
+}
+
+/* ════════════════════════════════════════
+    🔒 본문 보호 및 로딩 스크린 레이아웃
+════════════════════════════════════════ */
+.content-shell {
+  position: relative;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 10;
+}
+
+#loading-screen {
+  position: fixed;
+  inset: 0;
+  background-color: #101013;
+  z-index: 999999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.loading-logo {
+  width: 70px;
+  height: 70px;
+  animation: logo-spin 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes logo-spin {
+  0% { transform: rotateY(0deg); }
+  100% { transform: rotateY(360deg); }
+}
