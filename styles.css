@@ -52,10 +52,14 @@
 
 *{box-sizing:border-box;}
 
-/* ── FIX #6: Hide OS cursor everywhere ── */
+/* ── OS 기본 커서 숨김 처리 ── */
 html,body,*{cursor:none !important;}
 
-html{scroll-behavior:smooth;scrollbar-width:none;}
+html{
+  scroll-behavior:smooth;
+  scrollbar-width:none;
+  background-color: #101012;
+}
 
 body{
   margin:0;
@@ -65,12 +69,16 @@ body{
   overflow-x:hidden;
   background:linear-gradient(180deg,var(--bg) 0%,var(--bg-deep) 100%);
   scrollbar-width:none;
+  -webkit-font-smoothing: antialiased;
+  /* 상단바가 fixed 되었으므로 본문이 가려지지 않게 헤더 높이만큼 정확히 패딩 부여 */
+  padding-top: 92px !important; 
 }
 body::-webkit-scrollbar{display:none;}
 body::before{
   content:"";position:fixed;inset:0;
   background:linear-gradient(90deg,rgba(255,255,255,0.1),transparent 26%,transparent 74%,rgba(255,255,255,0.08));
   opacity:0.18;pointer-events:none;
+  z-index: 0;
 }
 a{color:inherit;text-decoration:none;}
 
@@ -89,34 +97,59 @@ a{color:inherit;text-decoration:none;}
   background-size:120px 120px;opacity:0.18;pointer-events:none;
 }
 
-/* ─── TOPBAR ─── */
+/* ─── TOPBAR (상단 완벽 고정 및 세로폭 정상화) ─── */
 .topbar{
-  width:100%;position:sticky;top:0;z-index:10;
+  width:100% !important;
+  position:fixed !important; /* sticky에서 fixed로 변경하여 완벽 박제 */
+  top:0 !important;
+  left:0 !important;
+  z-index:99999 !important; /* 최상단 레이어로 격상 */
   border-bottom:1px solid rgba(255,255,255,0.08);
   background:
     radial-gradient(circle at 16% 18%,rgba(170,233,97,0.08),transparent 18%),
     radial-gradient(circle at 78% 26%,rgba(93,53,163,0.16),transparent 22%),
-    linear-gradient(180deg,rgba(23,23,23,0.95) 0%,rgba(15,15,16,0.9) 100%);
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    linear-gradient(180deg,rgba(23,23,23,0.96) 0%,rgba(15,15,16,0.92) 100%) !important;
+  backdrop-filter:blur(14px) !important;
+  -webkit-backdrop-filter:blur(14px) !important;
+  height: 92px !important; /* 줄어들지 않도록 오리지널 세로폭 보존 */
+  display: flex !important;
+  align-items: center !important;
 }
 .topbar-inner{
   width:min(1220px,calc(100% - 40px));margin:0 auto;
-  padding:18px 0 16px;display:flex;justify-content:space-between;
+  padding:0; display:flex;justify-content:space-between;
   align-items:center;gap:20px;
 }
 .brand,.topnav a,.eyebrow,.project-type,.meta-label,.contact-label{font-family:var(--eng-font);}
 .brand{font-weight:650;letter-spacing:0.14em;color:#f7f4ec;}
 .brand-logo{display:inline-flex;align-items:center;width:58px;height:58px;letter-spacing:0;}
 .brand-logo img{width:100%;height:100%;object-fit:contain;display:block;}
+
+/* 상단 메뉴바 하단 Active 바 연동 스타일 고도화 */
 .topnav{display:flex;flex-wrap:wrap;gap:18px;}
-.topnav a{min-width:124px;display:grid;gap:12px;font-size:0.9rem;color:rgba(247,244,236,0.76);}
+.topnav a{
+  min-width:124px;display:grid;gap:12px;font-size:0.9rem;
+  color:rgba(247,244,236,0.6);
+  position: relative;
+  transition: color 0.3s ease;
+}
+.topnav a.active {
+  color: #ffffff !important;
+  font-weight: 600;
+}
 .topnav a span{display:block;}
+
 .nav-progress{display:block;width:100%;height:1px;background:rgba(255,255,255,0.16);position:relative;overflow:hidden;}
 .nav-progress::after{
   content:"";position:absolute;inset:0 auto 0 0;
   width:calc(var(--nav-progress,0)*100%);
   background:linear-gradient(90deg,var(--sub),rgba(255,255,255,0.92));
   transition:width 0.28s ease;
+}
+/* active 클래스가 붙었을 때 부드럽게 차오르는 밑줄 이펙트 */
+.topnav a.active .nav-progress::after {
+  width: 100% !important;
+  background: #ffffff !important;
 }
 
 /* ─── PAGE SHELL ─── */
@@ -126,7 +159,7 @@ a{color:inherit;text-decoration:none;}
 /* ─── LANDING ─── */
 .landing{
   position:relative;
-  min-height:calc(100vh - 74px);
+  min-height:calc(100vh - 92px);
   padding:0;overflow:hidden;
   background:
     radial-gradient(circle at 16% 18%,rgba(170,233,97,0.14),transparent 20%),
@@ -137,7 +170,7 @@ a{color:inherit;text-decoration:none;}
 .landing-sticky{
   position:relative;
   top:0;
-  min-height:calc(100vh - 74px);
+  min-height:calc(100vh - 92px);
   overflow:visible;
   display:flex;
   align-items:center;
@@ -171,12 +204,13 @@ a{color:inherit;text-decoration:none;}
   align-items:center;
   column-gap:clamp(40px,7vw,104px);
   row-gap:20px;
-  min-height:calc(100vh - 74px);
-  transform:translateY(-6%);
+  min-height:calc(100vh - 92px);
+  transform:translateY(-2%); /* 메인 타이틀 및 요소들 위치 살짝 하향 조정 */
 }
 
+/* 뷰 프로필 버튼과 타이틀 레이아웃 최적화 */
 .landing-copy{
-  grid-area:copy;padding-top:0;position:relative;z-index:10;align-self:end;
+  grid-area:copy;padding-top: 60px !important; position:relative;z-index:10;align-self:end;
 }
 .landing-title{
   margin-top:12px;font-family:var(--eng-font);
@@ -279,18 +313,21 @@ a{color:inherit;text-decoration:none;}
 /* Page spotlight */
 .page-spotlight{
   position:absolute;left:0;right:0;
-  top:var(--landing-end,calc(100vh - 74px));bottom:0;pointer-events:none;
+  top:var(--landing-end,calc(100vh - 92px));bottom:0;pointer-events:none;
   background:radial-gradient(460px 460px at var(--page-pointer-x,50%) var(--page-pointer-y,16%),
     rgba(255,255,255,0.12) 0%,rgba(219,255,134,0.1) 14%,rgba(93,53,163,0.06) 32%,
     rgba(17,18,21,0.18) 50%,rgba(10,10,12,0.58) 74%,rgba(5,5,7,0.9) 100%);
   z-index:1;
 }
 
-/* ─── CONTENT SHELL ─── */
+/* ─── CONTENT SHELL (원본 구조 완벽 복구 및 하드웨어 렉 완화) ─── */
 .content-shell{
   width:min(1220px,calc(100% - 40px));margin:44px auto 0;
   position:relative;z-index:2;padding-bottom:28px;
   background:transparent;border-radius:28px;overflow:visible;
+  /* 특정 요소에만 하드웨어 가속을 걸어 전체 스크롤 렉 차단 */
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 /* ─── HERO ─── */
@@ -357,10 +394,7 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
   border-bottom:1px solid var(--line);background:transparent;position:relative;z-index:1;
 }
 .section-heading h2{max-width:24ch;}
-
-/* FIX #7: Archive 서브타이틀 행간 넉넉하게 */
 #career-awards .section-heading h2{line-height:1.52;}
-
 .section-lead{max-width:48ch;margin:18px 0 0;color:var(--muted);}
 
 /* ─── CAREER GRID ─── */
@@ -379,60 +413,33 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
   border-left:1px solid var(--line);
   border-top:1px solid var(--line);
 }
-
 .panel h3{margin-bottom:0;padding-bottom:4px;}
 
+/* ─── 이력 리스트 볼드체 정밀 교정 ─── */
 .detail-list{margin:20px 0 0;padding-left:18px;}
-.detail-list li{position:relative;padding:4px 0;}
+.detail-list li{
+  position:relative;
+  padding:4px 0;
+  font-weight: 400 !important; /* 기본 텍스트는 일반 두께로 변경 */
+  color: var(--muted);
+}
 .detail-list li+li{margin-top:9px;}
 .compact li+li{margin-top:7px;}
 
-.detail-list li::after{
-  content:"";
-  position:absolute;
-  left:-2px;right:-6px;
-  bottom:1px;
-  height:6px;
-  background:linear-gradient(90deg,rgba(170,233,97,0.35),rgba(219,255,134,0.22));
-  border-radius:2px;
-  opacity:0;
-  transition:opacity 0.2s ease;
-  z-index:-1;
-}
-.detail-list li:hover::after{opacity:1;}
-
-/* ─── NEW: SCRIPT-DRIVEN HIGHLIGHT EFFECT ─── */
-/* 스크롤 감지 시 글자 아래쪽만 노란색/연두색 그라데이션으로 부드럽게 채워지는 인라인 형광펜 */
-.point-highlight {
-  display: inline;
-  position: relative;
-  color: #ffffff;
-  font-weight: 600;
-  background: linear-gradient(to top, rgba(219, 255, 134, 0.4) 40%, transparent 40%);
-  background-size: 0% 100%;
-  background-repeat: no-repeat;
-  transition: background-size 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.point-highlight.is-highlighted {
-  background-size: 100% 100%;
+/* ⚠️ 구린 형광펜 효과 완전 삭제 (요청 반영) */
+.detail-list li::after, .point-highlight, .point-highlight.is-highlighted {
+  display: none !important;
+  background: none !important;
 }
 
-/* ─── ACCENT PANEL ─── */
-.accent-panel{
-  background:
-    linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01)),
-    var(--surface);
-  color:var(--text);
+/* 🎯 주요 프로젝트 관련 타이틀만 강력 볼드체 유지 */
+.panel h3, 
+.main-project-card h3, 
+.project-card h3,
+#main-project h2 {
+  font-weight: 700 !important; 
+  color: #ffffff !important;
 }
-.accent-panel h3{color:#f6f2ea;}
-.accent-panel .detail-list li{color:var(--muted);}
-
-.panel,.contact-copy,.contact-card,.hero-copy{
-  background:
-    linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01)),
-    var(--surface);
-}
-.section-heading h2,.panel h3,.contact-copy h2,.hero-copy h2,.hero-note span{color:#f6f2ea;}
 
 /* ─── FIX #3: Scroll fade-in ─── */
 .reveal-card{
@@ -497,10 +504,13 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
 .project-grid:hover .project-card:hover .project-index{color:rgba(219,255,134,0.9);text-shadow:0 0 24px rgba(219,255,134,0.15);}
 .project-grid:hover .project-card:hover .project-type{color:#ffffff;}
 
-/* ─── MAIN PROJECT GRID ─── */
+/* ─── MAIN PROJECT GRID (유실 차단 및 정밀 그리드 복구) ─── */
 .main-project-grid{
-  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  display:grid !important; /* 무조건 원래 그리드 형태로 강제 유지 */
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
   gap:18px;margin-top:28px;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 .main-project-card{
   border:1px solid var(--line);border-radius:22px;padding:18px;
@@ -522,7 +532,6 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
   width:fit-content;padding:7px 12px;border-radius:7px;
   background:rgba(255,255,255,0.09);color:#f7f4ec;font-family:var(--eng-font);font-weight:700;
 }
-.main-project-card h3{font-size:1.08rem;line-height:1.4;min-height:2.8em;}
 
 /* ─── CONTACT ─── */
 .contact-copy .eyebrow{margin-bottom:20px;}
@@ -540,11 +549,14 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
 }
 .contact-button:hover{opacity:1;transform:scale(1.06);box-shadow:0 18px 36px rgba(93,53,163,0.32);}
 
-/* ─── CUSTOM CURSOR ─── */
+/* ─── CUSTOM CURSOR (마우스 커서 탈옥 및 최상위 격상) ─── */
 .cursor-follower{
-  position:fixed;left:0;top:0;width:12px;height:12px;border-radius:50%;
+  position:fixed !important;
+  left:0;top:0;width:12px;height:12px;border-radius:50%;
   background:rgba(219,255,134,0.95);box-shadow:0 0 16px rgba(219,255,134,0.38);
-  pointer-events:none;transform:translate3d(-50%,-50%,0);z-index:9999;
+  pointer-events:none !important;
+  transform:translate3d(-50%,-50%,0);
+  z-index:100000 !important; /* 상단바보다 위에 띄움 */
   transition:width 0.2s ease,height 0.2s ease,background 0.2s ease;
 }
 .cursor-follower.is-link{
@@ -569,12 +581,13 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
   .scroll-link{justify-self:start;}
   .content-shell{margin-top:32px;}
   .landing-display-shell{justify-self:start;width:min(440px,70vw);height:min(440px,52vh);}
-  .main-project-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .main-project-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important;}
   .project-card{min-height:380px;opacity:1;filter:none;transform:none;}
 }
 
 @media(max-width:760px){
-  .topbar{position:relative;}
+  /* 모바일 모드에서도 상단바 고정 절대 안 풀리게 세팅 보호 */
+  .topbar{position:fixed !important; height: 92px !important;}
   .topbar-inner{width:min(100% - 20px,100%);padding:14px 0;align-items:flex-start;flex-direction:column;}
   .topnav{gap:12px 16px;}
   .topnav a{min-width:0;width:100%;}
@@ -596,232 +609,17 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
   .career-grid{column-count:1;margin-top:20px;}
   .project-index{font-size:3.6rem;}
   .project-card{min-height:320px;opacity:1;filter:none;transform:none;padding-top:92px;}
-  .main-project-grid{grid-template-columns:1fr;}
-  .cursor-follower{display:none;}
+  .main-project-grid{grid-template-columns:1fr !important;}
+  .cursor-follower{display:none !important;}
   .page-spotlight{display:none;}
 }
 
 @media(pointer:coarse){
-  .cursor-follower{display:none;}
+  .cursor-follower{display:none !important;}
   .page-spotlight{display:none;}
 }
 
 @media(prefers-reduced-motion:reduce){
   .reveal-card,.reveal-card.is-visible,.page-spotlight,.cursor-follower{transition:none !important;animation:none !important;}
   .reveal-card{opacity:1;transform:none;}
-}
-/* ==========================================
-   ✨ 예린님 포트폴리오 디자인 디테일 교정 스타일
-   ========================================== */
-
-/* 1. 흰색 화면 깜빡임/버벅임 현상 완벽 박멸 (하드웨어 가속 강제화) */
-html, body {
-    background-color: #101012 !important;
-    overflow-y: auto !important;
-    height: auto !important;
-    -webkit-font-smoothing: antialiased;
-    perspective: 1000px;
-}
-
-.main-content {
-    background-color: #101012 !important;
-    transform: translateZ(0); /* 스크롤 잔상 및 흰색 찢어짐 차단 */
-    backface-visibility: hidden;
-}
-
-/* 2. 메인 타이틀 및 뷰 프로필 버튼 위치 중앙 조정 (하향) */
-.hero-copy {
-    padding-top: 80px !important; /* 위쪽 여백을 주어 첫 화면 중앙 배치 */
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-}
-
-/* 3. 상단 메뉴바 아래 바(Active indicator) 활성화 */
-.nav-menu a {
-    position: relative;
-    padding-bottom: 6px;
-    transition: color 0.3s ease;
-}
-
-.nav-menu a.active {
-    color: #ffffff !important;
-    font-weight: 600;
-}
-
-.nav-menu a.active::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 2px;
-    background-color: #ffffff; /* 메뉴를 나타내는 밑줄바 활성화 */
-    transition: width 0.3s ease;
-}
-
-/* 4. 구린 형광펜 효과 완전 삭제 */
-.point-highlight::after, 
-.reveal-card li::after,
-.is-hovered, 
-.is-visible {
-    background: none !important;
-    box-shadow: none !important;
-    animation: none !important;
-    transform: none !important;
-}
-
-/* 5. 이력 리스트 볼드체 교정 (주요 프로젝트만 볼드, 나머지는 일반 두께) */
-#profile .reveal-card li,
-#career li,
-.panel li {
-    font-weight: 400 !important; /* 기본 이력 리스트는 일반체로 변경 */
-    color: #a0a0a5;
-}
-
-/* 주요 프로젝트 내부의 텍스트와 타이틀만 볼드체 유지 */
-#main-project .card-title,
-#main-project h2,
-.project-card-item .card-title {
-    font-weight: 700 !important; /* 주요 프로젝트 관련 내용만 강조 */
-    color: #ffffff !important;
-}
-/* ==========================================
-   ✨ 예린님 포트폴리오 헤더 상단 고정 및 레이어 가속 교정
-   ========================================== */
-
-/* 1. 로고와 메뉴바 상단에 무조건 박제 (스크롤 해도 상단 고정) */
-header, .topbar, .navbar, .nav-container {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 70px !important; /* 필요시 예린님 기존 헤더 높이에 맞게 조절 */
-    z-index: 9999 !important; /* 무조건 모든 콘텐츠보다 위에 존재 */
-    background-color: rgba(16, 16, 18, 0.85) !important; /* 반투명으로 고급스럽게 */
-    backdrop-filter: blur(10px) !important; /* 뒤에 배경 블러 처리 */
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-}
-
-/* 헤더가 fixed 되면서 메인 콘텐츠가 가려지지 않도록 여백 확보 */
-body {
-    padding-top: 70px !important;
-    background-color: #101012 !important;
-    overflow-y: auto !important;
-}
-
-/* 2. 마우스 커서 탈옥 (물체 주변에 갇히는 현상 탈출 및 최상위 레이어 격상) */
-.cursor-follower {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    pointer-events: none !important; /* 마우스가 이벤트를 방해하지 않게 차단 */
-    z-index: 100000 !important; /* 헤더보다 더 위에 존재하게 처리 */
-    mix-blend-mode: difference; /* 마우스가 어디서든 잘 보이도록 반전 이펙트 유지 */
-}
-
-/* 3. Three.js 영역 패딩 및 캔버스 간섭 제거 */
-#landing-display, #model-canvas {
-    pointer-events: auto !important; /* 이 영역 안에서만 호버 감지 */
-}
-
-/* 4. 깜빡임 및 버벅임 방지 하드웨어 가속 */
-.main-content, section {
-    transform: translateZ(0);
-    backface-visibility: hidden;
-    will-change: transform;
-}
-/* ==========================================
-   ✨ 예린님 포트폴리오 레이아웃 & 내비게이션 고정 교정
-   ========================================== */
-
-/* 1. 로고와 메뉴가 있는 바를 상단에 무조건 고정 */
-header, .topbar, .navbar, .nav-container, #header {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 70px !important; /* 헤더 높이 */
-    z-index: 99999 !important; /* 어떤 요소보다 가장 위에 뜨도록 설정 */
-    background-color: rgba(16, 16, 18, 0.85) !important; /* 반투명 배경 */
-    backdrop-filter: blur(10px) !important; /* 고급스러운 흐림 효과 */
-}
-
-/* 상단바가 고정되면서 본문이 가려지는 것을 방지 */
-body {
-    padding-top: 70px !important;
-    background-color: #101012 !important;
-    overflow-y: auto !important;
-    height: auto !important;
-}
-
-/* 2. 마우스 커서 탈옥 (물체 주변을 벗어나도 화면 전체에서 정상 작동) */
-.cursor-follower {
-    position: fixed !important;
-    pointer-events: none !important;
-    z-index: 100000 !important; /* 상단바보다 위에 표시 */
-}
-
-/* 3. 스크롤할 때 흰색 화면 찢어짐 및 렉 방지 하드웨어 가속 */
-.main-content, main, section, .grid-container {
-    transform: translateZ(0);
-    backface-visibility: hidden;
-    will-change: transform;
-}
-/* ==========================================
-   ✨ 예린님 포트폴리오 상단바 정상화 및 콘텐츠 복구 스타일
-   ========================================== */
-
-/* 1. 상단바 세로폭 정상화 및 완벽 고정 */
-header, .topbar, .navbar, .nav-container, #header {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 80px !important; /* 세로폭이 줄어들지 않도록 80px로 안정적으로 고정 */
-    min-height: 80px !important;
-    z-index: 99999 !important; /* 모든 본문 콘텐츠보다 최상위에 위치 */
-    background-color: rgba(16, 16, 18, 0.9) !important; /* 반투명 다크 배경 */
-    backdrop-filter: blur(12px) !important; /* 배경 블러 효과 */
-    display: flex !important;
-    align-items: center !important;
-    box-sizing: border-box !important;
-}
-
-/* 2. 유실된 본문 콘텐츠 레이어 무조건 복구 및 노출 */
-main, .main-content, #main-content, section, .grid-container {
-    position: relative !important;
-    z-index: 10 !important; /* 3D 캔버스 뒤로 파묻히지 않게 위로 올림 */
-    display: block !important; /* 숨겨진 콘텐츠 강제 노출 */
-    visibility: visible !important;
-    opacity: 1 !important;
-    padding-top: 100px !important; /* 상단바가 콘텐츠를 가리지 않도록 넉넉한 여백 확보 */
-}
-
-/* 3. 첫 화면(Landing)과 3D 영역이 본문을 짓누르지 않도록 제한 */
-.landing, #landing-display {
-    position: relative !important;
-    height: 100vh !important;
-    min-height: 600px !important;
-    overflow: hidden !important;
-    z-index: 1 !important;
-}
-
-/* 4. 스크롤 렉 및 흰색 화면 깜빡임 차단 (GPU 가속 활성화) */
-html, body {
-    background-color: #101012 !important;
-    overflow-y: auto !important;
-    height: auto !important;
-}
-
-body * {
-    will-change: transform;
-    transform: translateZ(0); /* 스크롤할 때 브라우저 찢어짐 현상 방지 */
-}
-
-/* 5. 마우스 커서가 3D 영역을 벗어나도 전 영역에서 정상 작동 */
-.cursor-follower {
-    position: fixed !important;
-    pointer-events: none !important;
-    z-index: 100000 !important; 
 }
