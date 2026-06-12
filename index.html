@@ -17,20 +17,49 @@
     </script>
 
     <style>
-        body {
-            overflow-y: auto !important; /* 스크롤 무조건 강제 허용 */
-            background-color: #101012 !important; /* 원래의 어두운 배경 고정 */
+        /* 1. 브라우저 스크롤 바를 무조건 강제로 다시 만듭니다. */
+        html, body {
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            height: auto !important;
+            background-color: #101012 !important;
         }
+
+        /* 2. 3D 별 영역이 화면 전체를 귀신처럼 막아서 스크롤을 씹어먹는 현상 전면 차단 */
         .landing {
-            position: relative;
-            width: 100%;
-            height: 100vh; /* 첫 화면만 3D 영역 차지 */
+            position: relative !important;
+            width: 100vw !important;
+            height: 100vh !important;
         }
         #landing-display {
-            pointer-events: none; /* 별 이외의 영역은 마우스가 관통하여 스크롤 되도록 설정 */
+            pointer-events: none !important; /* 마우스 휠이 이 영역을 관통하게 만듭니다. */
         }
         #model-canvas {
-            pointer-events: auto; /* 진짜 별을 드래그할 때만 마우스가 먹히도록 설정 */
+            pointer-events: auto !important; /* 오직 별을 직접 붙잡고 돌릴 때만 마우스 허용 */
+        }
+
+        /* 3. 외부 css나 js 에러로 인해 숨겨져 있을 본문을 강제로 모조리 끄집어냅니다. */
+        .main-content {
+            position: relative !important;
+            display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            z-index: 50 !important;
+            background-color: #101012 !important;
+        }
+        
+        .panel, .accent-panel, section {
+            display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            min-height: 200px;
+        }
+
+        /* 4. 화면을 까맣게 가로막고 안 열리던 로더 장막을 완전히 파괴합니다. */
+        #site-loader, .site-loader, [class*="loader"], [id*="loader"] {
+            display: none !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
         }
     </style>
 </head>
@@ -53,7 +82,6 @@
         <div id="landing-display">
             <canvas id="model-canvas"></canvas>
         </div>
-        <div class="cursor-follower"></div>
     </main>
 
     <div class="main-content">
@@ -63,13 +91,6 @@
                 <p class="sub-title">QUIET BUT SOLID</p>
                 <h1>DESIGNER<br>YERIN CHOI</h1>
                 <p class="description">UI/UX Designer / Student Designer</p>
-            </div>
-            <div class="reveal-card">
-                <h3>PROFILE</h3>
-                <ul>
-                    <li class="point-highlight">Name: 최예린 (Yerin Choi)</li>
-                    <li class="point-highlight">Motto: Quiet but Solid</li>
-                </ul>
             </div>
         </section>
 
@@ -85,21 +106,22 @@
         <section id="main-project" class="panel">
             <h2>주요 프로젝트</h2>
             <div class="main-project-grid">
+                <div style="text-align: center; color: rgba(255,255,255,0.4); padding: 100px 0;">
+                    PROJECT ARCHIVE COMING SOON
                 </div>
+            </div>
         </section>
 
         <section id="career" class="accent-panel">
             <h2>CAREER & AWARDS</h2>
             <div class="career-grid">
-                <ul>
-                    <li>2026 UI/UX 디자인 포트폴리오 프로젝트 진행 중</li>
-                </ul>
+                <p style="color: rgba(255,255,255,0.6);">2026 Portfolio Project</p>
             </div>
         </section>
 
-        <section id="contact" class="contact-section">
+        <section id="contact" class="contact-section" style="padding: 100px 0; text-align: center;">
             <h2>CONTACT</h2>
-            <p>함께 성장할 영감을 나누어주세요.</p>
+            <p style="color: rgba(255,255,255,0.6); margin-top: 100px;">함께 성장할 영감을 나누어주세요.</p>
         </section>
         
     </div>
