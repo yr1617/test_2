@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    DOM ELEMENT REFS (예린님 오리지널 유지)
+    DOM ELEMENT REFS (예린님 오리지널)
 ════════════════════════════════════════ */
 const landing        = document.querySelector('.landing');
 const landingCanvas  = document.querySelector('.landing-canvas');
@@ -11,18 +11,18 @@ const landingDisplay = document.querySelector('#landing-display');
 const modelCanvas    = document.querySelector('#model-canvas');   
 const crystalFallback = document.querySelector('#crystal-fallback');
 const follower        = document.querySelector('.cursor-follower');
-const navLinks       = document.querySelectorAll('.nav-menu a');
-const sections       = document.querySelectorAll('section, main');
+const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li, .project-card-item');
 
 /* ════════════════════════════════════════
-    INTERACTION STATE (호버 인터랙션으로 교체)
+    INTERACTION STATE
 ════════════════════════════════════════ */
 const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, tx: window.innerWidth * 0.5, ty: window.innerHeight * 0.5 };
 
 const rotationState = {
   currentX: 0, currentY: 0,
   targetX:  0, targetY:  0,
-  // isDragging: false, // 드래그 상태 제거
+  isDragging: false,
+  previousMouseX: 0, previousMouseY: 0
 };
 
 let modelAutoRotY = 0; 
@@ -79,7 +79,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (영롱한 물방울 프리즘 오로라 별)
+    THREE.JS ENGINE (오로라 물방울 크리스탈 복구판)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -112,6 +112,7 @@ const initThree = () => {
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   threeRenderer.setSize(W, H);
   
+  // 맑고 투명한 느낌을 극대화하기 위해 Linear Tone Mapping 채택
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.LinearToneMapping; 
   threeRenderer.toneMappingExposure = 1.4; 
@@ -121,6 +122,7 @@ const initThree = () => {
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
+  // 광원 풍부하게 세팅하여 내부 투과율 증가
   const ambient = new THREE.AmbientLight(0xffffff, 0.9); 
   threeScene.add(ambient);
 
@@ -128,6 +130,7 @@ const initThree = () => {
   mainLight.position.set(3, 5, 4);
   threeScene.add(mainLight);
 
+  // 무지갯빛 프리즘을 영롱하게 뿜어내 줄 다채색 오로라 스폿 조명
   const laserCyan = new THREE.SpotLight(0x00ffff, 30.0, 25, Math.PI / 3, 0.5, 1);
   laserCyan.position.set(5, 5, 4);
   threeScene.add(laserCyan);
@@ -150,9 +153,9 @@ const initThree = () => {
     (gltf) => {
       const model = gltf.scene;
       
-      // 조명 개수 유지 보정 (기존 조명 5개 이후 에셋만 클리어)
-      while(threeScene.children.length > 5) { 
-        threeScene.remove(threeScene.children[threeScene.children.length - 1]);
+      // 💡 [대참사 원인 제거] 예린님의 HTML 요소를 무차별 삭제하던 쓰레기 while 루프 코드를 완전히 박멸했습니다.
+      if (modelAnchor) {
+        threeScene.remove(modelAnchor);
       }
 
       const box    = new THREE.Box3().setFromObject(model);
@@ -173,17 +176,17 @@ const initThree = () => {
         if (!child.isMesh) return;
         if (child.material.map) child.material.map = null;
         
-        // 💧 노이즈 없이 물방울처럼 투명하고 맑게 반짝이는 프리즘 재질
+        // 💧 노이즈 없이 물방울처럼 투명하고 맑게 반짝이는 프리즘 재질 최적화
         child.material = new THREE.MeshPhysicalMaterial({
           color:              0xffffff,
           metalness:          0.0,
-          roughness:          0.0,        
-          transmission:       0.99,       
-          ior:                1.46,       
-          thickness:          1.5,        
-          clearcoat:          1.0,        
+          roughness:          0.0,        // 매끄러운 유리 겉면
+          transmission:       0.99,       // 99% 투명도로 속이 훤히 비침
+          ior:                1.46,       // 수정 및 물방울의 자연스러운 굴절
+          thickness:          1.5,        // 두께감 있는 내부 굴절
+          clearcoat:          1.0,        // 하이라이트가 쨍하게 맺히는 코팅
           clearcoatRoughness: 0.0,
-          dispersion:         4.0,        
+          dispersion:         4.0,        // 자글자글한 픽셀 노이즈가 없는 깨끗한 빛 분산
           opacity:            1.0,
           transparent:        true,
           side:               THREE.DoubleSide
@@ -195,6 +198,8 @@ const initThree = () => {
       threeScene.add(modelAnchor);
       
       if (crystalFallback) crystalFallback.style.display = 'none';
+
+      // ⏱️ 3D 로드가 다 끝나면 별 로고 로딩창 지우기
       hideSiteLoader();
     },
     undefined,
@@ -205,6 +210,9 @@ const initThree = () => {
   );
 };
 
+/* ════════════════════════════════════════
+    ⏱️ ★ 로고 뱅글뱅글 로딩 화면 제어
+════════════════════════════════════════ */
 const hideSiteLoader = () => {
   const siteLoader = document.querySelector('#site-loader');
   if (siteLoader) {
@@ -240,14 +248,10 @@ const animate = () => {
 
   if (threeRenderer && threeScene && threeCamera) {
     if (modelAnchor) {
-      // 💡 [호버 인터랙션 구현] 마우스 좌표에 따라 도형을 부드럽게 회전시킵니다.
-      // 누르는 드래그 상태 체크 로직을 완전히 제거했습니다.
-      
-      modelAutoRotY += 0.003; // 기본 자동 회전은 유지
-      
-      // 마우스 좌표(tx, ty)에 비례해서 targetX, targetY를 실시간으로 업데이트
-      rotationState.targetX = (pointer.y / window.innerHeight - 0.5) * 1.5; // Y축 움직임으로 X축 회전
-      rotationState.targetY = modelAutoRotY + (pointer.x / window.innerWidth - 0.5) * 2.0; // X축 움직임으로 Y축 회전
+      if (!rotationState.isDragging) {
+        modelAutoRotY += 0.003;
+        rotationState.targetY += 0.003;
+      }
 
       rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
       rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
@@ -262,39 +266,35 @@ const animate = () => {
 };
 
 /* ════════════════════════════════════════
-    HOVER EVENTS (드래그 박멸)
+    DRAG EVENTS
 ════════════════════════════════════════ */
-const setupHoverEvents = () => {
-  // pointer-events: none 상태에서도 마우스 좌표는 계속 받도록 landing 자체에 부여
-  if (!landing) return;
+const setupDragEvents = () => {
+  if (!landingDisplay) return;
 
-  landing.addEventListener('pointermove', (e) => {
-    // 💡 [박멸] 드래그 상태 체크(`rotationState.isDragging`) 로직 전면 삭제.
-    // 마우스 좌표 업데이트만 수행하여 애니메이션 루프에서 호버 반응하게 함.
+  landingDisplay.addEventListener('pointerdown', (e) => {
+    rotationState.isDragging = true;
+    rotationState.previousMouseX = e.clientX;
+    rotationState.previousMouseY = e.clientY;
+  });
+
+  window.addEventListener('pointermove', (e) => {
     pointer.tx = e.clientX;
     pointer.ty = e.clientY;
-  });
-};
 
-/* ════════════════════════════════════════
-    🧭 스크롤 연동 상단 메뉴바 활성화 기능 추가
-════════════════════════════════════════ */
-const handleScrollMenu = () => {
-  let currentSectionId = "home";
-  
-  sections.forEach((section) => {
-    const sectionTop = section.offsetTop;
-    const sectionHeight = section.offsetHeight;
-    if (window.scrollY >= sectionTop - window.innerHeight * 0.3) {
-      currentSectionId = section.getAttribute("id");
-    }
+    if (!rotationState.isDragging || !modelAnchor) return;
+
+    const deltaX = e.clientX - rotationState.previousMouseX;
+    const deltaY = e.clientY - rotationState.previousMouseY;
+
+    rotationState.targetY += deltaX * 0.008;
+    rotationState.targetX += deltaY * 0.008;
+
+    rotationState.previousMouseX = e.clientX;
+    rotationState.previousMouseY = e.clientY;
   });
 
-  navLinks.forEach((link) => {
-    link.classList.remove("active");
-    if (link.getAttribute("href") === `#${currentSectionId}`) {
-      link.classList.add("active");
-    }
+  window.addEventListener('pointerup', () => {
+    rotationState.isDragging = false;
   });
 };
 
@@ -306,11 +306,28 @@ const initAll = () => {
   window.__threeInitialized = true;
 
   landingCanvasCtrl = setupLandingCanvas();
-  // 💡 [박멸 완료] 드래그 이벤트 박멸하고 호버 좌표 업데이트로 대체
-  setupHoverEvents(); 
+  setupDragEvents(); 
 
-  // 스크롤 메뉴바 활성화 이벤트 연결
-  window.addEventListener('scroll', handleScrollMenu, { passive: true });
+  highlightElements.forEach((el) => {
+    el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
+    el.addEventListener('mouseleave', () => el.classList.remove('is-hovered'));
+  });
+
+  const revealCards = document.querySelectorAll('.reveal-card');
+  if (revealCards.length) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
+    );
+    revealCards.forEach(card => observer.observe(card));
+  }
 
   initThree();
   animate();
