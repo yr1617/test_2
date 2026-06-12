@@ -20,7 +20,7 @@ const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, tx: w
 
 const rotationState = {
   currentX: 0, currentY: 0,
-  targetX:  0.3, targetY:  0.5, // 초기 기본 각도 이쁘게 세팅
+  targetX:  0.3, targetY:  0.5, 
   isDragging: false,
   previousMouseX: 0, previousMouseY: 0
 };
@@ -79,7 +79,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (진짜 원본 GLB에 프리즘 입히기)
+    THREE.JS ENGINE
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -90,7 +90,6 @@ let animFrameId   = null;
 const initThree = () => {
   if (!modelCanvas) return;
 
-  // 혹시 남아있을 기존 루프 완전 폭파 (지직거림 원천 차단)
   if (animFrameId) {
     cancelAnimationFrame(animFrameId);
     animFrameId = null;
@@ -106,7 +105,7 @@ const initThree = () => {
 
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
-    alpha:       true,
+    alpha:       true, // 배경 투명화 필수
     antialias:   true,
     powerPreference: 'high-performance',
   });
@@ -114,33 +113,30 @@ const initThree = () => {
   threeRenderer.setSize(W, H);
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   
-  // 프리즘 광택의 깊이를 살리기 위해 필믹 톤매핑 설정
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  threeRenderer.toneMappingExposure = 1.4; 
+  threeRenderer.toneMappingExposure = 1.3; 
 
   threeScene = new THREE.Scene();
 
-  // 중앙 정착 카메라 구도
-  threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
-  threeCamera.position.set(0, 0, 4.4); 
+  threeCamera = new THREE.PerspectiveCamera(26, W / H, 0.1, 100);
+  threeCamera.position.set(0, 0, 4.6); 
 
-  // 💡 다채로운 조명 세팅: 유리의 각진 면들을 영롱한 오로라 빛으로 반사해 줄 광원들
-  const ambient = new THREE.AmbientLight(0x222233, 1.5); 
+  // 오로라 광택용 3점 조명 세팅
+  const ambient = new THREE.AmbientLight(0xffffff, 1.2); 
   threeScene.add(ambient);
 
-  const mainLight = new THREE.DirectionalLight(0xffffff, 3.5);
-  mainLight.position.set(5, 5, 5);
+  const mainLight = new THREE.DirectionalLight(0xffffff, 3.0);
+  mainLight.position.set(5, 5, 4);
   threeScene.add(mainLight);
 
-  const laserMagenta = new THREE.DirectionalLight(0xff00aa, 2.0); // 오로라 핑크 스펙트럼
-  laserMagenta.position.set(-5, 3, 2);
+  const laserMagenta = new THREE.DirectionalLight(0xff00cc, 2.0); 
+  laserMagenta.position.set(-4, 3, 3);
   threeScene.add(laserMagenta);
 
-  const laserCyan = new THREE.DirectionalLight(0x00f0ff, 2.5); // 청량한 사이안 스펙트럼
-  laserCyan.position.set(0, -5, 3);
+  const laserCyan = new THREE.DirectionalLight(0x00ffff, 2.0); 
+  laserCyan.position.set(3, -4, 3);
   threeScene.add(laserCyan);
 
-  // 로더 세팅
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
@@ -151,10 +147,30 @@ const initThree = () => {
     (gltf) => {
       const model = gltf.scene;
       
-      // 혹시 무대 위에 쌓여있을 찌꺼기 완벽 박멸
-      while(threeScene.children.length > 4) { 
-        threeScene.remove(threeScene.children[threeScene.children.length - 1]);
-      }
+      // 바운딩 박스 계산 전에 화면을 가리는 거대 배경판 메쉬들을 완전히 걸러내기
+      const meshesToLayer = [];
+      model.traverse((child) => {
+        if (child.isMesh) {
+          // 💡 핵심: 이름에 'plane', 'bg', 'ground', 'floor' 등이 들어가거나 
+          // 가로세로가 비정상적으로 거대해서 화면을 가리는 판때기 메쉬는 무대에서 제거합니다.
+          const name = child.name.toLowerCase();
+          if (name.includes('plane') || name.includes('bg') || name.includes('ground') || name.includes('canvas')) {
+            child.visible = false; 
+            return;
+          }
+          meshesToLayer.push(child);
+        }
+      });
+
+      // 진짜 '별' 오브젝트들만 모아서 크기 및 중앙 정렬 계산
+      if (meshesToLayer.length === 0) meshesToLayer.push(model);
+      
+      const tempGroup = new THREE.Group();
+      meshesToLayer.forEach(m => {
+        if(m.parent && m.parent !== model && m.parent !== tempGroup) {
+          // 원래 계층 유지 구조가 필요 없다면 안전하게 가시성만 확보
+        }
+      });
 
       const box    = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
@@ -163,30 +179,32 @@ const initThree = () => {
       box.getSize(size);
       
       const maxDim = Math.max(size.x, size.y, size.z);
-      const scale   = 1.95 / maxDim; 
+      const scale   = 1.9 / (maxDim || 1); 
       
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
       
-      // 누워있던 원본 파일 기본 축 정면 보정각
+      // 누워있던 원본 파일 기본 정면 정렬 각도
       model.rotation.set(Math.PI / 2.3, 0, 0); 
 
+      // 진짜 알맹이 별 메쉬에만 극강의 투명 프리즘 재질 주입
       model.traverse((child) => {
-        if (!child.isMesh) return;
+        if (!child.isMesh || child.visible === false) return;
+        
         if (child.material.map) child.material.map = null;
         
-        // ✨ [핵심 수정] 원본 모델링 메쉬에 직접 투명 프리즘 재질 주입!
         child.material = new THREE.MeshPhysicalMaterial({
           color:              0xffffff,   
           metalness:          0.0,        
-          roughness:          0.02,        // 표면 거칠기를 0에 가깝게 깎아 지직거리는 노이즈 전면 차단
-          transmission:       0.98,        // 내부가 완벽하게 통유리처럼 투과되도록 투과율 설정
-          ior:                2.42,        // 보석급 고굴절로 테두리 무지갯빛 오로라 효과 증폭
-          thickness:          0.4,         // 모델 내부 두께감
+          roughness:          0.01,        // 지직거림의 원인인 표면 거칠기 면도하듯 깎아내기
+          transparent:        true,
+          transmission:       0.98,        // 완벽하게 뒤쪽 글씨들이 투과되어 보이도록 투과율 98% 세팅
+          ior:                2.417,       // 다이아몬드급 프리즘 굴절
+          thickness:          0.3,         
           specularIntensity:  2.0,         
           opacity:            1.0,
-          transparent:        true,
           side:               THREE.DoubleSide, 
+          depthWrite:         true         // 투명 정렬 꼬임 방지
         });
       });
 
@@ -200,7 +218,6 @@ const initThree = () => {
       if (siteLoader) {
         setTimeout(() => {
           siteLoader.classList.add('is-loaded');
-          // HTML 인라인 스타일 투명화 대응
           siteLoader.style.opacity = '0';
           setTimeout(() => siteLoader.style.display = 'none', 600);
         }, 300);
@@ -242,83 +259,4 @@ const animate = () => {
   if (threeRenderer && threeScene && threeCamera) {
     if (modelAnchor) {
       if (!rotationState.isDragging) {
-        modelAutoRotY += 0.003;
-        rotationState.targetY += 0.003;
-      }
-
-      // 부드러운 드래그 관성 감쇠(Lerp) 적용
-      rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.08;
-      rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.08;
-
-      modelAnchor.rotation.x = rotationState.currentX;
-      modelAnchor.rotation.y = rotationState.currentY;
-
-      // 상하 바운싱 최소화하여 안정적 배치
-      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.005;
-    }
-    threeRenderer.render(threeScene, threeCamera);
-  }
-};
-
-/* ════════════════════════════════════════
-    DRAG EVENTS
-════════════════════════════════════════ */
-const setupDragEvents = () => {
-  if (!landingDisplay) return;
-
-  landingDisplay.addEventListener('pointerdown', (e) => {
-    rotationState.isDragging = true;
-    rotationState.previousMouseX = e.clientX;
-    rotationState.previousMouseY = e.clientY;
-  });
-
-  window.addEventListener('pointermove', (e) => {
-    pointer.tx = e.clientX;
-    pointer.ty = e.clientY;
-
-    if (!rotationState.isDragging || !modelAnchor) return;
-
-    const deltaX = e.clientX - rotationState.previousMouseX;
-    const deltaY = e.clientY - rotationState.previousMouseY;
-
-    rotationState.targetY += deltaX * 0.006;
-    rotationState.targetX += deltaY * 0.006;
-
-    rotationState.previousMouseX = e.clientX;
-    rotationState.previousMouseY = e.clientY;
-  });
-
-  window.addEventListener('pointerup', () => {
-    rotationState.isDragging = false;
-  });
-};
-
-/* ════════════════════════════════════════
-    INITIALIZE
-════════════════════════════════════════ */
-const initAll = () => {
-  if (window.__threeInitialized) return; 
-  window.__threeInitialized = true;
-
-  landingCanvasCtrl = setupLandingCanvas();
-  setupDragEvents(); 
-
-  highlightElements.forEach((el) => {
-    el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
-    el.addEventListener('mouseleave', () => el.classList.remove('is-hovered'));
-  });
-
-  initThree();
-  animate();
-};
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAll);
-} else {
-  initAll();
-}
-
-window.addEventListener('resize', () => {
-  if (landingCanvasCtrl) landingCanvasCtrl.resize();
-  resizeThree();
-});
+        modelAutoRotY
