@@ -1,136 +1,159 @@
-import * as THREE from 'https://unpkg.com/three@0.126.0/build/three.module.js';
-
 document.addEventListener("DOMContentLoaded", () => {
   
   /* ════════════════════════════════════════
-      1. 개별 메뉴바 독립 연동 (동시 차오름 해결)
+      1. 로고가 회전하는 전역 로딩 화면 (로딩 마스크)
+  ════════════════════════════════════════ */
+  let loadingScreen = document.getElementById("loading-screen");
+  if (!loadingScreen) {
+    loadingScreen = document.createElement("div");
+    loadingScreen.id = "loading-screen";
+    
+    // 로딩 화면 스타일 (화면 전체 덮기)
+    Object.assign(loadingScreen.style, {
+      position: "fixed",
+      inset: "0",
+      backgroundColor: "#101013",
+      zIndex: "999999",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      transition: "opacity 0.6s ease, visibility 0.6s ease"
+    });
+
+    // 회전할 상표 로고 추출 및 생성
+    const brandImg = document.querySelector(".brand-logo img");
+    const loaderLogo = document.createElement("img");
+    loaderLogo.src = brandImg ? brandImg.src : "logo.png"; 
+    
+    Object.assign(loaderLogo.style, {
+      width: "80px",
+      height: "80px",
+      objectFit: "contain",
+      animation: "logo-spin 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite"
+    });
+
+    // 3D 회전용 Y축 회전 키프레임 주입
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = `
+      @keyframes logo-spin {
+        0% { transform: rotateY(0deg); }
+        100% { transform: rotateY(360deg); }
+      }
+    `;
+    document.head.appendChild(styleSheet);
+    
+    loadingScreen.appendChild(loaderLogo);
+    document.body.appendChild(loadingScreen);
+  }
+
+  // 브라우저가 모든 리소스를 읽으면 로딩 스크린 해제 및 본문 완전 강제 해제
+  window.addEventListener("load", () => {
+    setTimeout(() => {
+      loadingScreen.style.opacity = "0";
+      loadingScreen.style.visibility = "hidden";
+      
+      // 🔓 콘텐츠 유실 방지: 잘려있거나 숨겨진 본문 영역을 무조건 깨웁니다.
+      const contentShell = document.querySelector(".content-shell");
+      if (contentShell) {
+        contentShell.style.opacity = "1";
+        contentShell.style.visibility = "visible";
+        contentShell.style.display = "block";
+      }
+      
+      // ❌ 예린님 3D를 겹쳐서 가리던 쓰레기 Three.js 캔버스는 흔적도 없이 삭제
+      const badCanvas = document.querySelector(".model-canvas");
+      if (badCanvas) badCanvas.remove();
+    }, 700); 
+  });
+
+
+  /* ════════════════════════════════════════
+      2. 예린님의 영롱한 오색빛깔 원래 CSS 3D 모델링 원상복구
+  ════════════════════════════════════════ */
+  const fallbackModel = document.querySelector(".crystal-fallback");
+  const displayContainer = document.querySelector(".landing-display-shell");
+
+  if (fallbackModel) {
+    // 겹침에 가려져 있던 오색 재질 모델링을 메인으로 강제 지정
+    fallbackModel.classList.remove("is-hidden");
+    fallbackModel.style.opacity = "1";
+    fallbackModel.style.display = "block";
+  }
+
+
+  /* ════════════════════════════════════════
+      3. 마우스 호버 인터랙션 (CSS 변수 제어 연동)
+  ════════════════════════════════════════ */
+  if (displayContainer && fallbackModel) {
+    displayContainer.addEventListener("mousemove", (e) => {
+      const rect = displayContainer.getBoundingClientRect();
+      
+      // 예린님의 CSS rotateX, rotateY 변수에 마우스 좌표 각도 연동 (-25deg ~ 25deg)
+      const rotateX = -((e.clientY - rect.top) / rect.height - 0.5) * 50;
+      const rotateY = ((e.clientX - rect.left) / rect.width - 0.5) * 50;
+
+      fallbackModel.style.setProperty("--object-rotate-x", `${rotateX - 10}deg`);
+      fallbackModel.style.setProperty("--object-rotate-y", `${rotateY + 24}deg`);
+    });
+
+    // 마우스가 떠나면 원래 예린님이 설정해 두신 고유의 각도로 복귀
+    displayContainer.addEventListener("mouseleave", () => {
+      fallbackModel.style.setProperty("--object-rotate-x", "-10deg");
+      fallbackModel.style.setProperty("--object-rotate-y", "24deg");
+    });
+  }
+
+
+  /* ════════════════════════════════════════
+      4. 메뉴바 독립 격리 연동 (동시 차오름 버그 완전 박멸)
   ════════════════════════════════════════ */
   const navLinks = document.querySelectorAll(".topnav a");
-  
-  // 각 메뉴 링크에 대응하는 HTML 섹션들을 매칭합니다 (#career-awards, #project-list 등)
   const sections = Array.from(navLinks).map(link => {
     const targetId = link.getAttribute("href");
     return targetId && targetId.startsWith("#") ? document.querySelector(targetId) : null;
   });
 
-  window.addEventListener("scroll", () => {
+  function updateScrollNavigation() {
     const scrollTop = window.scrollY || document.documentElement.scrollTop;
     const viewportHeight = window.innerHeight;
-    const docHeight = document.documentElement.scrollHeight - viewportHeight;
-    const totalProgress = docHeight > 0 ? scrollTop / docHeight : 0;
 
     navLinks.forEach((link, index) => {
       const section = sections[index];
       
-      // 메인 랜딩(Home)이나 매칭되는 섹션이 없는 메뉴는 전체 페이지 스크롤과 연동
+      // 최상단 (Home) 메뉴 예외 처리
       if (!section) {
-        link.style.setProperty("--nav-progress", totalProgress);
+        if (scrollTop < viewportHeight * 0.4) {
+          link.classList.add("active");
+          link.style.setProperty("--nav-progress", "1");
+        } else {
+          link.classList.remove("active");
+          link.style.setProperty("--nav-progress", "0");
+        }
         return;
       }
 
-      // 섹션별 위치를 계산하여 해당 메뉴의 바만 독립적으로 차오르게 변경
       const rect = section.getBoundingClientRect();
-      const sectionTop = rect.top + scrollTop;
+      const sectionTopOnPage = rect.top + scrollTop;
       const sectionHeight = rect.height;
 
-      let sectionProgress = 0;
-      if (scrollTop + viewportHeight > sectionTop) {
-        sectionProgress = (scrollTop + viewportHeight - sectionTop) / (sectionHeight + viewportHeight);
+      // 🎯 해당 섹션 영역이 실제 스크롤 뷰포트 내에 진입했을 때만 바를 독립 계산
+      if (scrollTop + viewportHeight > sectionTopOnPage && scrollTop < sectionTopOnPage + sectionHeight) {
+        const currentProgress = (scrollTop + viewportHeight - sectionTopOnPage) / (sectionHeight + viewportHeight);
+        link.style.setProperty("--nav-progress", Math.min(Math.max(currentProgress, 0), 1));
+      } else {
+        // 화면 밖에 있는 다른 메뉴바들은 철저하게 0%로 잠가버림
+        link.style.setProperty("--nav-progress", "0");
       }
-      
-      sectionProgress = Math.min(Math.max(sectionProgress, 0), 1);
-      link.style.setProperty("--nav-progress", sectionProgress);
 
-      // 현재 보고 있는 섹션 메뉴에 active 클래스 부여
+      // 화면 중간 스크롤 감지 시 해당 메뉴 텍스트 active 불빛 켜기
       if (rect.top <= viewportHeight * 0.5 && rect.bottom >= viewportHeight * 0.5) {
         link.classList.add("active");
       } else {
         link.classList.remove("active");
       }
     });
-  });
-
-  /* ════════════════════════════════════════
-      2. 이미지 원본 색감 & 가벼운 모델링 복구 (렉 제거)
-  ════════════════════════════════════════ */
-  const container = document.querySelector('.landing-display-shell');
-  const canvas = document.querySelector('.model-canvas');
-
-  if (!container || !canvas) return; 
-
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
-  camera.position.z = 6;
-
-  // 앤티앨리어싱만 켜서 계단현상을 잡고 가볍게 렌더링
-  const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
-  renderer.setSize(container.clientWidth, container.clientHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-  // 예린님의 깔끔한 8면체 기하학 구조
-  const geometry = new THREE.OctahedronGeometry(1.6, 0);
-  
-  // ✨ 이미지 속 은은하고 부드러운 오색 빛깔을 표현하는 기본 셰이딩 재질로 복구
-  // 복잡한 연산이 없어 렉이 완전히 사라집니다.
-  const material = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    roughness: 0.4,
-    metalness: 0.1
-  });
-
-  const mesh = new THREE.Mesh(geometry, material);
-  scene.add(mesh);
-
-  // 💡 이미지 속 상단 연두빛과 하단 보라/청빛 그라데이션을 만드는 은은한 조명 시스템
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-  scene.add(ambientLight);
-
-  // 상단에서 내리쬐는 연두색 빛
-  const topLight = new THREE.DirectionalLight(0xe5ffca, 0.8);
-  topLight.position.set(0, 4, 2);
-  scene.add(topLight);
-
-  // 하단에서 받쳐주는 은은한 보라/라벤더빛
-  const bottomLight = new THREE.DirectionalLight(0xd1c4e9, 0.9);
-  bottomLight.position.set(0, -4, 2);
-  scene.add(bottomLight);
-
-  // 마우스 인터랙션 데이터
-  let isHovering = false;
-  let mouseX = 0;
-  let mouseY = 0;
-
-  container.addEventListener('mouseenter', () => { isHovering = true; });
-  container.addEventListener('mouseleave', () => { isHovering = false; });
-  
-  container.addEventListener('mousemove', (e) => {
-    const rect = container.getBoundingClientRect();
-    mouseX = ((e.clientX - rect.left) / rect.width) - 0.5;
-    mouseY = ((e.clientY - rect.top) / rect.height) - 0.5;
-  });
-
-  // 애니메이션 루프 (초경량 연산으로 60fps 보장)
-  function animate() {
-    requestAnimationFrame(animate);
-
-    if (isHovering) {
-      // 호버 시 마우스 방향을 부드럽게 바라봄
-      mesh.rotation.y += (mouseX * 1.5 - mesh.rotation.y) * 0.08;
-      mesh.rotation.x += (mouseY * 1.5 - mesh.rotation.x) * 0.08;
-    } else {
-      // 평소에는 이미지의 정갈한 각도를 유지하며 아주 미세하게 자전
-      mesh.rotation.y += 0.003;
-      mesh.rotation.x += 0.001;
-    }
-
-    renderer.render(scene, camera);
   }
 
-  animate();
-
-  window.addEventListener('resize', () => {
-    camera.aspect = container.clientWidth / container.clientHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(container.clientWidth, container.clientHeight);
-  });
+  window.addEventListener("scroll", updateScrollNavigation);
+  updateScrollNavigation(); // 첫 로드 시 체크
 });
