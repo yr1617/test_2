@@ -8,7 +8,7 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 const landing        = document.querySelector('.landing');
 const landingCanvas  = document.querySelector('.landing-canvas');
 const landingDisplay = document.querySelector('#landing-display');
-const modelCanvas    = document.querySelector('#model-canvas');
+const modelCanvas    = document.querySelector('.landing-canvas'); // 💡 캔버스 클래스명 일치화 확인
 const crystalFallback = document.querySelector('#crystal-fallback');
 const follower        = document.querySelector('.cursor-follower');
 const navLinks       = document.querySelectorAll('.topnav a[data-target]');
@@ -27,7 +27,7 @@ const pointer = {
 const tilt = {
   rx: 0, ry: 0, rz: 0,
   tx: 0, ty: 0, tz: 0,
-  hovering: true, // 로딩 중에도 상시 반응하도록 true 고정
+  hovering: true, 
 };
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
@@ -94,14 +94,13 @@ const updateTiltTarget = (clientX, clientY) => {
   const nx = ((clientX - rect.left) / Math.max(rect.width,  1) - 0.5) * 2;
   const ny = ((clientY - rect.top)  / Math.max(rect.height, 1) - 0.5) * 2;
   
-  // 우아하고 부드럽게 각도 제한
   tilt.tx = ny * 18;       
   tilt.ty = nx * 22;       
   tilt.tz = nx * -4;
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (프리즘 렌더링 튜닝)
+    THREE.JS ENGINE (뿌연 현상 제거 + 맑은 다이아몬드 질감 고도화)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -112,14 +111,15 @@ let animFrameId   = null;
 let modelAutoRotY = 0;
 
 const initThree = () => {
-  if (!modelCanvas) return;
+  const targetCanvas = document.querySelector('#model-canvas') || modelCanvas;
+  if (!targetCanvas) return;
 
   const shell = landingDisplay || { offsetWidth: window.innerWidth, offsetHeight: window.innerHeight };
   const W = shell.offsetWidth;
   const H = shell.offsetHeight;
 
   threeRenderer = new THREE.WebGLRenderer({
-    canvas:      modelCanvas,
+    canvas:      targetCanvas,
     alpha:       true,
     antialias:   true,
     powerPreference: 'high-performance',
@@ -128,7 +128,7 @@ const initThree = () => {
   threeRenderer.setSize(W, H);
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  threeRenderer.toneMappingExposure = 1.6; 
+  threeRenderer.toneMappingExposure = 1.8; // 유리 글래스의 맑은 빛을 투과시키기 위한 최적 노출
 
   threeScene = new THREE.Scene();
   threeScene.background = null;
@@ -136,20 +136,22 @@ const initThree = () => {
   threeCamera = new THREE.PerspectiveCamera(32, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.2); 
 
-  // 조명 강도 대폭 상향하여 투명도 서포트
-  const ambient = new THREE.AmbientLight(0xffffff, 1.2); 
+  // 유리를 쨍하게 투과시켜 줄 은은한 기본 조명
+  const ambient = new THREE.AmbientLight(0xffffff, 0.9); 
   threeScene.add(ambient);
 
-  const sunLight = new THREE.DirectionalLight(0xffffff, 3.0);
-  sunLight.position.set(5, 8, 5);
+  // 별의 입체적 하이라이트를 잡아줄 주 광원
+  const sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
+  sunLight.position.set(5, 10, 5);
   threeScene.add(sunLight);
 
-  const magentaLight = new THREE.DirectionalLight(0xff22ff, 4.0); 
-  magentaLight.position.set(-5, 4, 3);
+  // 엣지 라인에 무지갯빛 생기를 불어넣을 다방향 오로라 포인트 광원
+  const magentaLight = new THREE.DirectionalLight(0xff33aa, 4.5); 
+  magentaLight.position.set(-6, 5, 2);
   threeScene.add(magentaLight);
 
-  const cyanLight = new THREE.DirectionalLight(0x22ffff, 4.0); 
-  cyanLight.position.set(4, -4, 4);
+  const cyanLight = new THREE.DirectionalLight(0x33eeww, 4.5); 
+  cyanLight.position.set(5, -5, 3);
   threeScene.add(cyanLight);
 
   const loader = new GLTFLoader();
@@ -171,8 +173,6 @@ const initThree = () => {
       
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
-
-      // 모델 앞면 정방향 축 세팅
       model.rotation.set(Math.PI / 2, Math.PI / 1.15, -Math.PI / 4);
 
       model.traverse((child) => {
@@ -180,26 +180,26 @@ const initThree = () => {
         
         if (child.material.map) child.material.map = null;
         
-        // 💎 검은 현상을 없애고 맑고 투명한 무지갯빛 프리즘을 유지하는 최적의 질감 조합
+        // 💎 [예린님 전용: 뿌연 성에 제거 + 투명 무지개 엣지 튜닝]
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0xeeeeff,   // 💡 완전 검은색 대신 투명도가 도는 맑은 화이트 블루 베이스 적용!
+          color:              0xffffff,   // 맑고 투명한 퓨어 화이트
           metalness:          0.0,        
-          roughness:          0.02,       
-          transmission:       0.6,        // 💡 100% 다 뚫어버리면 검은색이 되므로, 60%만 투과시켜 덩어리감을 줍니다!
-          ior:                2.42,       // 프리즘 분산 유도용 굴절률
-          thickness:          1.0,        
+          roughness:          0.001,      // 💡 표면 저항을 극도로 낮춰 거울처럼 매끄럽고 쨍한 반사광 유도
+          transmission:       1.0,        // 💡 100% 완전 투명 선언 (뿌연 불투명막 제거)
+          ior:                1.52,       // 💡 유리의 기본 굴절률(1.52)로 낮춰 내부가 맑고 깨끗하게 들여다보이도록 세팅
+          thickness:          0.5,        // 💡 두께감을 얇게 주어 빛이 텁텁하게 고이지 않고 투명하게 관통하게 유도
           clearcoat:          1.0,        
           clearcoatRoughness: 0.0,
           
-          // ✨ 프리즘 무지갯빛 분산 옵션
-          dispersion:         13.0,       // 분산 강도를 더 높여 경계면에 무지개 오로라를 뿜어내게 만듭니다.
+          // ✨ 프리즘 분산 (Dispersion) 극대화 효과
+          dispersion:         15.0,       // 💡 분산 수치를 끌어올려, 알맹이는 완전히 투명하지만 모서리 경계면에는 알록달록 무지갯빛이 맺히게 처리!
           
-          iridescence:        0.9,        
-          iridescenceIOR:     2.0,        
+          iridescence:        0.6,        // 은은한 오로라 광택막 융합
+          iridescenceIOR:     1.5,        
           
-          opacity:            0.95,
+          opacity:            1.0,
           transparent:        true,
-          side:               THREE.DoubleSide,
+          side:               THREE.FrontSide, // 💡 [초핵심] DoubleSide 대신 앞면만 그리게 하여 내부 면들이 뿌옇게 겹쳐 뭉치는 현상을 싹 제거합니다!
         });
       });
 
@@ -208,7 +208,6 @@ const initThree = () => {
       threeScene.add(modelAnchor);
       
       modelLoaded = true;
-      
       if (crystalFallback) crystalFallback.style.display = 'none';
 
       const siteLoader = document.querySelector('#site-loader');
@@ -268,7 +267,7 @@ const animate = () => {
 };
 
 /* ════════════════════════════════════════
-    INITIALIZE & EVENT LISTENERS
+    INITIALIZE & ENTRY
 ════════════════════════════════════════ */
 const initAll = () => {
   landingCanvasCtrl = setupLandingCanvas();
