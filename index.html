@@ -1,164 +1,105 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>최예린 포트폴리오</title>
-  <link rel="stylesheet" href="styles.css">
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://unpkg.com/three@0.165.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.165.0/examples/jsm/"
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YERIN CHOI | Portfolio</title>
+    <link rel="stylesheet" href="./style.css">
+    
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
       }
-    }
-  </script>
+    </script>
 </head>
 <body>
-  
-    <div id="site-loader" style="
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background-color: rgb(16, 16, 18); 
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 99999;
-    transition: opacity 0.5s ease, transform 0.5s ease;
-    pointer-events: auto; 
-  ">
-    <div class="loader-content" style="text-align: center;">
-      <img src="logo.png" alt="Logo" class="rotating-logo" style="width: 60px; height: auto; animation: spin 2s linear infinite;">
-      <p class="loader-text" style="color: #ffffff; letter-spacing: 0.2em; font-size: 12px; margin-top: 20px; font-family: sans-serif;">LOADING PORTFOLIO</p>
-                <script>alert("코드가 정상적으로 연결되었습니다!");</script>
+
+    <div id="site-loader">
+        <div class="loader-content">LOADING...</div>
     </div>
-  </div>
 
-  <div class="background-orb orb-left"></div>
-  <div class="background-orb orb-right"></div>
-  <div class="background-grid"></div>
-  <div class="cursor-follower" aria-hidden="true"></div>
+    <header class="topbar">
+        <div class="logo">★</div>
+        <nav class="nav-menu">
+            <a href="#home" class="active">Home</a>
+            <a href="#profile">Profile</a>
+            <a href="#project-type">Project Type</a>
+            <a href="#main-project">Main Project</a>
+            <a href="#career">Career & Awards</a>
+            <a href="#contact">Contact</a>
+        </nav>
+    </header>
 
-  <header class="topbar">
-    <div class="topbar-inner">
-      <a class="brand brand-logo" href="#home" aria-label="Yerin Choi Home">
-        <img src="logo.png" alt="">
-      </a>
-      <nav class="topnav" aria-label="주요 섹션">
-        <a href="#home"         data-target="home"><span>Home</span><i class="nav-progress"></i></a>
-        <a href="#profile"      data-target="profile"><span>Profile</span><i class="nav-progress"></i></a>
-        <a href="#project-list" data-target="project-list"><span>Project Type</span><i class="nav-progress"></i></a>
-        <a href="#main-project" data-target="main-project"><span>Main Project</span><i class="nav-progress"></i></a>
-        <a href="#career-awards" data-target="career-awards"><span>Career &amp; Awards</span><i class="nav-progress"></i></a>
-        <a href="#contact"      data-target="contact"><span>Contact</span><i class="nav-progress"></i></a>
-      </nav>
-    </div>
-  </header>
-
-  <main class="page-shell">
-    <section class="landing section" id="home">
-      <div class="landing-field" aria-hidden="true">
+    <main id="home" class="landing">
         <canvas class="landing-canvas"></canvas>
-        <div class="landing-glow landing-glow-primary"></div>
-        <div class="landing-glow landing-glow-strong"></div>
-      </div>
-      <div class="landing-sticky">
-        <div class="landing-inner">
 
-          <div class="landing-copy">
-            <h1 class="landing-title">QUIET<br>BUT<br>SOLID</h1>
-            <p class="landing-subtitle">차분함 속에서 피어나는 견고한 디자인</p>
-          </div>
+        <div id="landing-display">
+            <canvas id="model-canvas"></canvas>
+            <div id="crystal-fallback"></div>
+        </div>
 
-          <div class="landing-display-shell">
-            <div class="landing-display" id="landing-display" aria-label="interactive 3d model preview">
-              <div class="display-frame">
-                <canvas class="model-canvas" id="model-canvas" aria-hidden="true"></canvas>
-                
-                                <div class="crystal-fallback" id="crystal-fallback" style="display: none;" aria-hidden="true">
-                  <div class="lobe lobe-a"></div>
-                  <div class="lobe lobe-b"></div>
-                  <div class="lobe lobe-c"></div>
-                  <div class="lobe lobe-d"></div>
-                  <div class="prism-core"></div>
-                </div>
-              </div>
+        <div class="cursor-follower"></div>
+    </main>
+
+    <div class="main-content">
+        
+        <section id="profile" class="panel">
+            <div class="hero-copy">
+                <p class="sub-title">QUIET BUT SOLID</p>
+                <h1>DESIGNER<br>YERIN CHOI</h1>
+                <p class="description">디자인하는 디자인. UI/UX 디자이너 최예린입니다.</p>
             </div>
-          </div>
-
-          <div class="landing-foot">
-            <a class="scroll-link" href="#profile">View Profile</a>
-          </div>
-
-        </div>
-      </div>
-    </section>
-
-    <div class="page-spotlight" aria-hidden="true"></div>
-
-    <div class="content-shell">
-
-      <section class="hero section" id="profile">
-        <div class="hero-copy reveal-card">
-          <h2>About</h2>
-          <p class="intro">
-            UI·UX 디자인을 공부 중인 학생 디자이너 최예린입니다. 차분하게 대상을 바라보고 꾸준히 실행해 나가는 태도로, 사용자에게 오래 남는 경험을 설계합니다. 부드러운 커뮤니케이션과 유연한 사고를 통해 프로젝트 안에서 안정감 있는 결과를 만들어 갑니다.
-          </p>
-          <div class="hero-meta">
-            <div class="meta-card">
-              <span class="meta-label">Keyword</span>
-              <div class="keyword-list">
-                <span>차분</span><span>성실</span><span>유연</span><span>경험</span><span>친절</span>
-              </div>
+            <div class="reveal-card">
+                <h3>PROFILE</h3>
+                <ul>
+                    <li class="point-highlight">Name: 최예린 (Yerin Choi)</li>
+                    <li class="point-highlight">Role: UI/UX Designer & Student Designer</li>
+                    <li class="point-highlight">Motto: Quiet but Solid</li>
+                </ul>
             </div>
-          </div>
-        </div>
-        <div class="hero-visual">
-          <div class="portrait-frame reveal-card">
-            <img src="profile-new.png" alt="최예린 프로필 이미지">
-          </div>
-          <div class="hero-note">
-            <span>YERIN CHOI</span>
-            <p>UI·UX Designer / Student Designer</p>
-          </div>
-        </div>
-      </section>
+        </section>
 
-      <section class="section" id="project-list">
-        <div class="section-heading">
-          <p class="eyebrow">PROJECT TYPE</p>
-          <h2>프로젝트 유형</h2>
-        </div>
-        <div class="project-grid">
-          <article class="project-card reveal-card">
-            <span class="project-index">01</span>
-            <p class="project-type">Academic</p>
-            <h3>교과 프로젝트</h3>
-            <p>브랜딩, 포스터, 광고 영상, GUI 아이콘, 디자인 시스템까지 시각디자인과 UX/UI를 아우르는 폭넓은 실습 프로젝트를 진행했습니다.</p>
-          </article>
-          <article class="project-card reveal-card">
-            <span class="project-index">02</span>
-            <p class="project-type">Personal</p>
-            <h3>개인 프로젝트</h3>
-            <p>생활 속 문제를 관찰하고 아이디어를 실제 서비스 또는 창업 관점으로 확장하는 프로젝트를 이어가고 있습니다.</p>
-          </article>
-          <article class="project-card reveal-card">
-            <span class="project-index">03</span>
-            <p class="project-type">Club</p>
-            <h3>동아리 · 교내 활동</h3>
-            <p>해커톤, 서비스 기획, 홍보 디자인 제작 등 협업 중심의 활동을 통해 실행력과 커뮤니케이션 역량을 키웠습니다.</p>
-          </article>
-        </div>
-      </section>
+        <section id="project-type" class="accent-panel">
+            <h2>PROJECT TYPE</h2>
+            <div class="project-grid">
+                <div class="card">UI/UX Design</div>
+                <div class="card">Interaction Design</div>
+                <div class="card">Branding</div>
+            </div>
+        </section>
 
-      <section class="section" id="main-project">
-        <div class="section-heading">
-          <p class="eyebrow">MAIN PROJECT</p>
-          <h2>주요 프로젝트</h2>
-        </div>
-        <div class="main-project-grid">
-          <article class="main-project-card reveal-card">
-            <div class="project-thumb"><img src="project1.jpg" alt="모디곰 BI 포스터"></div>
-            <span>교과 프로젝트</span>
-            <h3>그래픽 포스터 제작 프로젝트 [모디곰 BI 포스터]</h3>
+        <section id="main-project" class="panel">
+            <h2>MAIN PROJECT</h2>
+            <div class="main-project-grid">
+                <div class="project-thumb">주요 프로젝트 아카이브 준비 중</div>
+            </div>
+        </section>
+
+        <section id="career" class="accent-panel">
+            <h2>CAREER & AWARDS</h2>
+            <div class="career-grid">
+                <ul>
+                    <li>2026 UI/UX 디자인 포트폴리오 구축</li>
+                    <li>Design Award 수상 및 프로젝트 아카이브</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="contact" class="contact-section">
+            <h2>CONTACT</h2>
+            <p>함께 일하고 성장할 영감을 나누어주세요.</p>
+            <a href="mailto:your-email@example.com" class="email-btn">Get In Touch</a>
+        </section>
+        
+    </div>
+
+    <script type="module" href="./script.js"></script>
+    <script type="module">
+        // 브라우저 캐시 독하게 남는걸 방지하기 위해 쿼리스트링 강제 주입하여 모듈 로드
+        import './script.js?v=' + Date.now();
+    </script>
+</body>
+</html>
