@@ -188,54 +188,27 @@ a{color:inherit;text-decoration:none;}
   font-weight:500;color:rgba(250,247,240,0.88);
 }
 
-.landing-display-shell {
-  grid-area: model;
-  position: relative;
-  width: clamp(400px, 42vw, 660px);
-  height: clamp(400px, 64vh, 700px);
-  /* 💡 로딩 화면이나 다른 컨텐츠와 꼬이지 않도록 부모 z-index 레이어 안정화 */
-  z-index: 5; 
-  pointer-events: auto;
-  justify-self: end;
-  align-self: center;
+.landing-display-shell{
+  grid-area:model;position:relative;
+  width:clamp(400px,42vw,660px);
+  height:clamp(400px,64vh,700px);
+  z-index:1;pointer-events:auto;
+  justify-self:end;align-self:center;
 }
-
-.landing-display {
-  width: 100%;
-  height: 100%;
-  border-radius: 0;
-  background: transparent !important;
-  border: 0;
-  overflow: visible;
-  box-shadow: none;
-  transform: translate(0, 0) scale(1);
-  transform-origin: center center;
-  will-change: transform;
-  /* 💡 마우스 드래그 이벤트를 온전히 수신할 수 있도록 조절 */
-  z-index: 5;
-  pointer-events: auto; 
+.landing-display{
+  width:100%;height:100%;border-radius:0;
+  background:transparent !important;border:0;overflow:visible;box-shadow:none;
+  transform:translate(0,0) scale(1);transform-origin:center center;
+  will-change:transform;z-index:1;
 }
-
-.display-frame {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  overflow: visible;
-  background: transparent !important;
-}
+.display-frame{position:absolute;inset:0;border-radius:inherit;overflow:visible;background:transparent !important;}
 
 /* Three.js canvas */
-.model-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100% !important;
-  height: 100% !important;
-  display: block;
-  /* 💡 z-index를 올려주고, none이었던 속성을 auto로 변경하여 드래그를 허용합니다! */
-  z-index: 10; 
-  pointer-events: auto; 
-  border-radius: 28px;
+.model-canvas{
+  position:absolute;inset:0;width:100% !important;height:100% !important;
+  display:block;z-index:2;pointer-events:none;border-radius:28px;
 }
+
 /* Crystal CSS fallback */
 .crystal-fallback{
   position:absolute;left:50%;top:50%;
@@ -636,105 +609,4 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
 @media(prefers-reduced-motion:reduce){
   .reveal-card,.reveal-card.is-visible,.page-spotlight,.cursor-follower{transition:none !important;animation:none !important;}
   .reveal-card{opacity:1;transform:none;}
-}
-/* 전체 화면 로딩 스크린 스타일 */
-#site-loader {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100vh;
-  background-color: #101012; /* 예린님 사이트의 다크한 배경색 */
-  z-index: 9999; /* 그 어떤 요소보다 무조건 위에 배치 */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: transform 0.8s cubic-bezier(0.85, 0, 0.15, 1), opacity 0.8s ease;
-}
-
-/* 로딩 스크린이 끝났을 때 위로 부드럽게 걷히는 클래스 */
-#site-loader.is-loaded {
-  transform: translateY(-100%);
-  opacity: 0;
-  pointer-events: none; /* 뒷배경 클릭 가능하도록 차단 해제 */
-}
-
-.loader-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-}
-
-/* 🔄 로고 자연스럽게 원형으로 무한 회전하는 애니메이션 */
-.rotating-logo {
-  width: 80px; /* 로고 크기는 원하시는 대로 조절하세요 */
-  height: auto;
-  animation: logo-rotate 2.5s linear infinite;
-}
-
-/* 하단 로딩 텍스트 은은하게 깜빡이는 효과 */
-.loader-text {
-  color: #ffffff;
-  font-family: sans-serif;
-  font-size: 12px;
-  letter-spacing: 0.3em;
-  opacity: 0.7;
-  animation: pulse 1.5s ease-in-out infinite alternate;
-}
-
-@keyframes logo-rotate {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-@keyframes pulse {
-  0% { opacity: 0.3; }
-  100% { opacity: 0.8; }
-}
-/* 로고가 제자리에서 부드럽게 도는 효과 */
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* 💡 자바스크립트가 로딩 완료 신호(.is-loaded)를 주면 로딩 창을 스케일 업 하며 페이드아웃 시키는 마법 */
-#site-loader.is-loaded {
-  opacity: 0;
-  transform: scale(1.05);
-  visibility: hidden;
-}
-/* 💡 [긴급 조치] Three.js 영역이 본문을 가리지 못하게 마우스 이벤트 전면 차단 */
-#landing-display {
-    pointer-events: none !important;
-    z-index: 10 !important;
-    overflow: visible !important;
-    background: transparent !important;
-}
-
-/* 💡 [핵심] 마우스 드래그를 해야 하는 '알맹이' 캔버스만 마우스를 먹게 설정 */
-#model-canvas {
-    pointer-events: auto !important;
-    background: transparent !important;
-    mix-blend-mode: screen !important; /* 지직거리는 파스텔 배경판 강제 삭제 */
-    z-index: 10 !important;
-}
-
-/* 💡 [최후의 수단] 에러로 인해 숨겨져 있을지 모르는 모든 본문 콘텐츠를 강제 노출 */
-.topbar, 
-.hero-copy, .reveal-card, 
-.project-grid, .main-project-grid, 
-.career-grid, .panel, .accent-panel, 
-.contact-section {
-    opacity: 1 !important;
-    visibility: visible !important;
-    pointer-events: auto !important;
-    display: flex !important; /* 원래 flex였던 레이아웃 복원 */
-}
-
-/* 💡 본문을 잠그고 있던 로딩 레이어를 아예 물리적으로 소멸 */
-#site-loader, .site-loader, [id*="loader"], [class*="loader"] {
-    display: none !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
 }
