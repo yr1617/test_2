@@ -112,12 +112,12 @@ const updateTiltTarget = (clientX, clientY) => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE
+    THREE.JS ENGINE (독립 앵커 시스템 가동)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
 let threeCamera   = null;
-let modelMesh    = null;
+let modelAnchor   = null; // 💡 마우스 반응 및 회전을 전담할 빈 기준점 부모 앵커
 let modelLoaded   = false;
 let animFrameId   = null;
 let modelAutoRotY = 0;
@@ -182,6 +182,9 @@ const initThree = () => {
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
 
+      // 🔥 [정면 축 고정] 연산이 꼬이지 않도록 내부 자식 모델에 정면 각도를 박아버립니다.
+      model.rotation.set(Math.PI / 2.2, 0, Math.PI / 4);
+
       model.traverse((child) => {
         if (!child.isMesh) return;
         child.material = new THREE.MeshPhysicalMaterial({
@@ -201,22 +204,20 @@ const initThree = () => {
         });
       });
 
-      threeScene.add(model);
-      modelMesh   = model; 
+      // 💡 앵커 생성 후 모델을 자식으로 탑재하여 연산 분리
+      modelAnchor = new THREE.Group();
+      modelAnchor.add(model);
+      threeScene.add(modelAnchor);
+      
       modelLoaded = true;
       
-      // 🔥 [초강력 철거 파트] 클래스 숨김 따위 다 씹어버리고, 코덱스 관련 엘리먼트를 DOM에서 영원히 소멸시킵니다.
-      if (crystalFallback) {
-        crystalFallback.remove(); 
-      }
-      // 혹시 다른 이름으로 남아있을 코덱스용 canvas가 있다면 그것도 강제 삭제
-      document.querySelectorAll('.crystal-fallback, #crystal-canvas, [id*="fallback"]').forEach(el => {
-        if(el && el !== modelCanvas) el.remove();
-      });
+      // 코덱스 폴백 확실하게 제거
+      if (crystalFallback) crystalFallback.style.display = 'none';
     },
     undefined,
     (err) => {
       console.warn("GLB 로드 실패", err);
+      if (crystalFallback) crystalFallback.style.display = 'block';
     }
   );
 };
@@ -231,7 +232,7 @@ const resizeThree = () => {
 };
 
 /* ════════════════════════════════════════
-    MAIN ANIMATION LOOP
+    MAIN ANIMATION LOOP (수학적 오류 완전 해결)
 ════════════════════════════════════════ */
 const animate = () => {
   animFrameId = requestAnimationFrame(animate);
@@ -251,18 +252,20 @@ const animate = () => {
   if (landingCanvasCtrl) landingCanvasCtrl.draw();
 
   if (threeRenderer && threeScene && threeCamera) {
-    if (modelMesh) {
+    if (modelAnchor) {
       if (!tilt.hovering) {
         modelAutoRotY += 0.003; 
       } else {
         modelAutoRotY += (0 - modelAutoRotY) * 0.05;
       }
       
-      modelMesh.rotation.x = THREE.MathUtils.degToRad(tilt.rx) + (Math.PI / 2.2);
-      modelMesh.rotation.y = modelAutoRotY + THREE.MathUtils.degToRad(tilt.ry);
-      modelMesh.rotation.z = THREE.MathUtils.degToRad(tilt.rz) + (Math.PI / 4);
+      // 💡 [클린 매트릭스 연산] 외부 부모 앵커만 순수하게 돌리므로 화면 밖으로 튕기지 않습니다.
+      modelAnchor.rotation.x = THREE.MathUtils.degToRad(tilt.rx);
+      modelAnchor.rotation.y = modelAutoRotY + THREE.MathUtils.degToRad(tilt.ry);
+      modelAnchor.rotation.z = THREE.MathUtils.degToRad(tilt.rz);
       
-      modelMesh.position.y = Math.sin(Date.now() * 0.001) * 0.03;
+      // 둥실둥실 효과도 앵커에 정갈하게 적용
+      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.03;
     }
     threeRenderer.render(threeScene, threeCamera);
   }
