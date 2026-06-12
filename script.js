@@ -51,7 +51,6 @@ const setupLandingCanvas = () => {
     landingCanvas.width  = Math.max(1, Math.floor(rect.width  * state.dpr));
     landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
     
-    // 💡 [오타 완벽 수정] 기존의 landingCanvasCanvas 오류를 landingCanvas로 바로잡았습니다!
     landingCanvas.style.width  = `${rect.width}px`;
     landingCanvas.style.height = `${rect.height}px`;
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
@@ -206,13 +205,18 @@ const initThree = () => {
       modelMesh   = model; 
       modelLoaded = true;
       
-      // 모델 로딩이 완벽하게 완료되었으므로 대체용 큐브를 돔에서 완전히 숨깁니다.
-      if (crystalFallback) crystalFallback.style.display = 'none';
+      // 🔥 [초강력 철거 파트] 클래스 숨김 따위 다 씹어버리고, 코덱스 관련 엘리먼트를 DOM에서 영원히 소멸시킵니다.
+      if (crystalFallback) {
+        crystalFallback.remove(); 
+      }
+      // 혹시 다른 이름으로 남아있을 코덱스용 canvas가 있다면 그것도 강제 삭제
+      document.querySelectorAll('.crystal-fallback, #crystal-canvas, [id*="fallback"]').forEach(el => {
+        if(el && el !== modelCanvas) el.remove();
+      });
     },
     undefined,
     (err) => {
       console.warn("GLB 로드 실패", err);
-      if (crystalFallback) crystalFallback.style.display = 'block';
     }
   );
 };
@@ -241,3 +245,119 @@ const animate = () => {
 
   if (follower) {
     follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
+  }
+
+  updateLandingVars();
+  if (landingCanvasCtrl) landingCanvasCtrl.draw();
+
+  if (threeRenderer && threeScene && threeCamera) {
+    if (modelMesh) {
+      if (!tilt.hovering) {
+        modelAutoRotY += 0.003; 
+      } else {
+        modelAutoRotY += (0 - modelAutoRotY) * 0.05;
+      }
+      
+      modelMesh.rotation.x = THREE.MathUtils.degToRad(tilt.rx) + (Math.PI / 2.2);
+      modelMesh.rotation.y = modelAutoRotY + THREE.MathUtils.degToRad(tilt.ry);
+      modelMesh.rotation.z = THREE.MathUtils.degToRad(tilt.rz) + (Math.PI / 4);
+      
+      modelMesh.position.y = Math.sin(Date.now() * 0.001) * 0.03;
+    }
+    threeRenderer.render(threeScene, threeCamera);
+  }
+};
+
+/* ════════════════════════════════════════
+    NAV PROGRESS
+════════════════════════════════════════ */
+const updateNavProgress = () => {
+  const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
+  const atBottom  = window.scrollY >= maxScroll - 4;
+
+  navLinks.forEach((link) => {
+    const section = document.getElementById(link.dataset.target);
+    if (!section) return;
+
+    if (atBottom && link.dataset.target === 'contact') {
+      link.style.setProperty('--nav-progress', '1');
+      link.classList.add('is-active');
+      return;
+    }
+    const rect     = section.getBoundingClientRect();
+    const start    = window.innerHeight * 0.75;
+    const end      = window.innerHeight * 0.18;
+    const progress = clamp01((start - rect.top) / Math.max(start - end, 1));
+    link.style.setProperty('--nav-progress', progress.toFixed(3));
+    link.classList.toggle('is-active', progress > 0.02 && progress < 1);
+  });
+};
+
+/* ════════════════════════════════════════
+    INITIALIZE ENTRY
+════════════════════════════════════════ */
+const initAll = () => {
+  landingCanvasCtrl = setupLandingCanvas();
+
+  highlightElements.forEach((el) => {
+    el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
+    el.addEventListener('mouseleave', () => el.classList.remove('is-hovered'));
+  });
+
+  const revealCards = document.querySelectorAll('.reveal-card');
+  if (revealCards.length) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
+    );
+    revealCards.forEach(card => observer.observe(card));
+  }
+
+  initThree();
+  updateNavProgress();
+  animate();
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAll);
+} else {
+  initAll();
+}
+
+/* ════════════════════════════════════════
+    EVENT LISTENERS
+════════════════════════════════════════ */
+window.addEventListener('pointermove', (e) => {
+  pointer.tx = e.clientX;
+  pointer.ty = e.clientY;
+  updateTiltTarget(e.clientX, e.clientY);
+
+  if (follower) {
+    const target = e.target;
+    const isInteractive = target.closest('a, button, .project-card, .main-project-card, .scroll-link, li, .point-highlight');
+    follower.classList.toggle('is-link', !!isInteractive);
+  }
+});
+
+window.addEventListener('pointerleave', () => {
+  pointer.tx = window.innerWidth  * 0.5;
+  pointer.ty = window.innerHeight * 0.5;
+  tilt.hovering = false;
+  tilt.tx = -5; tilt.ty = 0; tilt.tz = 0;
+  landingDisplay?.classList.remove('is-hovering');
+  if (follower) follower.classList.remove('is-link');
+});
+
+window.addEventListener('scroll', updateNavProgress, { passive: true });
+window.addEventListener('resize', () => {
+  if (landingCanvasCtrl) landingCanvasCtrl.resize();
+  resizeThree();
+  updateNavProgress();
+});
