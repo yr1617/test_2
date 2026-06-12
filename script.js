@@ -12,12 +12,10 @@ const modelCanvas    = document.querySelector('#model-canvas');
 const crystalFallback = document.querySelector('#crystal-fallback');
 const follower        = document.querySelector('.cursor-follower');
 const navLinks       = document.querySelectorAll('.topnav a[data-target]');
-
-// 예린님이 원하신 '마우스 호버 시 형광펜 효과'를 줄 대상들 (.reveal-card 내부의 li나 강조 단어)
 const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li');
 
 /* ════════════════════════════════════════
-    POINTER & TILT STATE (원본 앵글 유지)
+    POINTER & TILT STATE
 ════════════════════════════════════════ */
 const pointer = {
   x:  window.innerWidth  * 0.5,
@@ -26,11 +24,12 @@ const pointer = {
   ty: window.innerHeight * 0.5,
 };
 
+// [앵글 튜닝] 정면을 기준으로 상하좌우 부드럽게 틸트되도록 기본 타깃 수정
 const tilt = {
-  rx: -8,   
-  ry: 35,   
+  rx: -5,   
+  ry: 0,   
   rz: 0,
-  tx: -8, ty: 35, tz: 0,
+  tx: -5, ty: 0, tz: 0,
   hovering: false,
 };
 
@@ -102,18 +101,18 @@ const updateTiltTarget = (clientX, clientY) => {
   landingDisplay.classList.toggle('is-hovering', inside);
 
   if (!inside) {
-    tilt.tx = -8; tilt.ty = 35; tilt.tz = 0;
+    tilt.tx = -5; tilt.ty = 0; tilt.tz = 0;
     return;
   }
   const nx = ((clientX - rect.left) / Math.max(rect.width,  1) - 0.5) * 2;
   const ny = ((clientY - rect.top)  / Math.max(rect.height, 1) - 0.5) * 2;
-  tilt.tx = -8 + ny * -15;
-  tilt.ty = 35 + nx * 20;
-  tilt.tz = nx * 5;
+  tilt.tx = -5 + ny * -12; // 마우스 상하 반응 범위
+  tilt.ty = nx * 15;       // 마우스 좌우 반응 범위
+  tilt.tz = nx * 3;
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (안전 피드백 로딩)
+    THREE.JS ENGINE (정면 배치 튜닝)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -132,137 +131,3 @@ const initThree = () => {
 
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
-    alpha:       true,
-    antialias:   true,
-    powerPreference: 'high-performance',
-  });
-  threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  threeRenderer.setSize(W, H);
-  threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
-  threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  threeRenderer.toneMappingExposure = 1.4; 
-
-  threeScene = new THREE.Scene();
-  threeScene.background = null;
-
-  threeCamera = new THREE.PerspectiveCamera(35, W / H, 0.1, 100);
-  threeCamera.position.set(0, 0.0, 3.8); 
-
-  // 조명 강도를 확보하여 유리/크리스탈 질감 극대화
-  const ambient = new THREE.AmbientLight(0xffffff, 0.9);
-  threeScene.add(ambient);
-
-  const keyLight = new THREE.DirectionalLight(0xfff8f0, 3.0);
-  keyLight.position.set(5, 5, 4);
-  threeScene.add(keyLight);
-
-  const rimLight = new THREE.DirectionalLight(0xaae961, 2.5); 
-  rimLight.position.set(-5, 3, -2);
-  threeScene.add(rimLight);
-
-  const backLight = new THREE.DirectionalLight(0xb18bff, 2.0); 
-  backLight.position.set(-2, -3, -3);
-  threeScene.add(backLight);
-
-  const loader = new GLTFLoader();
-  const draco  = new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
-  loader.setDRACOLoader(draco);
-
-  // 무조건 현재 폴더 기준 최상위 경로의 modeling.glb 로드
-  loader.load(
-    './modeling.glb',
-    (gltf) => {
-      const model = gltf.scene;
-      const box    = new THREE.Box3().setFromObject(model);
-      const centre = new THREE.Vector3();
-      box.getCenter(centre);
-      const size   = new THREE.Vector3();
-      box.getSize(size);
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const scale   = 2.0 / maxDim; 
-      
-      model.position.sub(centre.multiplyScalar(scale));
-      model.scale.setScalar(scale);
-
-      model.traverse((child) => {
-        if (!child.isMesh) return;
-        child.material = new THREE.MeshPhysicalMaterial({
-          color:              0xffffff,
-          metalness:          0.1,
-          roughness:          0.05,       
-          transmission:       0.92,       
-          thickness:          1.2,        
-          ior:                1.52,       
-          clearcoat:          1.0,
-          clearcoatRoughness: 0.02,
-          iridescence:        0.85,       
-          iridescenceIOR:     1.4,
-          opacity:            0.95,
-          transparent:        true,
-          side:               THREE.DoubleSide,
-        });
-      });
-
-      threeScene.add(model);
-      modelMesh   = model;
-      modelLoaded = true;
-      if (crystalFallback) crystalFallback.classList.add('is-hidden');
-    },
-    undefined,
-    (err) => {
-      console.warn("GLB 파일 로드 실패 - 대체 박스를 활성화합니다.", err);
-      if (crystalFallback) crystalFallback.classList.remove('is-hidden');
-    }
-  );
-};
-
-const resizeThree = () => {
-  if (!threeRenderer || !threeCamera || !landingDisplay) return;
-  const W = landingDisplay.offsetWidth;
-  const H = landingDisplay.offsetHeight;
-  threeRenderer.setSize(W, H);
-  threeCamera.aspect = W / H;
-  threeCamera.updateProjectionMatrix();
-};
-
-/* ════════════════════════════════════════
-    MAIN ANIMATION LOOP
-════════════════════════════════════════ */
-const animate = () => {
-  animFrameId = requestAnimationFrame(animate);
-
-  pointer.x += (pointer.tx - pointer.x) * 0.12;
-  pointer.y += (pointer.ty - pointer.y) * 0.12;
-
-  tilt.rx += (tilt.tx - tilt.rx) * 0.1;
-  tilt.ry += (tilt.ty - tilt.ry) * 0.1;
-  tilt.rz += (tilt.tz - tilt.rz) * 0.1;
-
-  if (follower) {
-    follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
-  }
-
-  updateLandingVars();
-  if (landingCanvasCtrl) landingCanvasCtrl.draw();
-
-  if (threeRenderer && threeScene && threeCamera) {
-    if (modelMesh) {
-      if (!tilt.hovering) {
-        modelAutoRotY += 0.004; 
-      }
-      modelMesh.rotation.x = THREE.MathUtils.degToRad(tilt.rx);
-      modelMesh.rotation.y = modelAutoRotY + THREE.MathUtils.degToRad(tilt.ry);
-      modelMesh.rotation.z = THREE.MathUtils.degToRad(tilt.rz);
-      modelMesh.position.y = Math.sin(Date.now() * 0.001) * 0.04;
-    }
-    threeRenderer.render(threeScene, threeCamera);
-  }
-};
-
-/* ════════════════════════════════════════
-    NAV PROGRESS
-════════════════════════════════════════ */
-const updateNavProgress = () => {
-  const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
-  const at
