@@ -11,13 +11,10 @@ const landingDisplay = document.querySelector('#landing-display');
 const modelCanvas    = document.querySelector('#model-canvas');   
 const crystalFallback = document.querySelector('#crystal-fallback');
 const follower        = document.querySelector('.cursor-follower');
-const navLinks       = document.querySelectorAll('.nav-menu a');
-const sections       = document.querySelectorAll('section, main');
 
 /* ════════════════════════════════════════
-    INTERACTION STATE
+    INTERACTION STATE (마우스 독립 추적)
 ════════════════════════════════════════ */
-// 마우스 커서는 화면 전체 좌표를 기본으로 추적합니다.
 const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, tx: window.innerWidth * 0.5, ty: window.innerHeight * 0.5 };
 
 const rotationState = {
@@ -42,7 +39,7 @@ const setupLandingCanvas = () => {
     const rect = landing.getBoundingClientRect();
     state.width  = rect.width;
     state.height = rect.height;
-    state.dpr    = Math.min(window.devicePixelRatio || 1, 1.5);
+    state.dpr    = Math.min(window.devicePixelRatio || 1, 1.2); // 과부하 방지
     landingCanvas.width  = Math.max(1, Math.floor(rect.width  * state.dpr));
     landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
     landingCanvas.style.width  = `${rect.width}px`;
@@ -80,7 +77,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (오로라 크리스탈)
+    THREE.JS ENGINE (오로라 물방울 크리스탈 별)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -99,7 +96,6 @@ const initThree = () => {
     canvas:      modelCanvas,
     alpha:       true,
     antialias:   true,
-    powerPreference: 'high-performance',
   });
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   threeRenderer.setSize(W, H);
@@ -195,32 +191,30 @@ const hideSiteLoader = () => {
 };
 
 /* ════════════════════════════════════════
-    MAIN ANIMATION LOOP (마우스 감옥 탈출 및 렉 전면 소독)
+    MAIN ANIMATION LOOP (순수 렌더 루프로 렉 제거)
 ════════════════════════════════════════ */
 const animate = () => {
   animFrameId = requestAnimationFrame(animate);
 
-  // 🎯 마우스 포인터 좌표 추적은 스크롤과 상관없이 무조건 독립적으로 돕니다 (마우스 가두기 버그 완벽 탈출)
+  // 마우스 트래킹은 윈도우 창 전체를 부드럽게 따라다님 (마우스 가두기 현상 완벽 박멸)
   pointer.x += (pointer.tx - pointer.x) * 0.08;
   pointer.y += (pointer.ty - pointer.y) * 0.08;
 
   if (follower) {
-    // 마우스가 브라우저 전체 화면을 자유롭게 날아다니도록 고정
     follower.style.transform = `translate3d(${pointer.x}px, ${pointer.y}px, 0) translate(-50%, -50%)`;
   }
 
   updateLandingVars();
   if (landingCanvasCtrl) landingCanvasCtrl.draw();
 
-  // 3D 회전 제어
   if (modelAnchor) {
     if (!rotationState.isHovered) {
-      // 평소: 느리게 자동 회전
+      // 🔄 평소 상태: 느릿하게 무한 자동 회전
       modelAutoRotY += 0.002;
       rotationState.targetX = 0;
       rotationState.targetY = modelAutoRotY;
     } else {
-      // 별 위에 호버 시: 마우스 방향 정밀 매핑
+      // 🎯 호버 상태: 자동 회전을 일시정지하고 마우스 방향을 끈끈하게 추적
       if (landingDisplay) {
         const rect = landingDisplay.getBoundingClientRect();
         const normX = (pointer.x - rect.left) / rect.width - 0.5;
@@ -238,17 +232,17 @@ const animate = () => {
     modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.004;
   }
 
-  // ⚠️ [렉 박멸] 스크롤 조건문을 걷어내고 항상 심플하게 렌더링을 유지시켜 찢어짐과 튕김을 막습니다.
+  // 렉을 유발하던 스크롤 조건문을 삭제하고 안정적으로 렌더링 유지
   if (threeRenderer && threeScene && threeCamera) {
     threeRenderer.render(threeScene, threeCamera);
   }
 };
 
 /* ════════════════════════════════════════
-    호버 범위 제한 (오직 별 영역 안에서만 반응)
+    EVENT LISTENERS (화면 전체 감지 및 타겟 설정)
 ════════════════════════════════════════ */
-const setupHoverEvents = () => {
-  // 화면 전체 마우스는 언제나 감지
+const setupEvents = () => {
+  // 마우스 좌표는 화면 어디서든 끊김 없이 받아옵니다.
   window.addEventListener('pointermove', (e) => {
     pointer.tx = e.clientX;
     pointer.ty = e.clientY;
@@ -256,35 +250,14 @@ const setupHoverEvents = () => {
 
   if (!landingDisplay) return;
 
-  // 정확히 별 컨테이너에 들어왔을 때만 제어권 획득
+  // 오직 별 컨테이너 영역 안에 들어왔을 때만 호버 회전 모드로 전환
   landingDisplay.addEventListener('pointerenter', () => {
     rotationState.isHovered = true;
   });
 
-  // 나가는 순간 락 해제 후 자동 회전
+  // 별 영역을 벗어나면 다시 평화롭게 자동 회전
   landingDisplay.addEventListener('pointerleave', () => {
     rotationState.isHovered = false;
-  });
-};
-
-/* ════════════════════════════════════════
-    🧭 스크롤 메뉴바 액티브 라인 연동
-════════════════════════════════════════ */
-const handleScrollMenu = () => {
-  let currentSectionId = "home";
-  
-  sections.forEach((section) => {
-    const sectionTop = section.offsetTop;
-    if (window.scrollY >= sectionTop - window.innerHeight * 0.3) {
-      currentSectionId = section.getAttribute("id");
-    }
-  });
-
-  navLinks.forEach((link) => {
-    link.classList.remove("active");
-    if (link.getAttribute("href") === `#${currentSectionId}`) {
-      link.classList.add("active");
-    }
   });
 };
 
@@ -296,9 +269,7 @@ const initAll = () => {
   window.__threeInitialized = true;
 
   landingCanvasCtrl = setupLandingCanvas();
-  setupHoverEvents(); 
-
-  window.addEventListener('scroll', handleScrollMenu, { passive: true });
+  setupEvents(); 
 
   initThree();
   animate();
