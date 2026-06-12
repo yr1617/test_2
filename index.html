@@ -15,23 +15,25 @@
   </script>
 </head>
 <body>
- <div id="site-loader" style="
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background-color: rgba(16, 16, 18, 0.88); /* 로딩 중에도 뒤의 은은한 조명 반응이 비치도록 설정 */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-  transition: opacity 0.6s ease, transform 0.6s ease;
-  pointer-events: none; /* 💡 이 로딩 창을 마우스 마우스 포인터가 그냥 뚫고 지나가 뒤의 별을 조종합니다! */
-">
-  <div class="loader-content" style="text-align: center; pointer-events: auto;">
-    <img src="logo.png" alt="Logo" class="rotating-logo" style="width: 60px; height: auto; animation: spin 2s linear infinite;">
-    <p class="loader-text" style="color: #ffffff; letter-spacing: 0.2em; font-size: 12px; margin-top: 20px; font-family: sans-serif;">LOADING PORTFOLIO</p>
+  
+  <div id="site-loader" style="
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-color: rgb(16, 16, 18); 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    pointer-events: auto; 
+  ">
+    <div class="loader-content" style="text-align: center;">
+      <img src="logo.png" alt="Logo" class="rotating-logo" style="width: 60px; height: auto; animation: spin 2s linear infinite;">
+      <p class="loader-text" style="color: #ffffff; letter-spacing: 0.2em; font-size: 12px; margin-top: 20px; font-family: sans-serif;">LOADING PORTFOLIO</p>
+    </div>
   </div>
-</div>
+
   <div class="background-orb orb-left"></div>
   <div class="background-orb orb-right"></div>
   <div class="background-grid"></div>
@@ -72,7 +74,8 @@
             <div class="landing-display" id="landing-display" aria-label="interactive 3d model preview">
               <div class="display-frame">
                 <canvas class="model-canvas" id="model-canvas" aria-hidden="true"></canvas>
-                <div class="crystal-fallback" id="crystal-fallback" aria-hidden="true">
+                
+                <div class="crystal-fallback" id="crystal-fallback" style="display: none;" aria-hidden="true">
                   <div class="lobe lobe-a"></div>
                   <div class="lobe lobe-b"></div>
                   <div class="lobe lobe-c"></div>
@@ -99,7 +102,7 @@
         <div class="hero-copy reveal-card">
           <h2>About</h2>
           <p class="intro">
-            UI·UX 디자인을 공부 중인 학생 디자이너 최예린입니다. 차분하게 대상을 바라보고 꾸준히 실행해 나가는 태도로, 사용자에게 오래 남는 경험을 설계합니다. 부드러운 커뮤니케이션과 유연한 사고를 통해 프로젝트 안에서 안정감 있는 결과를 만들어 갑니다.
+            UI·UX 디자인을 공부 중인 학생 디자이너 최예린입니다. 차분하게 대상을 바라보고 꾸준히 실행해 나가는 태도로, 사용자에게 오래 남는 경험을 설계합니다. 부드러운 커뮤니케이션และ 유연한 사고를 통해 프로젝트 안에서 안정감 있는 결과를 만들어 갑니다.
           </p>
           <div class="hero-meta">
             <div class="meta-card">
@@ -279,8 +282,9 @@
         </div>
       </section>
 
-    </div></main>
+    </div>
+  </main>
 
-  <script type="module" src="script.js?v=16"></script>
+  <script type="module" src="script.js?v=17"></script>
 </body>
 </html>
