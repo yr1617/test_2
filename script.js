@@ -3,9 +3,11 @@ import * as THREE from 'https://unpkg.com/three@0.126.0/build/three.module.js';
 document.addEventListener("DOMContentLoaded", () => {
   
   /* ════════════════════════════════════════
-      1. 개별 메뉴바 스크롤 연동 (동시 차오름 해결)
+      1. 개별 메뉴바 독립 연동 (동시 차오름 해결)
   ════════════════════════════════════════ */
   const navLinks = document.querySelectorAll(".topnav a");
+  
+  // 각 메뉴 링크에 대응하는 HTML 섹션들을 매칭합니다 (#career-awards, #project-list 등)
   const sections = Array.from(navLinks).map(link => {
     const targetId = link.getAttribute("href");
     return targetId && targetId.startsWith("#") ? document.querySelector(targetId) : null;
@@ -19,27 +21,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
     navLinks.forEach((link, index) => {
       const section = sections[index];
+      
+      // 메인 랜딩(Home)이나 매칭되는 섹션이 없는 메뉴는 전체 페이지 스크롤과 연동
       if (!section) {
-        // 링크에 매칭되는 섹션이 없으면 전체 페이지 진행도 연동 (예: Home)
         link.style.setProperty("--nav-progress", totalProgress);
         return;
       }
 
+      // 섹션별 위치를 계산하여 해당 메뉴의 바만 독립적으로 차오르게 변경
       const rect = section.getBoundingClientRect();
       const sectionTop = rect.top + scrollTop;
       const sectionHeight = rect.height;
 
-      // 현재 뷰포트 기준으로 해당 섹션의 통과 진행도 계산
       let sectionProgress = 0;
       if (scrollTop + viewportHeight > sectionTop) {
         sectionProgress = (scrollTop + viewportHeight - sectionTop) / (sectionHeight + viewportHeight);
       }
       
-      // 범위 제한 (0 ~ 1) 및 해당 메뉴바만 독립적으로 채우기
       sectionProgress = Math.min(Math.max(sectionProgress, 0), 1);
       link.style.setProperty("--nav-progress", sectionProgress);
 
-      // 현재 보고 있는 섹션 활성화 활성화
+      // 현재 보고 있는 섹션 메뉴에 active 클래스 부여
       if (rect.top <= viewportHeight * 0.5 && rect.bottom >= viewportHeight * 0.5) {
         link.classList.add("active");
       } else {
@@ -49,98 +51,83 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /* ════════════════════════════════════════
-      2. THREE.JS 모델링 최적화 & 영롱한 오색 재질 복구
+      2. 이미지 원본 색감 & 가벼운 모델링 복구 (렉 제거)
   ════════════════════════════════════════ */
   const container = document.querySelector('.landing-display-shell');
   const canvas = document.querySelector('.model-canvas');
-  const fallback = document.querySelector('.crystal-fallback');
 
-  // 에러 방지용 가드 클로저
-  if (!container || !canvas) {
-    if (fallback) fallback.classList.remove('is-hidden');
-    return; 
-  }
+  if (!container || !canvas) return; 
 
-  // 씬, 카메라, 렌더러 설정 (하드웨어 가속 포함)
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
   camera.position.z = 6;
 
+  // 앤티앨리어싱만 켜서 계단현상을 잡고 가볍게 렌더링
   const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
   renderer.setSize(container.clientWidth, container.clientHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-  // 크리스탈 형상 생성 (예린님의 원래 기하학 구조 부활)
+  // 예린님의 깔끔한 8면체 기하학 구조
   const geometry = new THREE.OctahedronGeometry(1.6, 0);
   
-  // ✨ 예린님이 원하셨던 영롱한 오색빛깔 광택 물리 재질(Physical Material) 복구
-  const material = new THREE.MeshPhysicalMaterial({
+  // ✨ 이미지 속 은은하고 부드러운 오색 빛깔을 표현하는 기본 셰이딩 재질로 복구
+  // 복잡한 연산이 없어 렉이 완전히 사라집니다.
+  const material = new THREE.MeshStandardMaterial({
     color: 0xffffff,
-    metalness: 0.1,
-    roughness: 0.05,
-    transmission: 0.9,     // 반투명 유리 재질
-    ior: 2.42,             // 다이아몬드 굴절률 (오색 반사 극대화)
-    thickness: 1.2,
-    specularIntensity: 1.0,
-    clearcoat: 1.0,        // 겉면 코팅으로 눈부신 광택 추가
-    clearcoatRoughness: 0.05
+    roughness: 0.4,
+    metalness: 0.1
   });
 
   const mesh = new THREE.Mesh(geometry, material);
   scene.add(mesh);
 
-  // 💡 빛나는 효과용 조명 시스템 세팅
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+  // 💡 이미지 속 상단 연두빛과 하단 보라/청빛 그라데이션을 만드는 은은한 조명 시스템
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambientLight);
 
-  const pointLight1 = new THREE.PointLight(0xaae961, 1.5, 10); // 연두빛 핀조명
-  pointLight1.position.set(2, 3, 2);
-  scene.add(pointLight1);
+  // 상단에서 내리쬐는 연두색 빛
+  const topLight = new THREE.DirectionalLight(0xe5ffca, 0.8);
+  topLight.position.set(0, 4, 2);
+  scene.add(topLight);
 
-  const pointLight2 = new THREE.PointLight(0x5d35a3, 2.0, 10); // 보라빛 강한 조명
-  pointLight2.position.set(-2, -3, 2);
-  scene.add(pointLight2);
+  // 하단에서 받쳐주는 은은한 보라/라벤더빛
+  const bottomLight = new THREE.DirectionalLight(0xd1c4e9, 0.9);
+  bottomLight.position.set(0, -4, 2);
+  scene.add(bottomLight);
 
-  // 호버 인터랙션 변수
+  // 마우스 인터랙션 데이터
   let isHovering = false;
-  let targetRotationX = 0;
-  let targetRotationY = 0;
+  let mouseX = 0;
+  let mouseY = 0;
 
   container.addEventListener('mouseenter', () => { isHovering = true; });
   container.addEventListener('mouseleave', () => { isHovering = false; });
   
   container.addEventListener('mousemove', (e) => {
     const rect = container.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width - 0.5;
-    const y = (e.clientY - rect.top) / rect.height - 0.5;
-    
-    // 마우스 움직임에 따라 회전 타겟값 설정
-    targetRotationY = x * 2;
-    targetRotationX = y * 2;
+    mouseX = ((e.clientX - rect.left) / rect.width) - 0.5;
+    mouseY = ((e.clientY - rect.top) / rect.height) - 0.5;
   });
 
-  // 애니메이션 루프 (렉 없이 60fps 보장)
+  // 애니메이션 루프 (초경량 연산으로 60fps 보장)
   function animate() {
     requestAnimationFrame(animate);
 
     if (isHovering) {
-      // 마우스 호버 시 끈적하고 부드럽게 마우스를 따라옴 (Lerp)
-      mesh.rotation.y += (targetRotationY - mesh.rotation.y) * 0.1;
-      mesh.rotation.x += (targetRotationX - mesh.rotation.x) * 0.1;
+      // 호버 시 마우스 방향을 부드럽게 바라봄
+      mesh.rotation.y += (mouseX * 1.5 - mesh.rotation.y) * 0.08;
+      mesh.rotation.x += (mouseY * 1.5 - mesh.rotation.x) * 0.08;
     } else {
-      // 기본 상태일 때는 오색빛깔을 흘리며 자전 자동 회전
-      mesh.rotation.y += 0.008;
-      mesh.rotation.x += 0.003;
+      // 평소에는 이미지의 정갈한 각도를 유지하며 아주 미세하게 자전
+      mesh.rotation.y += 0.003;
+      mesh.rotation.x += 0.001;
     }
 
     renderer.render(scene, camera);
   }
 
-  // 실행 및 폴백 히든 처리
-  if (fallback) fallback.classList.add('is-hidden');
   animate();
 
-  // 리사이즈 대응
   window.addEventListener('resize', () => {
     camera.aspect = container.clientWidth / container.clientHeight;
     camera.updateProjectionMatrix();
