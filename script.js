@@ -307,4 +307,80 @@ const updateNavProgress = () => {
       link.classList.add('is-active');
       return;
     }
-    const rect     = section.getBounding
+    const rect     = section.getBoundingClientRect();
+    const start    = window.innerHeight * 0.75;
+    const end      = window.innerHeight * 0.18;
+    const progress = clamp01((start - rect.top) / Math.max(start - end, 1));
+    link.style.setProperty('--nav-progress', progress.toFixed(3));
+    link.classList.toggle('is-active', progress > 0.02 && progress < 1);
+  });
+};
+
+/* ════════════════════════════════════════
+    INITIALIZE ENTRY
+════════════════════════════════════════ */
+const initAll = () => {
+  landingCanvasCtrl = setupLandingCanvas();
+
+  highlightElements.forEach((el) => {
+    el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
+    el.addEventListener('mouseleave', () => el.classList.remove('is-hovered'));
+  });
+
+  const revealCards = document.querySelectorAll('.reveal-card');
+  if (revealCards.length) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
+    );
+    revealCards.forEach(card => observer.observe(card));
+  }
+
+  initThree();
+  updateNavProgress();
+  animate();
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAll);
+} else {
+  initAll();
+}
+
+/* ════════════════════════════════════════
+    EVENT LISTENERS
+════════════════════════════════════════ */
+window.addEventListener('pointermove', (e) => {
+  pointer.tx = e.clientX;
+  pointer.ty = e.clientY;
+  updateTiltTarget(e.clientX, e.clientY);
+
+  if (follower) {
+    const target = e.target;
+    const isInteractive = target.closest('a, button, .project-card, .main-project-card, .scroll-link, li, .point-highlight');
+    follower.classList.toggle('is-link', !!isInteractive);
+  }
+});
+
+window.addEventListener('pointerleave', () => {
+  pointer.tx = window.innerWidth  * 0.5;
+  pointer.ty = window.innerHeight * 0.5;
+  tilt.hovering = false;
+  tilt.tx = 0; tilt.ty = 0; tilt.tz = 0;
+  landingDisplay?.classList.remove('is-hovering');
+  if (follower) follower.classList.remove('is-link');
+});
+
+window.addEventListener('scroll', updateNavProgress, { passive: true });
+window.addEventListener('resize', () => {
+  if (landingCanvasCtrl) landingCanvasCtrl.resize();
+  resizeThree();
+  updateNavProgress();
+});
