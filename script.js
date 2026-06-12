@@ -25,10 +25,10 @@ const pointer = {
 };
 
 const tilt = {
-  rx: -5,   
+  rx: 0,   
   ry: 0,   
   rz: 0,
-  tx: -5, ty: 0, tz: 0,
+  tx: 0, ty: 0, tz: 0,
   hovering: false,
 };
 
@@ -88,7 +88,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    TILT TARGET UPDATE (마우스 방향 및 감도 대폭 상향)
+    TILT TARGET UPDATE (감도 5배 대폭 상향 조정 및 완전 정방향)
 ════════════════════════════════════════ */
 const updateTiltTarget = (clientX, clientY) => {
   if (!landingDisplay) return;
@@ -101,20 +101,22 @@ const updateTiltTarget = (clientX, clientY) => {
   landingDisplay.classList.toggle('is-hovering', inside);
 
   if (!inside) {
-    tilt.tx = -5; tilt.ty = 0; tilt.tz = 0;
+    tilt.tx = 0; tilt.ty = 0; tilt.tz = 0;
     return;
   }
+  
+  // 마우스의 위치 레이시오 (-1 ~ 1 변환)
   const nx = ((clientX - rect.left) / Math.max(rect.width,  1) - 0.5) * 2;
   const ny = ((clientY - rect.top)  / Math.max(rect.height, 1) - 0.5) * 2;
   
-  // 💡 부호를 (+)로 반전시켜 마우스를 완벽하게 따라오게 하고, 회전 한계치를 늘렸습니다.
-  tilt.tx = -5 + ny * 28;  // 상하 움직임 감도 버프
-  tilt.ty = nx * 35;       // 좌우 움직임 시선 정방향 매칭 및 감도 버프
-  tilt.tz = nx * 8;
+  // 💡 마우스가 우측/상단으로 갈 때 각도가 시원하게 커지도록 한계치를 수십도 단위로 뻥튀기했습니다.
+  tilt.tx = ny * 45;       // 위아래로 최대 45도까지 경사
+  tilt.ty = nx * 55;       // 마우스 따라 좌우로 최대 55도까지 정방향 회전
+  tilt.tz = nx * -15;
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (오로라 무지개 유리 재질 가동)
+    THREE.JS ENGINE (수동 축 뒤틀기 보정 + 오로라 프리즘)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -141,29 +143,29 @@ const initThree = () => {
   threeRenderer.setSize(W, H);
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  threeRenderer.toneMappingExposure = 1.6; // 빛을 더 받아 화사하게 조절
+  threeRenderer.toneMappingExposure = 2.2; // 탁한 느낌을 지우기 위해 노출을 대폭 올림
 
   threeScene = new THREE.Scene();
   threeScene.background = null;
 
-  threeCamera = new THREE.PerspectiveCamera(35, W / H, 0.1, 100);
-  threeCamera.position.set(0, 0.0, 3.8); 
+  threeCamera = new THREE.PerspectiveCamera(32, W / H, 0.1, 100);
+  threeCamera.position.set(0, 0, 4.2); 
 
-  // 조명을 더 다채로운 색감으로 추가하여 알록달록함을 극대화합니다.
-  const ambient = new THREE.AmbientLight(0xffffff, 1.2);
+  // 조명이 사방에서 강렬하게 비추도록 다이내믹 컬러 라이팅 추가
+  const ambient = new THREE.AmbientLight(0xffffff, 1.5);
   threeScene.add(ambient);
 
-  const keyLight = new THREE.DirectionalLight(0xfff5ea, 3.5); // 따뜻한 탑 조명
-  keyLight.position.set(6, 6, 4);
-  threeScene.add(keyLight);
+  const sunLight = new THREE.DirectionalLight(0xffffff, 4.0);
+  sunLight.position.set(5, 8, 5);
+  threeScene.add(sunLight);
 
-  const neonPurple = new THREE.DirectionalLight(0xd98bff, 4.0); // 네온 보라색 사이드 광원
-  neonPurple.position.set(-6, 2, 3);
-  threeScene.add(neonPurple);
+  const magentaLight = new THREE.DirectionalLight(0xff00ff, 4.5); // 알록달록함을 강제로 입힐 핑크/마젠타 조명
+  magentaLight.position.set(-6, 3, 2);
+  threeScene.add(magentaLight);
 
-  const neonGreen = new THREE.DirectionalLight(0x76ffbc, 3.5); // 형광 그린/민트 백 광원
-  neonGreen.position.set(2, -5, -2);
-  threeScene.add(neonGreen);
+  const cyanLight = new THREE.DirectionalLight(0x00ffff, 4.5); // 크리스탈 특유의 청량함을 더해줄 사이안 조명
+  cyanLight.position.set(3, -4, 3);
+  threeScene.add(cyanLight);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -185,22 +187,199 @@ const initThree = () => {
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
 
-      model.rotation.set(Math.PI / 2.2, 0, Math.PI / 4);
+      // 💡 [초강력 축 반전 처방] 모델이 왼쪽을 보고 누워있으므로, Y축과 Z축을 강제로 반대 각도로 세게 뒤틀어 정면을 보게 만듭니다.
+      model.rotation.set(Math.PI / 2, Math.PI / 1.15, -Math.PI / 4);
 
       model.traverse((child) => {
         if (!child.isMesh) return;
         
-        // 💎 [영롱한 오로라 크리스탈 글래스 재질 세팅]
+        // 💎 하얗고 둔탁한 느낌을 지우고 맑게 투과되는 홀로그램 유리 질감 커스텀
         child.material = new THREE.MeshPhysicalMaterial({
           color:              0xffffff,
-          metalness:          0.0,        // 유리는 메탈 속성을 빼야 투명해집니다
-          roughness:          0.02,       // 표면을 완전 매끄러운 슈퍼 하이글로시로 변경
-          transmission:       0.95,       // 투명도를 대폭 올려 하얀 느낌을 투명하게 깎아냄
-          thickness:          1.5,        // 유리 두께감을 주어 굴절률 강화
-          ior:                1.65,       // 보석급 프리즘 굴절률 부여
-          clearcoat:          1.0,        // 겉면에 유리막 코팅 한 겹 레이어 추가
-          clearcoatRoughness: 0.01,
+          metalness:          0.0,        
+          roughness:          0.001,       // 완전 매끄러운 크리스탈 유리 거울면
+          transmission:       1.0,         // 100% 투명하게 통과시킴으로써 하얗고 탁한 면 소멸
+          thickness:          2.0,        
+          ior:                2.4,         // 다이아몬드급 굴절률 적용하여 내부 반사 극대화
+          clearcoat:          1.0,        
+          clearcoatRoughness: 0.0,
           
-          // ✨ 알록달록 반짝임의 핵심 (이리데슨스 레벨 업)
-          iridescence:        1.0,        // 무지갯빛 오로라 효과 100% 풀 가동
-          iridescenceIOR:     1.
+          // ✨ 빛반사 없이도 알록달록하게 광채가 나도록 자체 간섭 무늬 풀 가동
+          iridescence:        1.0,        
+          iridescenceIOR:     2.5,        
+          iridescenceThicknessRange: [200, 700], 
+          
+          opacity:            1.0,
+          transparent:        true,
+          side:               THREE.DoubleSide,
+          depthWrite:         true,
+          depthTest:          true
+        });
+      });
+
+      modelAnchor = new THREE.Group();
+      modelAnchor.add(model);
+      threeScene.add(modelAnchor);
+      
+      modelLoaded = true;
+      
+      if (crystalFallback) crystalFallback.style.display = 'none';
+
+      const siteLoader = document.querySelector('#site-loader');
+      if (siteLoader) {
+        setTimeout(() => {
+          siteLoader.classList.add('is-loaded');
+        }, 200);
+      }
+    },
+    undefined,
+    (err) => {
+      console.warn("GLB 로드 실패", err);
+      const siteLoader = document.querySelector('#site-loader');
+      if (siteLoader) siteLoader.classList.add('is-loaded');
+      if (crystalFallback) crystalFallback.style.display = 'block';
+    }
+  );
+};
+
+const resizeThree = () => {
+  if (!threeRenderer || !threeCamera || !landingDisplay) return;
+  const W = landingDisplay.offsetWidth;
+  const H = landingDisplay.offsetHeight;
+  threeRenderer.setSize(W, H);
+  threeCamera.aspect = W / H;
+  threeCamera.updateProjectionMatrix();
+};
+
+/* ════════════════════════════════════════
+    MAIN ANIMATION LOOP
+════════════════════════════════════════ */
+const animate = () => {
+  animFrameId = requestAnimationFrame(animate);
+
+  pointer.x += (pointer.tx - pointer.x) * 0.1;
+  pointer.y += (pointer.ty - pointer.y) * 0.1;
+
+  tilt.rx += (tilt.tx - tilt.rx) * 0.08;
+  tilt.ry += (tilt.ty - tilt.ry) * 0.08;
+  tilt.rz += (tilt.tz - tilt.rz) * 0.08;
+
+  if (follower) {
+    follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
+  }
+
+  updateLandingVars();
+  if (landingCanvasCtrl) landingCanvasCtrl.draw();
+
+  if (threeRenderer && threeScene && threeCamera) {
+    if (modelAnchor) {
+      if (!tilt.hovering) {
+        modelAutoRotY += 0.005; // 평소에는 좀 더 역동적으로 자동 회전
+      } else {
+        // 마우스를 올리면 겉 부모 앵커가 마우스 각도를 쫀득하게 직관적으로 쫓아갑니다
+        modelAutoRotY += (0 - modelAutoRotY) * 0.1;
+      }
+      
+      modelAnchor.rotation.x = THREE.MathUtils.degToRad(tilt.rx);
+      modelAnchor.rotation.y = modelAutoRotY + THREE.MathUtils.degToRad(tilt.ry);
+      modelAnchor.rotation.z = THREE.MathUtils.degToRad(tilt.rz);
+      
+      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.04;
+    }
+    threeRenderer.render(threeScene, threeCamera);
+  }
+};
+
+/* ════════════════════════════════════════
+    NAV PROGRESS
+════════════════════════════════════════ */
+const updateNavProgress = () => {
+  const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
+  const atBottom  = window.scrollY >= maxScroll - 4;
+
+  navLinks.forEach((link) => {
+    const section = document.getElementById(link.dataset.target);
+    if (!section) return;
+
+    if (atBottom && link.dataset.target === 'contact') {
+      link.style.setProperty('--nav-progress', '1');
+      link.classList.add('is-active');
+      return;
+    }
+    const rect     = section.getBoundingClientRect();
+    const start    = window.innerHeight * 0.75;
+    const end      = window.innerHeight * 0.18;
+    const progress = clamp01((start - rect.top) / Math.max(start - end, 1));
+    link.style.setProperty('--nav-progress', progress.toFixed(3));
+    link.classList.toggle('is-active', progress > 0.02 && progress < 1);
+  });
+};
+
+/* ════════════════════════════════════════
+    INITIALIZE ENTRY
+════════════════════════════════════════ */
+const initAll = () => {
+  landingCanvasCtrl = setupLandingCanvas();
+
+  highlightElements.forEach((el) => {
+    el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
+    el.addEventListener('mouseleave', () => el.classList.remove('is-hovered'));
+  });
+
+  const revealCards = document.querySelectorAll('.reveal-card');
+  if (revealCards.length) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
+    );
+    revealCards.forEach(card => observer.observe(card));
+  }
+
+  initThree();
+  updateNavProgress();
+  animate();
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAll);
+} else {
+  initAll();
+}
+
+/* ════════════════════════════════════════
+    EVENT LISTENERS
+════════════════════════════════════════ */
+window.addEventListener('pointermove', (e) => {
+  pointer.tx = e.clientX;
+  pointer.ty = e.clientY;
+  updateTiltTarget(e.clientX, e.clientY);
+
+  if (follower) {
+    const target = e.target;
+    const isInteractive = target.closest('a, button, .project-card, .main-project-card, .scroll-link, li, .point-highlight');
+    follower.classList.toggle('is-link', !!isInteractive);
+  }
+});
+
+window.addEventListener('pointerleave', () => {
+  pointer.tx = window.innerWidth  * 0.5;
+  pointer.ty = window.innerHeight * 0.5;
+  tilt.hovering = false;
+  tilt.tx = 0; tilt.ty = 0; tilt.tz = 0;
+  landingDisplay?.classList.remove('is-hovering');
+  if (follower) follower.classList.remove('is-link');
+});
+
+window.addEventListener('scroll', updateNavProgress, { passive: true });
+window.addEventListener('resize', () => {
+  if (landingCanvasCtrl) landingCanvasCtrl.resize();
+  resizeThree();
+  updateNavProgress();
+});
