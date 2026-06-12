@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    DOM ELEMENT REFS
+    DOM ELEMENT REFS & FORCE REVEAL
 ════════════════════════════════════════ */
 const landing        = document.querySelector('.landing');
 const landingCanvas  = document.querySelector('.landing-canvas');
@@ -13,15 +13,32 @@ const crystalFallback = document.querySelector('#crystal-fallback');
 const follower        = document.querySelector('.cursor-follower');
 const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li');
 
-// 💡 [초긴급 조치] 아래 콘텐츠가 절대 가려지지 않도록 Canvas와 주변 레이어 CSS 강제 투명화
+// 💡 [콘텐츠 강제 심폐소생] 3D와 상관없이 본문이 즉시 보이도록 레이어 투명도 및 클릭 잠금 해제
 if (modelCanvas) {
   modelCanvas.style.backgroundColor = 'transparent';
-  modelCanvas.style.mixBlendMode = 'screen'; // 검은 배경판을 강제로 날려버리는 블렌딩 모드
+  modelCanvas.style.pointerEvents = 'auto'; // 마우스 드래그 먹통 해결
 }
 if (landingDisplay) {
   landingDisplay.style.background = 'transparent';
   landingDisplay.style.overflow = 'visible';
+  landingDisplay.style.pointerEvents = 'none'; // 하단 콘텐츠 클릭 방해 금지
 }
+
+// 혹시 모를 다른 이름의 로딩 레이어들까지 전부 강제 종료하는 킬러 함수
+const killAllLoaders = () => {
+  const loaders = document.querySelectorAll('#site-loader, .site-loader, [class*="loader"], [id*="loader"]');
+  loaders.forEach(loader => {
+    loader.style.opacity = '0';
+    loader.style.pointerEvents = 'none';
+    setTimeout(() => { loader.style.display = 'none'; }, 400);
+  });
+  // 숨겨진 본문 wrapper가 있다면 강제로 오픈
+  const mainContent = document.querySelector('.main-content, #app, #wrapper');
+  if (mainContent) {
+    mainContent.style.opacity = '1';
+    mainContent.style.visibility = 'visible';
+  }
+};
 
 /* ════════════════════════════════════════
     INTERACTION STATE
@@ -107,7 +124,6 @@ const initThree = () => {
   const W = shell.offsetWidth;
   const H = shell.offsetHeight;
 
-  // 렌더러 설정 리셋 (alpha 필수)
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
     alpha:       true, 
@@ -119,27 +135,25 @@ const initThree = () => {
 
   threeScene = new THREE.Scene();
 
-  // 구도 리셋
-  threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
-  threeCamera.position.set(0, 0, 4.5); 
+  threeCamera = new THREE.PerspectiveCamera(26, W / H, 0.1, 100);
+  threeCamera.position.set(0, 0, 4.6); 
 
-  // 조명 기본 배치
-  const ambient = new THREE.AmbientLight(0xffffff, 1.0); 
+  // 조명 강화 (유리 광택 극대화)
+  const ambient = new THREE.AmbientLight(0xffffff, 1.5); 
   threeScene.add(ambient);
 
-  const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
+  const mainLight = new THREE.DirectionalLight(0xffffff, 3.5);
   mainLight.position.set(5, 5, 4);
   threeScene.add(mainLight);
 
-  const sideLight1 = new THREE.DirectionalLight(0xff00bb, 1.5); 
-  sideLight1.position.set(-5, 3, 2);
-  threeScene.add(sideLight1);
+  const neonMagenta = new THREE.DirectionalLight(0xff00bb, 2.0); 
+  neonMagenta.position.set(-5, 4, 3);
+  threeScene.add(neonMagenta);
 
-  const sideLight2 = new THREE.DirectionalLight(0x00f6ff, 1.5); 
-  sideLight2.position.set(3, -5, 2);
-  threeScene.add(sideLight2);
+  const neonCyan = new THREE.DirectionalLight(0x00f6ff, 2.0); 
+  neonCyan.position.set(4, -5, 3);
+  threeScene.add(neonCyan);
 
-  // 로더 가동
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
@@ -158,27 +172,30 @@ const initThree = () => {
       box.getSize(size);
       
       const maxDim = Math.max(size.x, size.y, size.z);
-      const scale   = 1.8 / (maxDim || 1); 
+      const scale   = 1.9 / (maxDim || 1); 
       
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
       model.rotation.set(Math.PI / 2.3, 0, 0); 
 
-      // 💡 [재질 초안 복구] 꼬이지 않는 확실한 반투명 유리 재질로 안전 세팅
+      // 💡 [지직거리는 파스텔톤 제거 + 유리 튜닝]
       model.traverse((child) => {
         if (!child.isMesh) return;
         
+        // 원본의 텁텁한 파스텔 색상 텍스처 맵을 완전히 삭제하여 투명도 확보
         if (child.material.map) child.material.map = null;
         
-        // 오류 위험이 있는 복잡한 물리 계산을 빼고 반투명도를 칼같이 강제 적용
-        child.material = new THREE.MeshStandardMaterial({
-          color:        0xffffff,
-          roughness:    0.05,
-          metalness:    0.1,
-          transparent:  true,
-          opacity:      0.45,             // 맑게 뚫려 보이도록 투명도 확실히 부여
-          side:         THREE.DoubleSide,
-          blending:     THREE.NormalBlending
+        child.material = new THREE.MeshPhysicalMaterial({
+          color:              0xffffff,   
+          metalness:          0.0,        
+          roughness:          0.0,        // 노이즈 완벽 면도
+          transparent:        true,
+          transmission:       0.95,       // 투명도 95% 강제 주입
+          ior:                2.2,        // 크리스탈 굴절률
+          thickness:          0.4,        // 두께감 부여
+          opacity:            1.0,
+          side:               THREE.DoubleSide, 
+          depthWrite:         true         
         });
       });
 
@@ -187,28 +204,14 @@ const initThree = () => {
       threeScene.add(modelAnchor);
       
       if (crystalFallback) crystalFallback.style.display = 'none';
-
-      // 💡 [중요] 어떤 에러가 나더라도 무조건 로딩창을 파괴하고 본문을 보여주는 안전장치
-      forceRemoveLoader();
+      killAllLoaders();
     },
     undefined,
     (err) => {
       console.warn("GLB 로드 실패", err);
-      forceRemoveLoader();
+      killAllLoaders();
     }
   );
-};
-
-// 로딩창 강제 제거 함수 (본문 실종 방지)
-const forceRemoveLoader = () => {
-  const siteLoader = document.querySelector('#site-loader');
-  if (siteLoader) {
-    siteLoader.style.opacity = '0';
-    siteLoader.style.pointerEvents = 'none';
-    setTimeout(() => {
-      siteLoader.style.display = 'none';
-    }, 500);
-  }
 };
 
 const resizeThree = () => {
@@ -246,18 +249,20 @@ const animate = () => {
 
       modelAnchor.rotation.x = rotationState.currentX;
       modelAnchor.rotation.y = rotationState.currentY;
+      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.005; // 부드러운 위아래 둥둥 효과
     }
     threeRenderer.render(threeScene, threeCamera);
   }
 };
 
 /* ════════════════════════════════════════
-    DRAG EVENTS
+    DRAG EVENTS (클릭 타겟 수정)
 ════════════════════════════════════════ */
 const setupDragEvents = () => {
-  if (!landingDisplay) return;
+  // 드래그 이벤트를 캔버스 자체에 직접 걸어 어떤 레이어 방해도 안 받게 만듭/니다.
+  const targetElement = modelCanvas || landingDisplay || window;
 
-  landingDisplay.addEventListener('pointerdown', (e) => {
+  targetElement.addEventListener('pointerdown', (e) => {
     rotationState.isDragging = true;
     rotationState.previousMouseX = e.clientX;
     rotationState.previousMouseY = e.clientY;
@@ -298,6 +303,9 @@ const initAll = () => {
 
   initThree();
   animate();
+
+  // 💡 [핵심 안전장치] 3D 로딩 속도와 무관하게 0.1초 뒤 무조건 로딩 레이어를 부수고 본문을 강제 개방
+  setTimeout(killAllLoaders, 100);
 };
 
 if (document.readyState === 'loading') {
