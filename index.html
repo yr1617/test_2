@@ -15,10 +15,21 @@
   </script>
 </head>
 <body>
-  <div id="site-loader">
-  <div class="loader-content">
-    <img src="logo.png" alt="Logo" class="rotating-logo">
-    <p class="loader-text">LOADING PORTFOLIO</p>
+ <div id="site-loader" style="
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background-color: rgba(16, 16, 18, 0.88); /* 로딩 중에도 뒤의 은은한 조명 반응이 비치도록 설정 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  transition: opacity 0.6s ease, transform 0.6s ease;
+  pointer-events: none; /* 💡 이 로딩 창을 마우스 마우스 포인터가 그냥 뚫고 지나가 뒤의 별을 조종합니다! */
+">
+  <div class="loader-content" style="text-align: center; pointer-events: auto;">
+    <img src="logo.png" alt="Logo" class="rotating-logo" style="width: 60px; height: auto; animation: spin 2s linear infinite;">
+    <p class="loader-text" style="color: #ffffff; letter-spacing: 0.2em; font-size: 12px; margin-top: 20px; font-family: sans-serif;">LOADING PORTFOLIO</p>
   </div>
 </div>
   <div class="background-orb orb-left"></div>
