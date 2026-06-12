@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    DOM REFS
+    DOM ELEMENT REFS
 ════════════════════════════════════════ */
 const landing        = document.querySelector('.landing');
 const landingCanvas  = document.querySelector('.landing-canvas');
@@ -14,11 +14,10 @@ const follower        = document.querySelector('.cursor-follower');
 const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li');
 
 /* ════════════════════════════════════════
-    INTERACTION STATE (마우스 직접 드래그 회전 구현)
+    인터랙션 및 마우스 드래그 상태 관리 (완전 수정)
 ════════════════════════════════════════ */
 const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, tx: window.innerWidth * 0.5, ty: window.innerHeight * 0.5 };
 
-// 사용자가 마우스로 직접 굴리는 각도 상태
 const rotationState = {
   currentX: 0, currentY: 0,
   targetX:  0, targetY:  0,
@@ -26,11 +25,11 @@ const rotationState = {
   previousMouseX: 0, previousMouseY: 0
 };
 
-let modelAutoRotY = 0; // 자전 속도 변수
+let modelAutoRotY = 0; 
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
 /* ════════════════════════════════════════
-    LANDING CANVAS GLOW (2D 배경)
+    LANDING CANVAS BACKGROUND
 ════════════════════════════════════════ */
 const setupLandingCanvas = () => {
   if (!landing || !landingCanvas) return null;
@@ -58,9 +57,8 @@ const setupLandingCanvas = () => {
     const px = pointer.x - rect.left;
     const py = pointer.y - rect.top;
     const glow = ctx.createRadialGradient(px, py, 0, px, py, Math.max(width, height) * 0.52);
-    glow.addColorStop(0,    'rgba(255,255,255,0.11)');
-    glow.addColorStop(0.2,  'rgba(219,255,134,0.09)');
-    glow.addColorStop(0.5,  'rgba(93,53,163,0.07)');
+    glow.addColorStop(0,    'rgba(255,255,255,0.08)');
+    glow.addColorStop(0.3,  'rgba(150,100,255,0.04)');
     glow.addColorStop(1,    'rgba(16,16,18,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, width, height);
@@ -81,7 +79,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (정면 정렬 + 투명도 극대화 극락 셋업)
+    THREE.JS : 레퍼런스 비주얼 완벽 재현 엔진 💎
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -93,6 +91,7 @@ let animFrameId   = null;
 const initThree = () => {
   if (!modelCanvas) return;
 
+  // 잔재 엔진 완전 폭파 청소
   if (threeRenderer) {
     cancelAnimationFrame(animFrameId);
     threeRenderer.dispose();
@@ -112,29 +111,35 @@ const initThree = () => {
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   threeRenderer.setSize(W, H);
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
-  threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  threeRenderer.toneMappingExposure = 1.6; 
+  
+  // 💡 레퍼런스처럼 칼 같은 하이라이트 대비를 위해 톤매핑 조절
+  threeRenderer.toneMapping      = THREE.NeutralToneMapping;
+  threeRenderer.toneMappingExposure = 2.2; 
 
   threeScene = new THREE.Scene();
 
-  threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
-  threeCamera.position.set(0, 0, 4.5); 
+  threeCamera = new THREE.PerspectiveCamera(26, W / H, 0.1, 100);
+  // 💡 카메라 위치를 살짝 위로 올려서 누워있는 모델을 정면 구도로 포착
+  threeCamera.position.set(0, 0.4, 4.6); 
 
-  // 유리를 맑게 뚫고 지나갈 광원 시스템
-  const ambient = new THREE.AmbientLight(0xffffff, 0.8); 
+  // 💡 [조명 시스템 변혁] 레퍼런스의 강렬한 무지갯빛 대비를 만들기 위한 고휘도 대비 광원
+  const ambient = new THREE.AmbientLight(0xffffff, 0.4); 
   threeScene.add(ambient);
 
-  const sunLight = new THREE.DirectionalLight(0xffffff, 3.5);
-  sunLight.position.set(5, 8, 4);
-  threeScene.add(sunLight);
+  // 뒤에서 강하게 내리쬐는 백라이트 (유리 경계면을 하얗게 빛내줌)
+  const backLight = new THREE.DirectionalLight(0xffffff, 4.0);
+  backLight.position.set(-2, 4, -4);
+  threeScene.add(backLight);
 
-  const magentaLight = new THREE.DirectionalLight(0xff44aa, 7.0); 
-  magentaLight.position.set(-5, 3, 3);
-  threeScene.add(magentaLight);
+  // 프리즘 오로라 스펙트럼 광원 1 (사이버 틱한 사이안블루)
+  const laserCyan = new THREE.SpotLight(0x00f6ff, 12.0, 15, Math.PI / 4, 0.5, 1);
+  laserCyan.position.set(4, 5, 3);
+  threeScene.add(laserCyan);
 
-  const cyanLight = new THREE.DirectionalLight(0x00f0ff, 7.0); 
-  cyanLight.position.set(5, -3, 3);
-  threeScene.add(cyanLight);
+  // 프리즘 오로라 스펙트럼 광원 2 (강렬한 마젠타 핑크)
+  const laserMagenta = new THREE.SpotLight(0xff00bb, 15.0, 15, Math.PI / 4, 0.5, 1);
+  laserMagenta.position.set(-5, -2, 2);
+  threeScene.add(laserMagenta);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -146,7 +151,8 @@ const initThree = () => {
     (gltf) => {
       const model = gltf.scene;
       
-      while(threeScene.children.length > 4) { 
+      // 씬 내부 전면 초기화 청소
+      while(threeScene.children.length > 5) { 
         threeScene.remove(threeScene.children[threeScene.children.length - 1]);
       }
 
@@ -156,35 +162,35 @@ const initThree = () => {
       const size   = new THREE.Vector3();
       box.getSize(size);
       const maxDim = Math.max(size.x, size.y, size.z);
-      const scale   = 2.1 / maxDim; 
+      const scale   = 2.2 / maxDim; 
       
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
       
-      // 💡 [수정] 과도하게 눕지 않도록 정면을 바라보는 우아한 각도로 디폴트 리셋
-      model.rotation.set(0, 0, 0);
+      // 💡 [핵심 보정] 완전히 누워버리던 축을 강제로 정면을 바라보게 각도 심폐소생!
+      model.rotation.set(Math.PI / 2.4, 0, 0); 
 
       model.traverse((child) => {
         if (!child.isMesh) return;
         if (child.material.map) child.material.map = null;
         
-        // 💎 [수정] 뿌연 현상을 완전히 지워버리는 100% 생유리 렌더링 세팅
+        // 💎 레퍼런스(reference1.png)의 묵직하고 영롱하게 부서지는 최고급 크리스탈 글래스 셋업
         child.material = new THREE.MeshPhysicalMaterial({
           color:              0xffffff,   
-          metalness:          0.0,        
-          roughness:          0.0,        
-          transmission:       1.0,        // 완벽 투과
-          ior:                1.5,        // 맑은 순수 크리스탈 유리의 실제 굴절률 적용 (뿌연 연산 제거)
-          thickness:          0.2,        // 얇고 명쾌하게 떨어지는 두께감
+          metalness:          0.05,        
+          roughness:          0.01,        // 칼날 같은 모서리를 위한 극상의 매끄러움
+          transmission:       0.95,       // 아주 미세한 굴절 두께감을 남겨두는 투과율
+          ior:                2.42,       // 💡 다이아몬드 지표수 적용하여 빛 굴절 극대화
+          thickness:          0.8,        // 💡 굴절면이 화려하게 꺾이도록 두께감 강화
           clearcoat:          1.0,        
           clearcoatRoughness: 0.0,
           
-          // 찬란함을 더해줄 분산 효과 추가
-          dispersion:         5.0,        
+          // ✨ 프리즘 무지갯빛 분산 효과 최대치 적용
+          dispersion:         11.0,       // 💡 모서리 경계면마다 무지갯빛 오로라가 칼같이 박히게 만듭니다.
           
           opacity:            1.0,
           transparent:        true,
-          side:               THREE.FrontSide, // 💡 [핵심] 뒷면/내부면 연산을 생략하여 하얗게 뭉치던 뿌연 현상을 한 번에 박멸합니다!
+          side:               THREE.FrontSide, // 탁하고 뿌연 겹침 완벽 차단
         });
       });
 
@@ -195,14 +201,17 @@ const initThree = () => {
       modelLoaded = true;
       if (crystalFallback) crystalFallback.style.display = 'none';
 
+      // 3D 별이 완전히 준비되었을 때만 로딩 화면을 확실하게 무너트립니다.
       const siteLoader = document.querySelector('#site-loader');
       if (siteLoader) {
-        setTimeout(() => { siteLoader.classList.add('is-loaded'); }, 400); 
+        setTimeout(() => {
+          siteLoader.classList.add('is-loaded');
+        }, 500);
       }
     },
     undefined,
     (err) => {
-      console.warn("GLB 로드 오류", err);
+      console.warn("GLB 로드 에러", err);
       const siteLoader = document.querySelector('#site-loader');
       if (siteLoader) siteLoader.classList.add('is-loaded');
     }
@@ -218,7 +227,7 @@ const resizeThree = () => {
 };
 
 /* ════════════════════════════════════════
-    MAIN ANIMATION LOOP (직관적 드래그 인터랙션)
+    MAIN ANIMATION LOOP
 ════════════════════════════════════════ */
 const animate = () => {
   animFrameId = requestAnimationFrame(animate);
@@ -235,66 +244,61 @@ const animate = () => {
 
   if (threeRenderer && threeScene && threeCamera) {
     if (modelAnchor) {
-      // 💡 사용자가 마우스를 떼고 드래그하지 않을 때만 스스로 부드럽게 자전합니다.
+      // 드래그 안 할 때는 은은하게 흐르듯 자동 자전
       if (!rotationState.isDragging) {
-        modelAutoRotY += 0.004;
-        // 드래그 후 손을 뗐을 때 자연스럽게 감속하며 자전과 합쳐짐
-        rotationState.targetY += 0.004;
+        modelAutoRotY += 0.003;
+        rotationState.targetY += 0.003;
       }
 
-      // 목표 각도를 향해 부드럽게 감속하며 회전 (Lerp)
-      rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.08;
-      rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.08;
+      // 회전 물리 스무스하게 Lerp 보간
+      rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
+      rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
 
-      // 계산된 마우스 회전값을 모델에 직관적으로 매핑
+      // 계산된 각도값 대입
       modelAnchor.rotation.x = rotationState.currentX;
       modelAnchor.rotation.y = rotationState.currentY;
 
-      // 미세한 상하 공중 부양 이펙트
-      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.015;
+      // 공중 부양 이펙트
+      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.01;
     }
     threeRenderer.render(threeScene, threeCamera);
   }
 };
 
 /* ════════════════════════════════════════
-    DRAG EVENT LISTENERS (원하는 대로 돌려보기)
+    DRAG EVENTS (화면 전체 영역 바인딩으로 먹통 방지)
 ════════════════════════════════════════ */
 const setupDragEvents = () => {
+  // 드래그 시작은 landingDisplay 위에서만
   if (!landingDisplay) return;
 
-  const onPointerDown = (e) => {
+  landingDisplay.addEventListener('pointerdown', (e) => {
     rotationState.isDragging = true;
     rotationState.previousMouseX = e.clientX;
     rotationState.previousMouseY = e.clientY;
-  };
+  });
 
-  const onPointerMove = (e) => {
-    // 배경 빛 위치 업기
+  // 💡 움직임과 떼는 이벤트는 window 전체에 걸어 마우스가 튀어도 추적되도록 보완
+  window.addEventListener('pointermove', (e) => {
     pointer.tx = e.clientX;
     pointer.ty = e.clientY;
 
     if (!rotationState.isDragging || !modelAnchor) return;
 
-    // 마우스가 움직인 변화량 계산
     const deltaX = e.clientX - rotationState.previousMouseX;
     const deltaY = e.clientY - rotationState.previousMouseY;
 
-    // 💡 마우스 움직임 방향 그대로 별이 굴러가도록 매핑값 조정
-    rotationState.targetY += deltaX * 0.007;
-    rotationState.targetX += deltaY * 0.007;
+    // 드래그 방향에 맞춰 직관적으로 모델 롤링
+    rotationState.targetY += deltaX * 0.008;
+    rotationState.targetX += deltaY * 0.008;
 
     rotationState.previousMouseX = e.clientX;
     rotationState.previousMouseY = e.clientY;
-  };
+  });
 
-  const onPointerUp = () => {
+  window.addEventListener('pointerup', () => {
     rotationState.isDragging = false;
-  };
-
-  landingDisplay.addEventListener('pointerdown', onPointerDown);
-  window.addEventListener('pointermove', onPointerMove);
-  window.addEventListener('pointerup', onPointerUp);
+  });
 };
 
 /* ════════════════════════════════════════
@@ -305,7 +309,7 @@ const initAll = () => {
   window.__threeInitialized = true;
 
   landingCanvasCtrl = setupLandingCanvas();
-  setupDragEvents(); // 드래그 인터랙션 연결
+  setupDragEvents(); 
 
   highlightElements.forEach((el) => {
     el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
