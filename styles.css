@@ -665,4 +665,15 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
   0% { opacity: 0.3; }
   100% { opacity: 0.8; }
 }
+/* 로고가 제자리에서 부드럽게 도는 효과 */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 
+/* 💡 자바스크립트가 로딩 완료 신호(.is-loaded)를 주면 로딩 창을 스케일 업 하며 페이드아웃 시키는 마법 */
+#site-loader.is-loaded {
+  opacity: 0;
+  transform: scale(1.05);
+  visibility: hidden;
+}
