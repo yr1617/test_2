@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    DOM ELEMENT REFS (예린님 오리지널)
+    DOM ELEMENT REFS
 ════════════════════════════════════════ */
 const landing        = document.querySelector('.landing');
 const landingCanvas  = document.querySelector('.landing-canvas');
@@ -11,10 +11,11 @@ const landingDisplay = document.querySelector('#landing-display');
 const modelCanvas    = document.querySelector('#model-canvas');   
 const crystalFallback = document.querySelector('#crystal-fallback');
 const follower        = document.querySelector('.cursor-follower');
-const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li, .project-card-item');
+const navLinks       = document.querySelectorAll('.nav-menu a');
+const sections       = document.querySelectorAll('section, main');
 
 /* ════════════════════════════════════════
-    INTERACTION STATE
+    INTERACTION STATE (드래그 인터랙션 제어)
 ════════════════════════════════════════ */
 const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, tx: window.innerWidth * 0.5, ty: window.innerHeight * 0.5 };
 
@@ -79,7 +80,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (오로라 물방울 크리스탈 복구판)
+    THREE.JS ENGINE (영롱한 크리스탈 별)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -112,7 +113,6 @@ const initThree = () => {
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   threeRenderer.setSize(W, H);
   
-  // 맑고 투명한 느낌을 극대화하기 위해 Linear Tone Mapping 채택
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.LinearToneMapping; 
   threeRenderer.toneMappingExposure = 1.4; 
@@ -122,7 +122,6 @@ const initThree = () => {
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 광원 풍부하게 세팅하여 내부 투과율 증가
   const ambient = new THREE.AmbientLight(0xffffff, 0.9); 
   threeScene.add(ambient);
 
@@ -130,7 +129,6 @@ const initThree = () => {
   mainLight.position.set(3, 5, 4);
   threeScene.add(mainLight);
 
-  // 무지갯빛 프리즘을 영롱하게 뿜어내 줄 다채색 오로라 스폿 조명
   const laserCyan = new THREE.SpotLight(0x00ffff, 30.0, 25, Math.PI / 3, 0.5, 1);
   laserCyan.position.set(5, 5, 4);
   threeScene.add(laserCyan);
@@ -153,7 +151,6 @@ const initThree = () => {
     (gltf) => {
       const model = gltf.scene;
       
-      // 💡 [대참사 원인 제거] 예린님의 HTML 요소를 무차별 삭제하던 쓰레기 while 루프 코드를 완전히 박멸했습니다.
       if (modelAnchor) {
         threeScene.remove(modelAnchor);
       }
@@ -176,17 +173,16 @@ const initThree = () => {
         if (!child.isMesh) return;
         if (child.material.map) child.material.map = null;
         
-        // 💧 노이즈 없이 물방울처럼 투명하고 맑게 반짝이는 프리즘 재질 최적화
         child.material = new THREE.MeshPhysicalMaterial({
           color:              0xffffff,
           metalness:          0.0,
-          roughness:          0.0,        // 매끄러운 유리 겉면
-          transmission:       0.99,       // 99% 투명도로 속이 훤히 비침
-          ior:                1.46,       // 수정 및 물방울의 자연스러운 굴절
-          thickness:          1.5,        // 영롱함을 줄 수 있는 내부 두께감
-          clearcoat:          1.0,        // 하이라이트가 쨍하게 맺히는 코팅
+          roughness:          0.0,        
+          transmission:       0.99,       
+          ior:                1.46,       
+          thickness:          1.5,        
+          clearcoat:          1.0,        
           clearcoatRoughness: 0.0,
-          dispersion:         4.0,        // 자글자글한 픽셀 노이즈가 없는 깨끗한 빛 분산
+          dispersion:         4.0,        
           opacity:            1.0,
           transparent:        true,
           side:               THREE.DoubleSide
@@ -198,8 +194,6 @@ const initThree = () => {
       threeScene.add(modelAnchor);
       
       if (crystalFallback) crystalFallback.style.display = 'none';
-
-      // ⏱️ 3D 로드가 다 끝나면 별 로고 로딩창 지우기
       hideSiteLoader();
     },
     undefined,
@@ -210,9 +204,6 @@ const initThree = () => {
   );
 };
 
-/* ════════════════════════════════════════
-    ⏱️ ★ 로고 뱅글뱅글 로딩 화면 제어
-════════════════════════════════════════ */
 const hideSiteLoader = () => {
   const siteLoader = document.querySelector('#site-loader');
   if (siteLoader) {
@@ -232,4 +223,126 @@ const resizeThree = () => {
 
 /* ════════════════════════════════════════
     MAIN ANIMATION LOOP
-════════════════════════
+════════════════════════════════════════ */
+const animate = () => {
+  animFrameId = requestAnimationFrame(animate);
+
+  pointer.x += (pointer.tx - pointer.x) * 0.08;
+  pointer.y += (pointer.ty - pointer.y) * 0.08;
+
+  if (follower) {
+    follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
+  }
+
+  updateLandingVars();
+  if (landingCanvasCtrl) landingCanvasCtrl.draw();
+
+  if (threeRenderer && threeScene && threeCamera) {
+    if (modelAnchor) {
+      if (!rotationState.isDragging) {
+        modelAutoRotY += 0.003;
+        rotationState.targetY += 0.003;
+      }
+
+      rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
+      rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
+
+      modelAnchor.rotation.x = rotationState.currentX;
+      modelAnchor.rotation.y = rotationState.currentY;
+
+      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.005;
+    }
+    threeRenderer.render(threeScene, threeCamera);
+  }
+};
+
+/* ════════════════════════════════════════
+    DRAG EVENTS (인터랙션 마우스 타겟팅 복구)
+════════════════════════════════════════ */
+const setupDragEvents = () => {
+  // pointer-events: none 상태에서도 이벤트를 받을 수 있도록 landing 자체에 부여
+  if (!landing) return;
+
+  landing.addEventListener('pointerdown', (e) => {
+    // 마우스가 별 근처(화면 중앙부)에 있을 때만 드래그 작동하도록 범위 제어
+    const rect = landing.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    // 화면 중앙 반경 400px 이내일 때 반응
+    if (Math.abs(mouseX - rect.width/2) < 400 && Math.abs(mouseY - rect.height/2) < 400) {
+      rotationState.isDragging = true;
+      rotationState.previousMouseX = e.clientX;
+      rotationState.previousMouseY = e.clientY;
+    }
+  });
+
+  window.addEventListener('pointermove', (e) => {
+    pointer.tx = e.clientX;
+    pointer.ty = e.clientY;
+
+    if (!rotationState.isDragging || !modelAnchor) return;
+
+    const deltaX = e.clientX - rotationState.previousMouseX;
+    const deltaY = e.clientY - rotationState.previousMouseY;
+
+    rotationState.targetY += deltaX * 0.008;
+    rotationState.targetX += deltaY * 0.008;
+
+    rotationState.previousMouseX = e.clientX;
+    rotationState.previousMouseY = e.clientY;
+  });
+
+  window.addEventListener('pointerup', () => {
+    rotationState.isDragging = false;
+  });
+};
+
+/* ════════════════════════════════════════
+    🧭 스크롤 연동 상단 메뉴바 활성화 기능 추가
+════════════════════════════════════════ */
+const handleScrollMenu = () => {
+  let currentSectionId = "home";
+  
+  sections.forEach((section) => {
+    const sectionTop = section.offsetTop;
+    const sectionHeight = section.offsetHeight;
+    if (window.scrollY >= sectionTop - window.innerHeight * 0.3) {
+      currentSectionId = section.getAttribute("id");
+    }
+  });
+
+  navLinks.forEach((link) => {
+    link.classList.remove("active");
+    if (link.getAttribute("href") === `#${currentSectionId}`) {
+      link.classList.add("active");
+    }
+  });
+};
+
+/* ════════════════════════════════════════
+    INITIALIZE
+════════════════════════════════════════ */
+const initAll = () => {
+  if (window.__threeInitialized) return; 
+  window.__threeInitialized = true;
+
+  landingCanvasCtrl = setupLandingCanvas();
+  setupDragEvents(); 
+
+  window.addEventListener('scroll', handleScrollMenu, { passive: true });
+
+  initThree();
+  animate();
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAll);
+} else {
+  initAll();
+}
+
+window.addEventListener('resize', () => {
+  if (landingCanvasCtrl) landingCanvasCtrl.resize();
+  resizeThree();
+});
