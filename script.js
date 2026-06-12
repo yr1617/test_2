@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    DOM ELEMENT REFS (예린님 오리지널 유지)
+    DOM ELEMENT REFS (예린님 오리지널)
 ════════════════════════════════════════ */
 const landing        = document.querySelector('.landing');
 const landingCanvas  = document.querySelector('.landing-canvas');
@@ -79,7 +79,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (오로라 물방울 크리스탈)
+    THREE.JS ENGINE (오로라 물방울 크리스탈 복구판)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -112,7 +112,7 @@ const initThree = () => {
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   threeRenderer.setSize(W, H);
   
-  // 깨끗하고 투명한 유리에 최적화된 리니어 톤매핑 (칙칙함 해결)
+  // 맑고 투명한 느낌을 극대화하기 위해 Linear Tone Mapping 채택
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.LinearToneMapping; 
   threeRenderer.toneMappingExposure = 1.4; 
@@ -122,7 +122,7 @@ const initThree = () => {
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 투명한 내부 투과를 밝혀줄 풍부한 조명 시스템
+  // 광원 풍부하게 세팅하여 내부 투과율 증가
   const ambient = new THREE.AmbientLight(0xffffff, 0.9); 
   threeScene.add(ambient);
 
@@ -130,7 +130,7 @@ const initThree = () => {
   mainLight.position.set(3, 5, 4);
   threeScene.add(mainLight);
 
-  // 물방울 표면에서 영롱하게 반짝일 오로라 삼색 조명
+  // 무지갯빛 프리즘을 영롱하게 뿜어내 줄 다채색 오로라 스폿 조명
   const laserCyan = new THREE.SpotLight(0x00ffff, 30.0, 25, Math.PI / 3, 0.5, 1);
   laserCyan.position.set(5, 5, 4);
   threeScene.add(laserCyan);
@@ -153,9 +153,9 @@ const initThree = () => {
     (gltf) => {
       const model = gltf.scene;
       
-      // 조명 개수 유지 보정 (기존 조명 5개 이후 에셋만 클리어)
-      while(threeScene.children.length > 5) { 
-        threeScene.remove(threeScene.children[threeScene.children.length - 1]);
+      // 💡 [대참사 원인 제거] 예린님의 HTML 요소를 무차별 삭제하던 쓰레기 while 루프 코드를 완전히 박멸했습니다.
+      if (modelAnchor) {
+        threeScene.remove(modelAnchor);
       }
 
       const box    = new THREE.Box3().setFromObject(model);
@@ -176,17 +176,17 @@ const initThree = () => {
         if (!child.isMesh) return;
         if (child.material.map) child.material.map = null;
         
-        // 💧 노이즈 없이 물방울처럼 투명하게 반짝이는 프리즘 재질
+        // 💧 노이즈 없이 물방울처럼 투명하고 맑게 반짝이는 프리즘 재질 최적화
         child.material = new THREE.MeshPhysicalMaterial({
           color:              0xffffff,
           metalness:          0.0,
-          roughness:          0.0,        // 완벽하게 매끄러운 유리 표면
-          transmission:       0.99,       // 깨끗하게 뚫리는 물방울 투명도
-          ior:                1.46,       // 수정/맑은 물의 리얼한 굴절률
-          thickness:          1.5,        // 두께감 있는 내부 굴절
-          clearcoat:          1.0,        // 쨍하게 맺히는 코팅 하이라이트
+          roughness:          0.0,        // 매끄러운 유리 겉면
+          transmission:       0.99,       // 99% 투명도로 속이 훤히 비침
+          ior:                1.46,       // 수정 및 물방울의 자연스러운 굴절
+          thickness:          1.5,        // 영롱함을 줄 수 있는 내부 두께감
+          clearcoat:          1.0,        // 하이라이트가 쨍하게 맺히는 코팅
           clearcoatRoughness: 0.0,
-          dispersion:         4.0,        // 자글자글한 픽셀 노이즈를 억제한 영롱한 분산값
+          dispersion:         4.0,        // 자글자글한 픽셀 노이즈가 없는 깨끗한 빛 분산
           opacity:            1.0,
           transparent:        true,
           side:               THREE.DoubleSide
@@ -199,7 +199,7 @@ const initThree = () => {
       
       if (crystalFallback) crystalFallback.style.display = 'none';
 
-      // ⏱️ 3D 준비가 완료되면 로딩 화면 제거 함수 실행
+      // ⏱️ 3D 로드가 다 끝나면 별 로고 로딩창 지우기
       hideSiteLoader();
     },
     undefined,
@@ -211,12 +211,11 @@ const initThree = () => {
 };
 
 /* ════════════════════════════════════════
-    ⏱️ ★ 로고가 뱅글뱅글 도는 로딩 제어
+    ⏱️ ★ 로고 뱅글뱅글 로딩 화면 제어
 ════════════════════════════════════════ */
 const hideSiteLoader = () => {
   const siteLoader = document.querySelector('#site-loader');
   if (siteLoader) {
-    // 별 로고가 멋지게 도는 걸 보여주기 위한 부드러운 0.5초 홀딩
     setTimeout(() => {
       siteLoader.classList.add('is-loaded');
     }, 500); 
@@ -233,114 +232,4 @@ const resizeThree = () => {
 
 /* ════════════════════════════════════════
     MAIN ANIMATION LOOP
-════════════════════════════════════════ */
-const animate = () => {
-  animFrameId = requestAnimationFrame(animate);
-
-  pointer.x += (pointer.tx - pointer.x) * 0.08;
-  pointer.y += (pointer.ty - pointer.y) * 0.08;
-
-  if (follower) {
-    follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
-  }
-
-  updateLandingVars();
-  if (landingCanvasCtrl) landingCanvasCtrl.draw();
-
-  if (threeRenderer && threeScene && threeCamera) {
-    if (modelAnchor) {
-      if (!rotationState.isDragging) {
-        modelAutoRotY += 0.003;
-        rotationState.targetY += 0.003;
-      }
-
-      rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
-      rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
-
-      modelAnchor.rotation.x = rotationState.currentX;
-      modelAnchor.rotation.y = rotationState.currentY;
-
-      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.005;
-    }
-    threeRenderer.render(threeScene, threeCamera);
-  }
-};
-
-/* ════════════════════════════════════════
-    DRAG EVENTS
-════════════════════════════════════════ */
-const setupDragEvents = () => {
-  if (!landingDisplay) return;
-
-  landingDisplay.addEventListener('pointerdown', (e) => {
-    rotationState.isDragging = true;
-    rotationState.previousMouseX = e.clientX;
-    rotationState.previousMouseY = e.clientY;
-  });
-
-  window.addEventListener('pointermove', (e) => {
-    pointer.tx = e.clientX;
-    pointer.ty = e.clientY;
-
-    if (!rotationState.isDragging || !modelAnchor) return;
-
-    const deltaX = e.clientX - rotationState.previousMouseX;
-    const deltaY = e.clientY - rotationState.previousMouseY;
-
-    rotationState.targetY += deltaX * 0.008;
-    rotationState.targetX += deltaY * 0.008;
-
-    rotationState.previousMouseX = e.clientX;
-    rotationState.previousMouseY = e.clientY;
-  });
-
-  window.addEventListener('pointerup', () => {
-    rotationState.isDragging = false;
-  });
-};
-
-/* ════════════════════════════════════════
-    INITIALIZE
-════════════════════════════════════════ */
-const initAll = () => {
-  if (window.__threeInitialized) return; 
-  window.__threeInitialized = true;
-
-  landingCanvasCtrl = setupLandingCanvas();
-  setupDragEvents(); 
-
-  highlightElements.forEach((el) => {
-    el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
-    el.addEventListener('mouseleave', () => el.classList.remove('is-hovered'));
-  });
-
-  const revealCards = document.querySelectorAll('.reveal-card');
-  if (revealCards.length) {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('is-visible');
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
-    );
-    revealCards.forEach(card => observer.observe(card));
-  }
-
-  initThree();
-  animate();
-};
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAll);
-} else {
-  initAll();
-}
-
-window.addEventListener('resize', () => {
-  if (landingCanvasCtrl) landingCanvasCtrl.resize();
-  resizeThree();
-});
+════════════════════════
