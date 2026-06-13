@@ -51,11 +51,10 @@ const pointer = {
 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
-// [정면 교정] 모델이 정수리를 보이지 않고 똑바로 세워져 정면을 바라보도록 하는 오프셋 각도
-const baseRotation = { x: Math.PI * 0.5, y: 0.0 }; 
-const rotState     = { x: Math.PI * 0.5, y: 0.0 };
+// [회전 복원] 원래 모델이 가지고 있던 비스듬하고 이쁜 기본 기울기 각도 세팅
+const baseRotation = { x: 0.3, y: -0.5 }; 
+const rotState     = { x: 0.3, y: -0.5 };
 
-let autoRotY = 0.0;
 let isHoveringModel = false;
 let isModalOpen = false; 
 
@@ -111,39 +110,32 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    [반사광 연산] 크롬 은빛 재질을 만들어주는 내부 스튜디오 맵 환경 정의
+    [재질 교정] 완벽한 거울빛 크롬 반사를 만들어줄 내부 환경 스튜디오 맵
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(60, 2, 60),
+    new THREE.BoxGeometry(60, 5, 60),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  topLight.position.set(0, 20, 0);
+  topLight.position.set(0, 15, 0);
   scene.add(topLight);
 
   const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 40, 40),
+    new THREE.BoxGeometry(2, 30, 30),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  leftPanel.position.set(-18, 5, 0);
+  leftPanel.position.set(-15, 5, 0);
   scene.add(leftPanel);
 
   const rightPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 40, 40),
+    new THREE.BoxGeometry(2, 30, 30),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  rightPanel.position.set(18, 5, 0);
+  rightPanel.position.set(15, 5, 0);
   scene.add(rightPanel);
-
-  const frontPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(40, 40, 2),
-    new THREE.MeshBasicMaterial({ color: 0xffffff })
-  );
-  frontPanel.position.set(0, 5, 18);
-  scene.add(frontPanel);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
@@ -176,26 +168,22 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  window.threeRenderer.toneMappingExposure = 2.4; // 노출도를 맑게 올려 검게 그을리는 타는 현상 차단
+  window.threeRenderer.toneMappingExposure = 1.8;
 
-  // 입체감을 더해줄 무결점 화이트 광원 세팅
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 9.0);
-  dirLight1.position.set(10, 15, 10);
+  // 크롬 메탈릭 질감을 살려줄 밝은 방향성 조명 배치
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 5.0);
+  dirLight1.position.set(5, 10, 7);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 6.0);
-  dirLight2.position.set(-10, -5, 10);
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 3.0);
+  dirLight2.position.set(-5, -5, 5);
   window.threeScene.add(dirLight2);
 
-  const dirLight3 = new THREE.DirectionalLight(0xffffff, 5.0);
-  dirLight3.position.set(0, 5, -12);
-  window.threeScene.add(dirLight3);
-
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
   window.threeScene.add(ambientLight);
 
   window.threeCamera = new THREE.PerspectiveCamera(23, W / H, 0.1, 100);
-  window.threeCamera.position.set(0, 0, 6.0);
+  window.threeCamera.position.set(0, 0, 5.5);
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
@@ -213,11 +201,12 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      /* ── [크롬 은빛 재질 하드코딩 교정] 탁한 검은색을 날리고 거울처럼 맑은 실버 크롬 재질 적용 ── */
+      /* ── [크롬 실버 재질 교정] 메탈 수치를 최대로 올리고 반사 강도를 증폭하여 완벽한 크롬 구현 ── */
       const chromeSilverMat = new THREE.MeshStandardMaterial({
-        color: 0xffffff,       // 베이스를 화이트로 고정하여 어두워지는 현상 방지
-        metalness: 1.0,        // 금속 광택 100% 최대로 활성화
-        roughness: 0.01,       // 표면 거칠기를 없애 거울 효과 극대화
+        color: 0xdddddd,
+        metalness: 1.0,          // 은빛 크롬 금속성 100%
+        roughness: 0.02,         // 표면을 매끄럽게 깎아 주변 환경 거울 반사 유도
+        envMapIntensity: 3.5,    // 반사광 강도를 대폭 올려 쨍하게 표현
         side: THREE.DoubleSide
       });
 
@@ -229,7 +218,7 @@ const initThree = () => {
         }
       });
 
-      const BOUNDS = 2.1;
+      const BOUNDS = 2.0;
       const box    = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
@@ -245,7 +234,7 @@ const initThree = () => {
       window.modelAnchor.add(model);
       window.threeScene.add(window.modelAnchor);
 
-      // 모델이 누워있지 않고 똑바로 서서 정면을 보게끔 축 각도 설정
+      // 원래 디자인하셨던 비스듬한 시그니처 각도로 고정 초기화
       window.modelAnchor.rotation.x = baseRotation.x;
       window.modelAnchor.rotation.y = baseRotation.y;
 
@@ -276,7 +265,7 @@ const resizeThree = () => {
 };
 
 /* ════════════════════════════════════════
-    SCROLL INDICATOR (원본 상태 유지)
+    SCROLL INDICATOR
 ════════════════════════════════════════ */
 const buildSectionMap = () => {
   navLinks.forEach(link => {
@@ -338,7 +327,7 @@ const updateNavProgress = () => {
 };
 
 /* ════════════════════════════════════════
-    MAIN ANIMATION LOOP (원래의 .cursor-follower를 그대로 제어)
+    MAIN ANIMATION LOOP
 ════════════════════════════════════════ */
 let clock = 0;
 
@@ -346,12 +335,13 @@ const animate = () => {
   window.animFrameId = requestAnimationFrame(animate);
   clock = Date.now() * 0.001;
 
-  pointer.x += (pointer.tx - pointer.x) * 0.08;
-  pointer.y += (pointer.ty - pointer.y) * 0.08;
+  pointer.x += (pointer.tx - pointer.x) * 0.12;
+  pointer.y += (pointer.ty - pointer.y) * 0.12;
 
-  // 원래 사용하시던 .cursor-follower 엘리먼트 위치를 렌더링 루프에서 매끄럽게 제어
+  /* ── [누락 교정] 마우스 움직임에 따라 연두색 가짜 원이 좌표값 그대로 매끄럽게 쫓아가도록 수정 ── */
   if (follower) {
-    follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
+    follower.style.left = `${pointer.x}px`;
+    follower.style.top  = `${pointer.y}px`;
   }
 
   updateLandingVars();
@@ -359,26 +349,18 @@ const animate = () => {
 
   if (window.threeRenderer && window.threeScene && window.threeCamera) {
     if (window.modelAnchor) {
+      // [인터랙션 복원] 멋대로 360도 도는 자전 대신, 비스듬히 기울어진 채 마우스 따라 좌우로 묵직하게 움직이는 원래 댐핑 로직
+      const targetX = baseRotation.x + (-mouse.y * 0.15);
+      const targetY = baseRotation.y + (mouse.x * 0.4);
 
-      if (isHoveringModel && !isModalOpen) {
-        const targetX = baseRotation.x + (-mouse.y * 0.12);
-        const targetY = autoRotY      + ( mouse.x * 0.35);
-
-        rotState.x += (targetX - rotState.x) * 0.05;
-        rotState.y += (targetY - rotState.y) * 0.05;
-      } else {
-        // 어지럽지 않게 우아하고 조용한 속도(0.001)로 부드러운 자전 연산 진행
-        autoRotY += 0.001;
-        const targetX = baseRotation.x + Math.sin(clock * 0.2) * 0.015;
-        const targetY = autoRotY;
-
-        rotState.x += (targetX - rotState.x) * 0.02;
-        rotState.y += (targetY - rotState.y) * 0.02;
-      }
+      rotState.x += (targetX - rotState.x) * 0.05;
+      rotState.y += (targetY - rotState.y) * 0.05;
 
       window.modelAnchor.rotation.x = rotState.x;
       window.modelAnchor.rotation.y = rotState.y;
-      window.modelAnchor.position.y = Math.sin(clock * 0.5) * 0.01; 
+      
+      // 잔잔한 위아래 공중 부양 모션
+      window.modelAnchor.position.y = Math.sin(clock * 0.6) * 0.02; 
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
   }
@@ -398,15 +380,12 @@ const setupHoverEvents = () => {
   const displayShell = document.querySelector('.landing-display-shell');
   if (displayShell) {
     displayShell.addEventListener('pointerenter', () => { isHoveringModel = true; });
-    displayShell.addEventListener('pointerleave', () => {
-      isHoveringModel = false;
-      autoRotY = rotState.y;
-    });
+    displayShell.addEventListener('pointerleave', () => { isHoveringModel = false; });
   }
 };
 
 /* ════════════════════════════════════════
-    폴더 GUI 인터랙션 (원본 데이터 100% 무변경 유지)
+    폴더 GUI 인터랙션 (원본 데이터 100% 매핑 보존)
 ════════════════════════════════════════ */
 const FOLDER_DATA = {
   academic: {
