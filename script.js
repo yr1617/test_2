@@ -1,8 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-// 📦 Three.js 공식 지오메트리 병합 유틸리티 도입 (안전성 100% 보장)
-import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 
 /* ════════════════════════════════════════
     ENGINE DESTROY & CLEAN 공정
@@ -88,6 +86,7 @@ const setupLandingCanvas = () => {
     ctx.fillRect(0, 0, width, height);
   };
 
+  resize = resize.bind(this);
   resize();
   return { resize, draw };
 };
@@ -102,16 +101,17 @@ const updateLandingVars = () => {
   landing.style.setProperty('--pointer-y', `${clamp01(y / 100) * 100}%`);
 };
 
+// 💡 [대비 해결] 크리스탈 표면에 초고대비 하이라이트 반사광을 맺히게 만드는 고휘도 환경맵 세팅
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   const geo = new THREE.BoxGeometry(16, 16, 16);
   const mats = [
-    new THREE.MeshBasicMaterial({ color: 0x00faff, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x00ffff, side: THREE.BackSide }), // 사이안 강광
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // 순백광
+    new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.BackSide }), // 마젠타 강광
+    new THREE.MeshBasicMaterial({ color: 0x050508, side: THREE.BackSide }), // 심해 블랙 (대비조절용)
     new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xff00d4, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x101015, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x020205, side: THREE.BackSide })  
+    new THREE.MeshBasicMaterial({ color: 0x010103, side: THREE.BackSide })  
   ];
   const box = new THREE.Mesh(geo, mats);
   scene.add(box);
@@ -140,24 +140,30 @@ const initThree = () => {
 
   window.threeRenderer = new THREE.WebGLRenderer({
     canvas: modelCanvas,
-    alpha: true,
+    alpha: true,        // 💡 [배경 투명] 뒤쪽 HTML 배경 그라데이션이 100% 투과되도록 설정
     antialias: true,
     powerPreference: "high-performance"
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping; // 스튜디오급 광원 톤매핑 적용
+  window.threeRenderer.toneMappingExposure = 1.4;
 
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 4.5);
-  dirLight1.position.set(5, 10, 7);
+  // 💡 [회색 탈출] 모델링을 흑백 무채색 바보로 만들던 약한 조명을 버리고, 타오르는 듯한 고광량 듀얼 광원 탑재
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 6.0);
+  dirLight1.position.set(5, 8, 5);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xa3e5ff, 3.0);
-  dirLight2.position.set(-5, -5, 5);
+  const dirLight2 = new THREE.DirectionalLight(0x00f0ff, 4.0); // 푸른 프리즘 광원 추가
+  dirLight2.position.set(-5, -3, 4);
   window.threeScene.add(dirLight2);
 
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+  window.threeScene.add(ambientLight);
+
   window.threeCamera = new THREE.PerspectiveCamera(30, W / H, 0.1, 100);
-  window.threeCamera.position.set(0, 0, 5.5); 
+  window.threeCamera.position.set(0, 0, 5.0); 
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
@@ -177,53 +183,40 @@ const initThree = () => {
       if(window.modelAnchor) window.threeScene.remove(window.modelAnchor);
 
       const model = gltf.scene;
-      const geometriesToMerge = [];
 
-      // 🛠️ [안전한 공식 병합] 6개 메쉬들의 지오메트리를 추출하고 월드 트랜스폼을 미리 구워 적용
-      model.updateMatrixWorld(true);
-      model.traverse((child) => {
-        if (child.isMesh && child.geometry) {
-          const clonedGeo = child.geometry.clone();
-          clonedGeo.applyMatrix4(child.matrixWorld); // 각 메쉬의 고유 위치를 글로벌로 고정
-          geometriesToMerge.push(clonedGeo);
-        }
-      });
-
-      if (geometriesToMerge.length === 0) {
-        hideSiteLoader();
-        return;
-      }
-
-      // 🔗 6개 파편을 단 하나의 단일 지오메트리로 완전 용접합니다.
-      const mergedGeometry = BufferGeometryUtils.mergeGeometries(geometriesToMerge, false);
-      
-      // 메모리 누수 방지를 위해 복사했던 파편 청소
-      geometriesToMerge.forEach(g => g.dispose());
-
-      // 💎 가섭이 완벽하게 해결된 고순도 크리스탈 글래스 재질
+      // 💡 [프리즘 & 뒷배경 투과 효과] 완전히 새로 빌드한 고순도 하이퍼 굴절 크리스탈 글래스 재질
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.02,            
+        roughness: 0.01,             // 극도로 매끄러운 유리 표면 (탁한 회색빛 제거)
         transparent: true,
-        opacity: 0.45,               
-        transmission: 0.95,          
-        ior: 1.5,                  
-        side: THREE.FrontSide, // 내부 가섭 현상을 물리적으로 완전 무력화
-        depthWrite: true,      
+        opacity: 0.3,                // 💡 배경이 완벽하게 비치도록 투명도 최적화
+        transmission: 0.98,          // 💡 98% 빛 투과율로 불투명함 전면 제거
+        ior: 2.417,                  // 💡 다이아몬드급 굴절률 (보석처럼 안쪽이 굴절되어 비침)
+        side: THREE.DoubleSide,      
+        depthWrite: false,           // 💡 [지지직거림/Z-Fighting 100% 박멸] 면끼리 겹쳐 떨리는 연산을 완전히 비활성화
         depthTest: true,
-        iridescence: 0.85,           
-        iridescenceIOR: 1.6,        
-        iridescenceThicknessRange: [100, 320], 
-        clearcoat: 1.0,             
-        clearcoatRoughness: 0.0
+        iridescence: 1.0,            // 💡 [프리즘 효과] 보는 각도에 따라 무지갯빛이 뿜어져 나오는 광학 효과 강제 활성화
+        iridescenceIOR: 1.9,
+        iridescenceThicknessRange: [90, 350],
+        clearcoat: 1.0,              // 표면 코팅막으로 하이라이트 광택 추가
+        clearcoatRoughness: 0.0,
+        specularIntensity: 2.0,      // 반사광 강도 극대화
+        specularColor: new THREE.Color(0xffffff)
       });
 
-      const mergedMesh = new THREE.Mesh(mergedGeometry, crystalMaterial);
+      // 원본 오브젝트들의 구조를 유지하면서 재질만 완벽하게 덮어씌웁니다.
+      model.traverse((child) => {
+        if (child.isMesh) {
+          child.material = crystalMaterial;
+          child.castShadow = false;
+          child.receiveShadow = false;
+        }
+      });
 
-      // 레이아웃 크기 및 배치 자동 정렬
-      const IDEAL_LAYOUT_BOUNDS = 2.4; 
-      const box = new THREE.Box3().setFromObject(mergedMesh);
+      // 💡 [크기 조절] 화면 전체를 웅장하게 채우도록 가로세로 바운드 비율을 기존보다 1.6배 업스케일
+      const IDEAL_LAYOUT_BOUNDS = 3.8; 
+      const box = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
       const size = new THREE.Vector3();
@@ -232,13 +225,14 @@ const initThree = () => {
       const maxDim = Math.max(size.x, size.y, size.z);
       const scale = IDEAL_LAYOUT_BOUNDS / maxDim; 
       
-      mergedMesh.position.sub(centre.multiplyScalar(scale));
-      mergedMesh.scale.setScalar(scale);
+      model.position.sub(centre.multiplyScalar(scale));
+      model.scale.setScalar(scale);
 
       window.modelAnchor = new THREE.Group();
-      window.modelAnchor.add(mergedMesh);
+      window.modelAnchor.add(model);
       
-      window.modelAnchor.rotation.set(Math.PI / 6, 0, 0); 
+      // 💡 [눕방 탈출] 누워있던 각도를 제로 세팅하여 정면을 바라보고 꼿꼿하게 서 있도록 각도 정밀 보정
+      window.modelAnchor.rotation.set(0, 0, 0); 
       window.threeScene.add(window.modelAnchor);
 
       eliminateFakeModels(); 
@@ -288,17 +282,19 @@ const animate = () => {
   if (window.threeRenderer && window.threeScene && window.threeCamera) {
     if (window.modelAnchor) {
       if (!rotationState.isDragging) {
-        modelAutoRotY += 0.003;
-        rotationState.targetY += 0.003;
+        modelAutoRotY += 0.004;
+        rotationState.targetY += 0.004;
       }
 
       rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
       rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
 
-      window.modelAnchor.rotation.x = Math.PI / 6 + rotationState.currentX;
+      // 꼿꼿하게 선 축을 기준으로만 마우스 인터랙션 회전 반영
+      window.modelAnchor.rotation.x = rotationState.currentX;
       window.modelAnchor.rotation.y = rotationState.currentY;
 
-      window.modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.006;
+      // 미세한 부유 효과
+      window.modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.015;
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
   }
