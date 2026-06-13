@@ -920,3 +920,22 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
 .cursor-follower {
   pointer-events: none !important;
 }
+/* ════════════════════════════════════════
+    [진짜 해결] 가상 커서를 모달창 위로 완벽하게 격상
+════════════════════════════════════════ */
+
+/* 1. 가상 커서가 모달을 포함한 웹사이트의 모든 요소 대가리를 깨고 맨 위에 오도록 설정 */
+.cursor-follower {
+  z-index: 999999999 !important;   /* 어떤 모달창보다도 무조건 위에 존재하게 만듭니다 */
+  pointer-events: none !important; /* 커서 자체는 클릭을 절대 방해하지 않고 통과시킴 */
+}
+
+/* 2. 혹시나 모달창(#folder-modal)의 z-index가 너무 높게 잡혀있다면 커서 아래로 제어 */
+#folder-modal {
+  z-index: 999999 !important;     /* 커서(999999999)보다 무조건 아래 레이어에 위치하도록 조절 */
+}
+
+/* 3. 모달 배경 투명 레이어도 커서 아래로 배치 */
+.modal-backdrop {
+  z-index: 999998 !important;
+}
