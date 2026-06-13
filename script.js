@@ -63,7 +63,7 @@ const setupLandingCanvas = () => {
     state.height = rect.height;
     state.dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     landingCanvas.width = Math.max(1, Math.floor(rect.width * state.dpr));
-    landingCanvasCanvas = Math.max(1, Math.floor(rect.height * state.dpr));
+    landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr)); // 💥 오타 완벽 수정 완료!
     landingCanvas.style.width = `${rect.width}px`;
     landingCanvas.style.height = `${rect.height}px`;
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
@@ -125,17 +125,17 @@ const generatePureEnvironment = (renderer) => {
 };
 
 /* ════════════════════════════════════════
-    🌈 면 겹침 현상을 무력화하는 오로라 프리즘 셰이더
+    🌈 면 겹침 차단 + 고해상도 오로라 프리즘 셰이더
 ════════════════════════════════════════ */
 const createAntiOverlapPrismMaterial = (envTexture) => {
   return new THREE.ShaderMaterial({
     uniforms: {
       envMap: { value: envTexture },
-      iorR: { value: 1.06 },
-      iorG: { value: 1.12 },
-      iorB: { value: 1.18 },
-      rainbowIntensity: { value: 3.5 },
-      brightness: { value: 1.4 }
+      iorR: { value: 1.07 },
+      iorG: { value: 1.13 },
+      iorB: { value: 1.20 },
+      rainbowIntensity: { value: 3.8 },
+      brightness: { value: 1.5 }
     },
     vertexShader: `
       varying vec3 vNormal;
@@ -169,7 +169,7 @@ const createAntiOverlapPrismMaterial = (envTexture) => {
         vec3 normal = normalize(vWorldNormal);
         vec3 viewDir = vViewDir;
 
-        // 면 겹침으로 인한 암전 현상을 깨부수기 위해 굴절각 분할 계산
+        // 굴절각 분할 계산으로 내부 깨짐 최소화
         vec3 reR = refract(viewDir, normal, 1.0 / iorR);
         vec3 reG = refract(viewDir, normal, 1.0 / iorG);
         vec3 reB = refract(viewDir, normal, 1.0 / iorB);
@@ -181,20 +181,18 @@ const createAntiOverlapPrismMaterial = (envTexture) => {
 
         // 반사광 하이라이트 추가
         vec3 refDir = reflect(viewDir, normal);
-        vec3 reflection = textureCube(envMap, refDir).rgb * 1.8;
+        vec3 reflection = textureCube(envMap, refDir).rgb * 2.0;
 
-        // 프레넬 림라이트 계수
-        float fresnel = pow(1.0 + dot(viewDir, normal), 2.0);
+        // 프레넬 림라이트
+        float fresnel = pow(1.0 + dot(viewDir, normal), 2.2);
         fresnel = clamp(fresnel, 0.0, 1.0);
 
-        // 시커멓게 겹친 면 내부를 강제로 맑은 백색광 베이스로 전환하여 투명감 부여
-        vec3 baseGlass = vec3(0.95, 0.96, 0.98) * brightness;
+        // 시커멓게 죽는 내부를 맑게 밀어내기 위한 크리스탈 베이스광
+        vec3 baseGlass = vec3(0.96, 0.97, 0.99) * brightness;
         
-        // 최종 색상 조합: 면 내부의 어두움을 지우고 외곽선에 영롱한 무지개빛 레이어링
-        vec3 finalColor = mix(baseGlass + rainbow * 0.2, rainbow + reflection, fresnel);
-
-        // 뒷배경 그라데이션이 자연스럽게 관통하도록 알파 설정
-        float alpha = mix(0.15, 0.85, fresnel);
+        // 외곽선에 투명한 오로라 스펙트럼 합성
+        vec3 finalColor = mix(baseGlass + rainbow * 0.25, rainbow + reflection, fresnel);
+        float alpha = mix(0.18, 0.90, fresnel);
 
         gl_FragColor = vec4(finalColor, alpha);
       }
@@ -202,7 +200,7 @@ const createAntiOverlapPrismMaterial = (envTexture) => {
     transparent: true,
     blending: THREE.NormalBlending,
     side: THREE.DoubleSide,
-    depthWrite: false, // 💥 CRITICAL: 겹친 내부 면들이 서로를 갉아먹으며 까맣게 타는 현상을 원천 차단합니다.
+    depthWrite: false, // 💥 면 겹침으로 어두워지는 현상 완벽 방어
     depthTest: true
   });
 };
@@ -244,6 +242,11 @@ const initThree = () => {
   loader.load(
     `./modeling.glb?v=${Date.now()}`,
     (gltf) => {
+      if(!gltf || !gltf.scene) {
+        console.warn("GLB 데이터 구조 오류");
+        hideSiteLoader();
+        return;
+      }
       if(window.modelAnchor) window.threeScene.remove(window.modelAnchor);
 
       const model = gltf.scene;
@@ -257,8 +260,8 @@ const initThree = () => {
         }
       });
 
-      // 💥 [볼륨감 정상화] 작고 소심해 보이지 않도록 최적 가이드 바운드 크기를 2.8로 확대
-      const IDEAL_LAYOUT_BOUNDS = 2.8; 
+      // 💥 우측 그리드를 묵직하게 채우는 안정적인 최적 크기 밸런싱 고정
+      const IDEAL_LAYOUT_BOUNDS = 2.6; 
       
       const box = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
