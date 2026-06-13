@@ -26,7 +26,7 @@ window.modelAnchor = null;
 window.__threeInitialized = false;
 
 /* ════════════════════════════════════════
-    DOM ELEMENT REFS
+    DOM ELEMENT REFS & CLEANUP
 ════════════════════════════════════════ */
 const landing = document.querySelector('.landing');
 const landingCanvas = document.querySelector('.landing-canvas');
@@ -34,6 +34,9 @@ const landingDisplay = document.querySelector('#landing-display');
 const modelCanvas = document.querySelector('#model-canvas');   
 const follower = document.querySelector('.cursor-follower');
 const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li, .project-card-item');
+
+// 기존에 생성되었던 UI 찌꺼기들 완벽 제거
+document.querySelectorAll('.mesh-inspector-panel').forEach(el => el.remove());
 
 const eliminateFakeModels = () => {
   const fakeIds = ['#crystal-fallback', '#codex-3d', '.fallback-layer', '.crystal-backup', '#three-debug-hud'];
@@ -127,6 +130,34 @@ const generatePureEnvironment = (renderer) => {
 /* ════════════════════════════════════════
     THREE.JS MAIN RENDER PIPELINE
 ════════════════════════════════════════ */
+let loadedMeshes = []; // 찾기 편하게 메쉬들을 담아둘 배열
+
+const createInspectorPanel = () => {
+  const panel = document.createElement('div');
+  panel.className = 'mesh-inspector-panel';
+  Object.assign(panel.style, {
+    position: 'fixed',
+    top: '20px',
+    left: '20px',
+    backgroundColor: 'rgba(15, 15, 20, 0.95)',
+    border: '1px solid #00ffcc',
+    padding: '15px',
+    borderRadius: '8px',
+    zIndex: '99999',
+    color: '#fff',
+    fontFamily: 'monospace',
+    fontSize: '12px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+  });
+
+  panel.innerHTML = `
+    <div style="font-weight:bold;color:#00ffcc;margin-bottom:10px;">🔍 [메쉬 수색 제어판]</div>
+    <div style="margin-bottom:12px;color:#aaa;line-height:1.4;">버튼을 누르면 해당 메쉬만 켜집니다.<br>가장 정상적인 별을 찾아보세요!</div>
+    <div id="inspector-buttons" style="display:flex;flex-direction:column;gap:6px;"></div>
+  `;
+  document.body.appendChild(panel);
+};
+
 const initThree = () => {
   if (!modelCanvas || window.__threeInitialized) return;
   window.__threeInitialized = true;
@@ -142,17 +173,17 @@ const initThree = () => {
     alpha: true,
     antialias: true,
     powerPreference: "high-performance",
-    logarithmicDepthBuffer: true // 💡 인접한 다중 메쉬 간의 지직거림(Z-Fighting)을 하드웨어 레벨에서 차단
+    logarithmicDepthBuffer: true
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 3.2);
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 3.5);
   dirLight1.position.set(5, 10, 7);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xa3e5ff, 2.0);
+  const dirLight2 = new THREE.DirectionalLight(0xa3e5ff, 2.2);
   dirLight2.position.set(-5, -5, 5);
   window.threeScene.add(dirLight2);
 
@@ -177,42 +208,65 @@ const initThree = () => {
       if(window.modelAnchor) window.threeScene.remove(window.modelAnchor);
 
       const model = gltf.scene;
+      loadedMeshes = [];
 
-      // 💎 복원된 영롱한 프리즘 크리스탈 글래스 재질
-      const crystalMaterial = new THREE.MeshPhysicalMaterial({
+      // 💎 형태를 투명하게 투과해서 감시할 수 있는 깔끔한 글래스 고대비 재질
+      const testMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
-        metalness: 0.0,
-        roughness: 0.02,            
+        metalness: 0.1,
+        roughness: 0.05,
         transparent: true,
-        opacity: 0.35,               
-        transmission: 0.95,          
-        ior: 1.5,                  
-        side: THREE.FrontSide, 
-        depthWrite: true,       // 깊이 버퍼 활성화로 정갈한 외곽선 보존
-        depthTest: true,
-        iridescence: 0.85,           
-        iridescenceIOR: 1.6,        
-        iridescenceThicknessRange: [100, 320], 
-        clearcoat: 1.0,             
-        clearcoatRoughness: 0.0
+        opacity: 0.6,
+        transmission: 0.9,
+        ior: 1.5,
+        side: THREE.DoubleSide, // 뒤틀림 판정을 위해 양면 렌더링
+        iridescence: 0.5
       });
 
-      // 🛠️ [심폐소생] 지우는 코드를 싹 다 걷어내고, 디자이너가 배치한 모든 순정 레이어를 100% 전부 다시 켭니다.
+      // 1. 모든 메쉬 탐색 후 수집
       model.traverse((child) => {
         if (child.isMesh) {
-          child.visible = true; 
-          child.material = crystalMaterial;
-          child.castShadow = false;
-          child.receiveShadow = false;
-
-          // 💡 여러 메쉬가 겹쳐있을 때 렌더링 순서가 꼬여 투박하게 뭉개지는 현상을 방지하는 특수 그래픽 옵션
-          child.material.polygonOffset = true;
-          child.material.polygonOffsetFactor = 1;
-          child.material.polygonOffsetUnits = 1;
+          child.material = testMaterial;
+          loadedMeshes.push(child);
         }
       });
 
-      // 전체 덩어리의 중심축 정렬 공정
+      // 2. 메쉬 셀렉터 UI 동적 빌드
+      createInspectorPanel();
+      const btnContainer = document.getElementById('inspector-buttons');
+      
+      loadedMeshes.forEach((mesh, index) => {
+        const btn = document.createElement('button');
+        btn.innerText = `Index [${index}] : ${mesh.name || 'Unnamed'}`;
+        Object.assign(btn.style, {
+          padding: '6px 10px',
+          backgroundColor: '#222530',
+          border: '1px solid #444',
+          color: '#fff',
+          cursor: 'pointer',
+          textAlign: 'left',
+          borderRadius: '4px',
+          fontSize: '11px'
+        });
+
+        btn.onclick = () => {
+          // 선택한 것만 켜고 나머지는 전부 끄기
+          loadedMeshes.forEach((m, i) => {
+            m.visible = (i === index);
+          });
+          // 버튼 스타일 토글
+          Array.from(btnContainer.children).forEach(b => b.style.borderColor = '#444');
+          btn.style.borderColor = '#00ffcc';
+          console.log(`📡 현재 활성화된 메쉬 인덱스: [${index}], 이름: ${mesh.name}`);
+        };
+
+        btnContainer.appendChild(btn);
+      });
+
+      // 처음에 로드될 때는 일단 전원 다 켜둔 상태로 배치
+      loadedMeshes.forEach(m => m.visible = true);
+
+      // 정렬 및 스케일 바운드 조정
       const IDEAL_LAYOUT_BOUNDS = 2.4; 
       const box = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
@@ -229,7 +283,6 @@ const initThree = () => {
       window.modelAnchor = new THREE.Group();
       window.modelAnchor.add(model);
       
-      // 별이 사방으로 온전하게 뻗어 보이게 만드는 정면 기본 배치 각도
       window.modelAnchor.rotation.set(Math.PI / 6, 0, 0); 
       window.threeScene.add(window.modelAnchor);
 
