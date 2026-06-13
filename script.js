@@ -99,18 +99,18 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    HIGH-END ENVIRONMENT MAP (오로라 프리즘 유도 광원)
+    HIGH-END ENVIRONMENT MAP (프리즘 오로라 스펙트럼)
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
-  const geo = new THREE.BoxGeometry(12, 12, 12);
+  const geo = new THREE.BoxGeometry(16, 16, 16);
   const mats = [
-    new THREE.MeshBasicMaterial({ color: 0x00f3ff, side: THREE.BackSide }), // Cyan Edge
-    new THREE.MeshBasicMaterial({ color: 0x010103, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xff00ca, side: THREE.BackSide }), // Magenta Edge
+    new THREE.MeshBasicMaterial({ color: 0x00f3ff, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // Pure White Source
-    new THREE.MeshBasicMaterial({ color: 0x020205, side: THREE.BackSide })  
+    new THREE.MeshBasicMaterial({ color: 0xff00ca, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x020204, side: THREE.BackSide })  
   ];
   const box = new THREE.Mesh(geo, mats);
   scene.add(box);
@@ -139,25 +139,27 @@ const initThree = () => {
 
   window.threeRenderer = new THREE.WebGLRenderer({
     canvas: modelCanvas,
-    alpha: true, 
-    antialias: true
+    alpha: true,              // 웹 그라데이션 및 타이포 뒷배경 투과 스위치 활성화
+    antialias: true,
+    powerPreference: "high-performance"
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  window.threeRenderer.shadowMap.enabled = false; 
 
-  // 🌟 화각과 거리를 넓혀 위아래 테두리가 절대로 짤리지 않는 완벽한 안전 영역 확보
-  window.threeCamera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
-  window.threeCamera.position.set(0, 0, 6.0); 
+  // 🌟 카메라 화각(FOV)과 Z축 배치를 완벽히 조율하여 정해진 컨테이너 밖으로 절대 안 튀어나가게 봉인합니다.
+  window.threeCamera = new THREE.PerspectiveCamera(35, W / H, 0.1, 100);
+  window.threeCamera.position.set(0, 0, 5.8); 
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
 
-  const ambient = new THREE.AmbientLight(0xffffff, 1.2);
+  const ambient = new THREE.AmbientLight(0xffffff, 1.5);
   window.threeScene.add(ambient);
 
-  const dirLight = new THREE.DirectionalLight(0xffffff, 3.0);
-  dirLight.position.set(5, 10, 6);
+  const dirLight = new THREE.DirectionalLight(0xffffff, 4.0);
+  dirLight.position.set(4, 8, 4);
   window.threeScene.add(dirLight);
 
   const loader = new GLTFLoader();
@@ -172,30 +174,33 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 🌟 [레퍼런스 사양 동기화 + 자글거림 영구 제거 마스터 젤]
-      const crystalMaterial = new THREE.MeshStandardMaterial({
+      // 🌟 [레퍼런스 동기화: 100% 투명 굴절 프리즘 크리스탈]
+      const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
-        metalness: 0.1,
-        roughness: 0.0,              // 0.0 고정으로 표면 가루 노이즈 완전 박멸
-        transparent: true,
-        opacity: 0.55,               // 안쪽이 투명하게 비치도록 투명도 커스텀 적용
+        metalness: 0.0,
+        roughness: 0.0,              // 지직거림 노이즈 완전 제거
+        transmission: 1.0,           // 99% 완벽 투명 투과 (흐리멍텅한 투명도 제거)
+        ior: 1.62,                   // 리얼한 광학 프리즘 굴절
+        thickness: 1.2,              
         envMap: envTexture,
-        envMapIntensity: 6.0,        // 외곽선 프리즘 무지개 오로라 빛 극대화
-        side: THREE.FrontSide,       // 자글거림의 주범인 앞뒷면 뎁스 충돌을 원천 차단하기 위해 바깥면만 렌더링
-        depthWrite: true,
-        depthTest: true
+        envMapIntensity: 6.5,        // 에지선에 마젠타/사이안 오로라 스펙트럼 선명히 주입
+        clearcoat: 1.0,              
+        clearcoatRoughness: 0.0,
+        side: THREE.DoubleSide,      
+        depthWrite: true
       });
 
-      // 온전한 뼈대 복원 및 재질 이식
       model.traverse((child) => {
         if (child.isMesh) {
           child.material = crystalMaterial;
+          child.castShadow = false;   
+          child.receiveShadow = false;
           child.visible = true;
         }
       });
 
-      // 💥 [상하단 잘림 현상 없는 압도적인 웅장한 크기 세팅]
-      const TARGET_BOUNDS = 3.3; 
+      // 💥 [정상화된 레이아웃 스케일] 우측 디스플레이 영역을 넘지 않는 가장 컴팩트하고 알맞은 크기 고정
+      const IDEAL_LAYOUT_BOUNDS = 2.1; 
       
       const box = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
@@ -204,7 +209,7 @@ const initThree = () => {
       box.getSize(size);
       
       const maxDim = Math.max(size.x, size.y, size.z);
-      const scale = TARGET_BOUNDS / maxDim; 
+      const scale = IDEAL_LAYOUT_BOUNDS / maxDim; 
       
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
