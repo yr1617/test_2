@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    ENGINE DESTROY & CLEAN (노트북 터짐 방지 1단계: 엔진 초기화 강화)
+    ENGINE DESTROY & CLEAN
 ════════════════════════════════════════ */
 if (window.animFrameId) {
   cancelAnimationFrame(window.animFrameId);
@@ -42,7 +42,7 @@ const eliminateFakeModels = () => {
 };
 
 /* ════════════════════════════════════════
-    마우스 트래킹 & 전역 상태 변수
+    STATE VARS
 ════════════════════════════════════════ */
 const mouse = { x: 0, y: 0 };
 const pointer = {
@@ -51,7 +51,6 @@ const pointer = {
 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
-// [원상복구 원본] 사용자의 비스듬하게 가장 이쁜 기본 기울기 각도값 그대로 유지
 const baseRotation = { x: 0.3, y: -0.5 }; 
 const rotState     = { x: 0.3, y: -0.5 };
 
@@ -110,7 +109,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    [재질 개선] 눈부신 크롬 실버 반사를 위한 초고대비 환경 맵
+    ENVIRONMENT MAP
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
@@ -200,12 +199,11 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      /* ── [크롬 실버 재질 교정 완료] 거울형 완전 금속 질감 적용 ── */
       const chromeSilverMat = new THREE.MeshStandardMaterial({
         color: 0xeeeeee,
-        metalness: 1.0,          // 은빛 메탈릭 100% 매핑
-        roughness: 0.02,         // 표면 거칠기를 완전 제로로 깎아 반사 선명도 확보
-        envMapIntensity: 4.0,    // 주변광 반사 세기를 확 키워 눈부신 크롬 실버 구현
+        metalness: 1.0,          
+        roughness: 0.02,         
+        envMapIntensity: 4.0,    
         side: THREE.DoubleSide
       });
 
@@ -233,7 +231,6 @@ const initThree = () => {
       window.modelAnchor.add(model);
       window.threeScene.add(window.modelAnchor);
 
-      // 사용자의 시그니처 비스듬한 초기 각도로 고정
       window.modelAnchor.rotation.x = baseRotation.x;
       window.modelAnchor.rotation.y = baseRotation.y;
 
@@ -326,7 +323,7 @@ const updateNavProgress = () => {
 };
 
 /* ════════════════════════════════════════
-    MAIN ANIMATION LOOP (노트북 터짐 방지 2단계: 괄호 구조 완전 매핑)
+    MAIN ANIMATION LOOP
 ════════════════════════════════════════ */
 let clock = 0;
 
@@ -334,10 +331,9 @@ const animate = () => {
   window.animFrameId = requestAnimationFrame(animate);
   clock = Date.now() * 0.001;
 
-  pointer.x += (pointer.tx - pointer.x) * 0.08;
-  pointer.y += (pointer.ty - pointer.y) * 0.08;
+  pointer.x += (pointer.tx - pointer.x) * 0.12;
+  pointer.y += (pointer.ty - pointer.y) * 0.12;
 
-  // #00ff66 작은 원 엘리먼트 위치 실시간 업데이트
   if (follower) {
     follower.style.left = `${pointer.x}px`;
     follower.style.top  = `${pointer.y}px`;
@@ -348,7 +344,6 @@ const animate = () => {
 
   if (window.threeRenderer && window.threeScene && window.threeCamera) {
     if (window.modelAnchor) {
-      // [원상복구 원본 인터랙션] 비스듬히 누운 각도 상태에서 마우스 움직임 방향으로만 묵직하게 댐핑 연동
       const targetX = baseRotation.x + (-mouse.y * 0.12);
       const targetY = baseRotation.y + (mouse.x * 0.35);
 
@@ -358,7 +353,6 @@ const animate = () => {
       window.modelAnchor.rotation.x = rotState.x;
       window.modelAnchor.rotation.y = rotState.y;
       
-      // 원본의 우아한 공중 부양 바운싱 연산
       window.modelAnchor.position.y = Math.sin(clock * 0.6) * 0.02; 
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
@@ -384,7 +378,7 @@ const setupHoverEvents = () => {
 };
 
 /* ════════════════════════════════════════
-    FOLDER GUI INTERACTION (원본 데이터 백업본 100% 무변경 이식)
+    FOLDER GUI INTERACTION
 ════════════════════════════════════════ */
 const FOLDER_DATA = {
   academic: {
