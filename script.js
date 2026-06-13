@@ -196,27 +196,33 @@ const initThree = () => {
         clearcoatRoughness: 0.0
       });
 
-      // 💥 [오더 반영 완료] 가장 온전한 진짜 별 메쉬 하나만 정확히 남기는 정제 로직
-      let targetValidMesh = null;
-
-      // 트래버스를 돌며 파일 구조 내에서 발견되는 순수한 '첫 번째 메쉬'가 진짜 예쁜 메쉬입니다.
+      // 🛠️ 모든 메쉬들을 배열에 담아 구조 파악
+      const allMeshes = [];
       model.traverse((child) => {
-        if (child.isMesh && !targetValidMesh) {
-          targetValidMesh = child; 
+        if (child.isMesh) {
+          allMeshes.push(child);
+          // 디버깅용 로그: F12 개발자 도구에서 메쉬들의 진짜 이름과 순서를 볼 수 있게 합니다.
+          console.log(`[Mesh Found] Index: ${allMeshes.length - 1}, Name: ${child.name}`);
         }
       });
 
-      // 선택한 진짜 예쁜 메쉬만 켜서 유리 재질을 주고, 이상하게 생긴 나머지 껍데기들은 전부 제거(visible = false)합니다.
-      model.traverse((child) => {
-        if (child.isMesh) {
-          if (child === targetValidMesh) {
-            child.visible = true;
-            child.material = crystalMaterial;
-            child.castShadow = false;
-            child.receiveShadow = false;
-          } else {
-            child.visible = false; // 지직거림을 유발하던 이상한 모양의 메쉬들 완벽 제거
-          }
+      // 💥 [오더 반영 완료] 
+      // 이상한 못생긴 외곽선 메쉬(보통 이름에 'outer', 'guide'가 들어가거나 배열의 뒤쪽에 배치됨)를 찾아내 지웁니다.
+      allMeshes.forEach((mesh, index) => {
+        const meshName = mesh.name.toLowerCase();
+        
+        // 1. 이름 검사: 외곽 레이어나 가이드용 못생긴 녀석인지 판별
+        const isUglyShell = meshName.includes('outer') || meshName.includes('guide') || meshName.includes('wire') || meshName.includes('hull');
+        
+        // 2. 인덱스 검사: 만약 메쉬가 2개 이상 겹쳐있고 이름으로 분기가 안 된다면, 0번(알맹이 진짜 별)만 살리고 나머지는 다 끕니다.
+        if (isUglyShell || (allMeshes.length > 1 && index !== 0)) {
+          mesh.visible = false; // 못생긴 껍데기 메쉬 완전 제거!
+        } else {
+          // 원래 존재해야 하는 멀쩡한 알맹이 별 메쉬만 영롱한 재질 적용 후 유지
+          mesh.visible = true;
+          mesh.material = crystalMaterial;
+          mesh.castShadow = false;
+          mesh.receiveShadow = false;
         }
       });
 
