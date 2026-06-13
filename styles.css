@@ -889,3 +889,33 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
 .main-project-card {
   padding-top: 4px !important;   /* 카드 내부 썸네일/컨텐츠 위쪽 여백을 타이트하게 조입니다 */
 }
+/* ════════════════════════════════════════
+    [진짜 수정] 카드 내 위쪽 빈 공간 완벽 축소
+════════════════════════════════════════ */
+
+/* 1. 유형 카드 (02 개인 프로젝트 쪽) 내부 위쪽 공백 축소 */
+.project-card {
+  /* 바닥에 처박혀 있던 텍스트를 위로 올릴 수 있도록 정렬 변경 */
+  justify-content: flex-start !important; 
+  /* 기존 100px였던 천장 여백을 대폭 깎아서 컨텐츠를 완전히 위로 밀착 */
+  padding-top: 32px !important; 
+}
+
+/* 유형 카드 내부의 인덱스 숫자(02) 위치가 겹치지 않게 미세 조정 */
+.project-index {
+  top: 16px !important;
+}
+
+
+/* 2. 메인 프로젝트 카드 (맛집 지도 쪽) 내부 위쪽 공백 축소 */
+.main-project-card {
+  /* 카드 내부 요소들이 천장부터 차곡차곡 쌓이도록 위쪽 정렬 고정 */
+  justify-content: flex-start !important;
+  /* 카드 자체의 안쪽 위 공백 최소화 */
+  padding-top: 16px !important; 
+}
+
+/* 썸네일 이미지 영역 위쪽에 붙어있는 불필요한 간격이나 마진이 있다면 제거 */
+.main-project-card .project-thumb {
+  margin-top: 0 !important;
+}
