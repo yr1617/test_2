@@ -79,7 +79,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE
+    THREE.JS ENGINE (오로라 버그 수정 최종판)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -113,34 +113,34 @@ const initThree = () => {
   threeRenderer.setSize(W, H);
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
-  // 대비와 하이라이트 경계를 칼처럼 선명하게 찢어주는 ACESFilmic 매핑
+  // 대비를 찢어서 강렬한 명암을 만들어주는 ACESFilmic 설정 유지
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 2.2; 
+  threeRenderer.toneMappingExposure = 2.0; 
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 물체를 전체적으로 뿌옇고 하얗게 띄우던 환경광을 완전 제거(0.0)
+  // 불필요한 전체 앰비언트 광원 완벽 소멸
   const ambient = new THREE.AmbientLight(0xffffff, 0.0); 
   threeScene.add(ambient);
 
-  // 입체 실루엣의 명암 대비를 극명하게 잡아줄 탑 라이트
-  const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
-  mainLight.position.set(0, 5, 2);
+  // 실루엣을 부각해 줄 탑 메인 라이트
+  const mainLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  mainLight.position.set(0, 4, 2);
   threeScene.add(mainLight);
 
-  // 🌈 레퍼런스처럼 유리에 직접 네온 무지갯빛이 맺히도록 스폿 조명 강도를 극대화
-  const laserCyan = new THREE.SpotLight(0x00f0ff, 160.0, 30, Math.PI / 4, 0.5, 0.1);
-  laserCyan.position.set(4, 3, 3);
+  // 🌈 레퍼런스처럼 선명한 색상이 엣지에 맺히도록 스폿 조명 파워 강화
+  const laserCyan = new THREE.SpotLight(0x00f3ff, 150.0, 30, Math.PI / 4, 0.5, 0.2);
+  laserCyan.position.set(4, 3, 2);
   threeScene.add(laserCyan);
 
-  const laserMagenta = new THREE.SpotLight(0xff0099, 180.0, 30, Math.PI / 4, 0.5, 0.1);
-  laserMagenta.position.set(-4, -2, 3);
+  const laserMagenta = new THREE.SpotLight(0xff00aa, 160.0, 30, Math.PI / 4, 0.5, 0.2);
+  laserMagenta.position.set(-4, -2, 2);
   threeScene.add(laserMagenta);
 
-  const laserPurple = new THREE.SpotLight(0x7700ff, 120.0, 25, Math.PI / 3, 0.6, 0.1);
+  const laserPurple = new THREE.SpotLight(0x8800ff, 100.0, 25, Math.PI / 3, 0.6, 0.2);
   laserPurple.position.set(0, 4, -2);
   threeScene.add(laserPurple);
 
@@ -179,26 +179,26 @@ const initThree = () => {
           child.material.dispose();
         }
         
-        // 💎 웹 배경을 완전히 투과시키면서 엣지에 무지갯빛을 맺히게 하는 특수 알파-오로라 매핑
+        // 💎 [해결책] 모델의 겹친 면으로 인한 지직거림(Z-fighting)과 하얀 누적 현상 강제 차단 매핑
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0xffffff,
-          metalness:          0.1,               // 아주 미세한 금속성으로 조명 빛을 더 선명하게 반사
-          roughness:          0.0,               // 완전한 무결점 거울/유리 표면 (탁한 기운 0%)
-          
-          // 🔥 [대해결] Three.js 자체 버그를 우회하기 위해 투과율 대신 알파 투명도로 웹 배경을 100% 투과
-          transmission:       0.0,               
+          color:              0xffffff,          
+          metalness:          0.0,
+          roughness:          0.02,              // 미세하게 조명을 머금도록 설정
           transparent:        true,
-          opacity:            0.25,              // 정면 면적은 웹 사이트 배경이 투명하게 비치도록 낮춤
+          opacity:            0.12,              // 수십 겹이 쌓여도 하얗게 차지 않도록 알파 기본 투명도를 대폭 다운
           
-          // 🌈 외곽 엣지에 맺히는 네온 무지갯빛 반사광 강제 고정
-          clearcoat:          1.0,               // 하이라이트 대비를 쨍하게 만들어주는 겉면 코팅
-          clearcoatRoughness: 0.0,
+          // 🔥 핵심 버그 수정: 중첩된 면들끼리 깊이 버퍼를 경쟁하며 지직거리는 현상을 제거
+          depthWrite:         false,             
+          blending:           THREE.NormalBlending,
           side:               THREE.DoubleSide,
           
-          // 박막 간섭(Iridescence) 효과를 극한으로 끌어올려 강렬한 오색빛깔 연출
+          // 🌈 외곽선에만 쨍한 오로라 반사광을 남기기 위한 클리어코트 및 박막 레이어
+          clearcoat:          1.0,               
+          clearcoatRoughness: 0.0,
+          
           iridescence:        1.0,               
-          iridescenceIOR:     2.8,               // 굴절률을 크게 높여 꺾이는 면에 무지갯빛이 뭉개지지 않고 선명하게 배치
-          iridescenceThicknessRange: [200, 700]  
+          iridescenceIOR:     2.7,               // 굴절률을 최대로 높여 엣지 경계면에만 무지갯빛이 맺히도록 유도
+          iridescenceThicknessRange: [250, 700]  
         });
       });
 
