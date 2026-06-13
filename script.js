@@ -113,31 +113,35 @@ const initThree = () => {
   threeRenderer.setSize(W, H);
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
-  threeRenderer.toneMapping      = THREE.LinearToneMapping; 
-  threeRenderer.toneMappingExposure = 1.4; 
+  // 하얗게 타버리는 Linear 톤매핑 대신 대비를 깊게 잡아주는 ACESFilmic 방식으로 교정
+  threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
+  threeRenderer.toneMappingExposure = 1.6; 
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.9); 
+  // 💡 흰색 판때기처럼 보이게 만들던 전체 환경광(Ambient) 세기를 대폭 낮춤
+  const ambient = new THREE.AmbientLight(0xffffff, 0.15); 
   threeScene.add(ambient);
 
-  const mainLight = new THREE.DirectionalLight(0xffffff, 3.5);
-  mainLight.position.set(3, 5, 4);
+  // 입체감을 줄 수 있는 메인 직사광선 조절
+  const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
+  mainLight.position.set(2, 4, 3);
   threeScene.add(mainLight);
 
-  const laserCyan = new THREE.SpotLight(0x00ffff, 30.0, 25, Math.PI / 3, 0.5, 1);
-  laserCyan.position.set(5, 5, 4);
+  // 🌈 오색빛깔이 대비감 있게 맺히도록 스폿 조명의 밀도와 세기 강화
+  const laserCyan = new THREE.SpotLight(0x00ffff, 45.0, 30, Math.PI / 4, 0.3, 1);
+  laserCyan.position.set(4, 4, 4);
   threeScene.add(laserCyan);
 
-  const laserMagenta = new THREE.SpotLight(0xff00ff, 35.0, 25, Math.PI / 3, 0.5, 1);
-  laserMagenta.position.set(-5, -3, 4);
+  const laserMagenta = new THREE.SpotLight(0xff00ff, 55.0, 30, Math.PI / 4, 0.3, 1);
+  laserMagenta.position.set(-4, -3, 4);
   threeScene.add(laserMagenta);
 
-  const laserGold = new THREE.SpotLight(0xffaa00, 20.0, 20, Math.PI / 4, 0.5, 1);
-  laserGold.position.set(0, 6, -2);
+  const laserGold = new THREE.SpotLight(0xffaa00, 35.0, 25, Math.PI / 4, 0.4, 1);
+  laserGold.position.set(0, 5, -1);
   threeScene.add(laserGold);
 
   const loader = new GLTFLoader();
@@ -172,25 +176,25 @@ const initThree = () => {
         if (!child.isMesh) return;
         if (child.material.map) child.material.map = null;
         
-        // 💎 변경 구역: 투명도 극대화 및 강렬한 무지갯빛 오로라 광택 세팅
+        // 💧 흐릿한 막을 걷어내고 투명도를 극대화한 순수 물방울 크리스탈 질감
         child.material = new THREE.MeshPhysicalMaterial({
           color:              0xffffff,
           metalness:          0.0,
-          roughness:          0.01,              // 극도로 매끄러운 표면으로 흐릿한 흰색 끼 제어
-          transmission:       1.0,               // 100% 완전 투과율로 물방울 질감 구현
-          ior:                2.4,               // 고굴절률 다이아몬드 수치 적용으로 더 선명하게 꺾이는 하이라이트 대비
-          thickness:          2.5,               // 유리 내부 깊이감을 주어 영롱한 그림자 강화
-          clearcoat:          1.0,               // 표면 위 한 번 더 매끄러운 코팅층 형성
+          roughness:          0.005,             // 표면의 지저분한 난반사를 없애 맑게 처리
+          transmission:       1.0,               // 완전한 빛 투과 유도
+          ior:                2.2,               // 굴절률을 높여 투명하면서도 가장자리 경계는 뚜렷하게
+          thickness:          1.2,               // 두께를 조절해 불필요한 내부 굴절 노이즈 차단
+          clearcoat:          1.0,               
           clearcoatRoughness: 0.0,
           opacity:            1.0,
           transparent:        true,
           side:               THREE.DoubleSide,
           
-          // 🌈 빛 분산 효과(Dispersion)와 오색 간섭(Iridescence)을 최대로 끌어올려 무지갯빛 반사 강화
-          dispersion:         7.0,               
+          // 🌈 굴절광과 무지갯빛(박막간섭) 레이어를 쨍하게 충돌시켜 선명함 극대화
+          dispersion:         10.0,              // 빛이 갈라지는 프리즘 스펙트럼 강도 업
           iridescence:        1.0,               
-          iridescenceIOR:     2.2,               
-          iridescenceThicknessRange: [200, 700]  
+          iridescenceIOR:     2.5,               // 무지갯빛 컬러가 뭉개지지 않고 선명하게 배치되도록 설정
+          iridescenceThicknessRange: [250, 750]  
         });
       });
 
@@ -323,23 +327,23 @@ const initAll = () => {
             observer.unobserve(entry.target);
           }
         });
-      },\
-      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }\
-    );\
-    revealCards.forEach(card => observer.observe(card));\
-  }\
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
+    );
+    revealCards.forEach(card => observer.observe(card));
+  }
 
-  initThree();\
-  animate();\
-};\
+  initThree();
+  animate();
+};
 
-if (document.readyState === 'loading') {\
-  document.addEventListener('DOMContentLoaded', initAll);\
-} else {\
-  initAll();\
-}\
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAll);
+} else {
+  initAll();
+}
 
-window.addEventListener('resize', () => {\
-  if (landingCanvasCtrl) landingCanvasCtrl.resize();\
-  resizeThree();\
-});\
+window.addEventListener('resize', () => {
+  if (landingCanvasCtrl) landingCanvasCtrl.resize();
+  resizeThree();
+});
