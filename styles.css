@@ -801,8 +801,9 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   box-shadow: 0 0 16px rgba(219,255,134,0.38);
   pointer-events: none;
   transform: translate3d(-50%,-50%,0);
-  z-index: 100000;
+  z-index: 100000 ;!important; pointer-events: none !important; }
   transition: width 0.2s ease, height 0.2s ease, background 0.2s ease;
+  
 }
 .cursor-follower.is-link {
   width: 20px; height: 20px;
