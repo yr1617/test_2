@@ -78,7 +78,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE
+    THREE.JS ENGINE (CLEAN & PRISM EFFECT)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -93,6 +93,24 @@ const initThree = () => {
     cancelAnimationFrame(animFrameId);
     animFrameId = null;
   }
+
+  // 🚨 [가짜 모델링 원천 차단] 씬이 이미 존재한다면 내부 오브젝트를 모조리 폐기
+  if (threeScene) {
+    while(threeScene.children.length > 0){ 
+      const obj = threeScene.children[0];
+      if (obj.isMesh) {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+          if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+          else obj.material.dispose();
+        }
+      }
+      threeScene.remove(obj); 
+    }
+  } else {
+    threeScene = new THREE.Scene();
+  }
+
   if (threeRenderer) {
     threeRenderer.dispose();
     threeRenderer = null;
@@ -104,7 +122,7 @@ const initThree = () => {
 
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
-    alpha:       true, // 🚨 다시 투명 배경(alpha) 활성화하여 웹사이트 뒤가 100% 투과되게 만듭니다.
+    alpha:       true, // 투명 배경 유지
     antialias:   true,
     powerPreference: 'high-performance'
   });
@@ -113,31 +131,22 @@ const initThree = () => {
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 1.3; 
-
-  threeScene = new THREE.Scene();
+  threeRenderer.toneMappingExposure = 1.0; // 겉면이 하얗게 타버리지 않도록 노출값 하향 조정
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 💡 모서리 경계선에만 얇고 쨍한 오로라 광선을 먹여줄 순수 네온 조명 배치
-  const ambient = new THREE.AmbientLight(0xffffff, 0.1); 
+  // 💡 가짜 색칠 공부 방지: 백색 고대비 라이트만 배치하여 오직 굴절로만 무지개색 유도
+  const ambient = new THREE.AmbientLight(0xffffff, 0.4); 
   threeScene.add(ambient);
 
-  // 1. 칼날 같은 엣지 명암을 잡아줄 메인 정면 탑 라이트
-  const sunLight = new THREE.DirectionalLight(0xffffff, 3.0);
-  sunLight.position.set(1, 4, 3);
-  threeScene.add(sunLight);
+  const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
+  keyLight.position.set(5, 5, 4);
+  threeScene.add(keyLight);
 
-  // 2. 모서리에 예리한 청록색 반사선을 맺히게 할 왼쪽 조명
-  const cyanLight = new THREE.DirectionalLight(0x00ffff, 4.0);
-  cyanLight.position.set(-4, -1, 2);
-  threeScene.add(cyanLight);
-
-  // 3. 반대편 모서리에 날카로운 자홍색 반사선을 맺히게 할 오른쪽 조명
-  const magentaLight = new THREE.DirectionalLight(0xff00ff, 4.0);
-  magentaLight.position.set(4, 1, 2);
-  threeScene.add(magentaLight);
+  const rimLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  rimLight.position.set(-5, -3, 2);
+  threeScene.add(rimLight);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -148,10 +157,6 @@ const initThree = () => {
     './modeling.glb',
     (gltf) => {
       const model = gltf.scene;
-      
-      if (modelAnchor) {
-        threeScene.remove(modelAnchor);
-      }
 
       const box    = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
@@ -171,29 +176,29 @@ const initThree = () => {
         if (!child.isMesh) return;
 
         if (child.material) {
-          if (Array.isArray(child.material)) {
-            child.material.forEach(m => m.dispose());
-          } else {
-            child.material.dispose();
-          }
+          if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+          else child.material.dispose();
         }
 
-        // 💎 [순수 크리스탈 유리 재질 고정] 탁한 색을 배제한 완벽한 굴절 유리 공식
+        // 💎 [레퍼런스 1:1 매칭 광학 프리즘 재질 구현]
+        // 파스텔 칠이 아니라, 각진 단면에 빛이 통과할 때 실제로 쪼개지는 연산을 수행합니다.
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0xffffff,          // 순수 무색 투명
-          metalness:          0.0,               
-          roughness:          0.0,               // 매끈하게 폴리싱된 보석 질감
-          transparent:        true,              
-          opacity:            0.4,               // 배경 투과도를 완벽하게 고정
-          side:               THREE.FrontSide,   // 내부 겹침 지직거림 노이즈 0%화
-          depthWrite:         false,             
+          color: 0xffffff,
+          roughness: 0.0,            // 푸석한 느낌 0%화, 완전 매끄러운 표면
+          metalness: 0.0,
+          transparent: true,
+          transmission: 0.95,        // 뒤쪽 코드가 맑게 다 투과되어 비침
+          ior: 1.7,                  // 굴절률 조정으로 내부 전반사 각도 확보
+          thickness: 1.5,            // 프리즘 왜곡을 일으킬 유리 두께감
+          side: THREE.DoubleSide,
+          depthWrite: true,
 
-          // 🌈 조명들과 반응하여 칼날 같은 오로라 윤곽선만 생성하는 특수 마찰막 세팅
-          iridescence:        1.0,               
-          iridescenceIOR:     2.4,               // 수치를 높여 하이라이트 라인을 얇고 정밀하게 응축
-          iridescenceThicknessRange: [200, 450], // 핑크와 블루가 가장 쨍하게 쪼개지는 파장대 고정
+          // 🌈 하이라이트에 맺히는 서늘한 무지개 분산광 (Chromatic Aberration 시뮬레이션)
+          iridescence: 1.0,
+          iridescenceIOR: 1.9,
+          iridescenceThicknessRange: [100, 400], // 모서리 틈새마다 무지갯빛이 얇고 날카롭게 분산됨
 
-          clearcoat:          1.0,               
+          clearcoat: 1.0,
           clearcoatRoughness: 0.0
         });
       });
