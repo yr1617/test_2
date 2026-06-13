@@ -113,34 +113,34 @@ const initThree = () => {
   threeRenderer.setSize(W, H);
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
-  // 레퍼런스처럼 극단적인 명암 대비와 하이라이트를 위해 높은 노출의 ACES 매핑 적용
+  // 대비와 하이라이트 해상력을 극대화하기 위해 톤매핑 유지
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 2.2; 
+  threeRenderer.toneMappingExposure = 1.8; 
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 💡 흰색 무광의 원인 차단: 전체를 평평하게 밝히는 환경광을 0으로 소멸
+  // 전체를 하얗게 채우는 환경광을 제로로 만들어 무광 느낌 제거
   const ambient = new THREE.AmbientLight(0xffffff, 0.0); 
   threeScene.add(ambient);
 
-  // 입체 윤곽선만 쨍하게 잡아줄 최소한의 탑 라이트
-  const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
-  mainLight.position.set(0, 5, 2);
+  // 외곽 실루엣의 명암을 찢어줄 메인 탑 라이트 세기 최적화
+  const mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
+  mainLight.position.set(0, 4, 2);
   threeScene.add(mainLight);
 
-  // 🌈 레퍼런스 특유의 짙은 네온 오로라 빛을 맺히게 할 측면/후면 스폿 전력 강화
-  const laserCyan = new THREE.SpotLight(0x00ffff, 90.0, 30, Math.PI / 4, 0.4, 0.5);
+  // 🌈 레퍼런스처럼 선명한 오로라 광택이 유리에 직접 투영되도록 네온 조명 전력 집중
+  const laserCyan = new THREE.SpotLight(0x00f6ff, 120.0, 30, Math.PI / 4, 0.5, 0.2);
   laserCyan.position.set(4, 3, 3);
   threeScene.add(laserCyan);
 
-  const laserMagenta = new THREE.SpotLight(0xff00bb, 110.0, 30, Math.PI / 4, 0.4, 0.5);
+  const laserMagenta = new THREE.SpotLight(0xff00a0, 140.0, 30, Math.PI / 4, 0.5, 0.2);
   laserMagenta.position.set(-4, -2, 3);
   threeScene.add(laserMagenta);
 
-  const laserPurple = new THREE.SpotLight(0x7700ff, 80.0, 25, Math.PI / 3, 0.5, 0.5);
+  const laserPurple = new THREE.SpotLight(0x8800ff, 90.0, 25, Math.PI / 3, 0.6, 0.2);
   laserPurple.position.set(0, 4, -2);
   threeScene.add(laserPurple);
 
@@ -175,31 +175,30 @@ const initThree = () => {
       model.traverse((child) => {
         if (!child.isMesh) return;
         
-        // 🔥 [중요] 기존 GLB 모델 내부 맵과 베이스 컬러 찌꺼기를 완전히 지워 백지화합니다.
+        // 내부 찌꺼기 맵 완전히 박멸
         if (child.material) {
           child.material.dispose();
         }
         
-        // 💎 레퍼런스 관통 사양: 완벽한 검은 투명 배경 투과 + 외곽선 오색 간섭 극대화
+        // 💎 완전 투명 유리 기조 복구 + 오로라 간섭 레이어 밀착 세팅
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0x111113,          // 흰색기를 없애기 위해 베이스를 투명한 다크 틴트로 변경
-          emissive:           0x000000,          // 자체 발광 무효화
+          color:              0xffffff,          // 무조건 순수 흰색이어야 투명하게 배경을 통과시킵니다.
           metalness:          0.0,
-          roughness:          0.001,             // 0에 가깝게 맞춰 매끄러운 크리스탈 액체 질감 유도
-          transmission:       1.0,               // 배경이 100% 훤히 비치도록 설정
-          ior:                2.65,              // 보석급 초고굴절률로 꺾이는 각도에 강력한 명암 대비 부여
-          thickness:          0.4,               // 두께를 얇게 깎아 내부가 탁해지거나 뿌옇게 흐려지는 현상 영구 격리
-          clearcoat:          1.0,               
+          roughness:          0.0,               // 완전한 무결점 유리 표면 (흐릿함 0%)
+          transmission:       1.0,               // 100% 완벽한 빛 투과로 배경 완벽 차용
+          ior:                1.7,               // 자연스러운 액체/유리 굴절률로 맑은 상태 유지
+          thickness:          0.3,               // 두께를 대폭 줄여 내부가 뿌옇거나 겹쳐서 검어지는 굴절 노이즈 원천 차단
+          clearcoat:          1.0,               // 겉면에 쨍한 빛 반사를 맺히게 함
           clearcoatRoughness: 0.0,
           opacity:            1.0,
           transparent:        true,
           side:               THREE.DoubleSide,
           
-          // 🌈 네온 컬러 스펙트럼 강제 주입
-          dispersion:         15.0,              
+          // 🌈 네온 조명을 만나 외곽선 위주로 무지갯빛이 돋아나게 하는 박막 간섭 수치
+          dispersion:         5.0,               
           iridescence:        1.0,               
-          iridescenceIOR:     2.8,               
-          iridescenceThicknessRange: [300, 800]  
+          iridescenceIOR:     2.4,               
+          iridescenceThicknessRange: [200, 600]  
         });
       });
 
