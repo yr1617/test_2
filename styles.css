@@ -906,3 +906,39 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   /* 최소 높이 제거 */
   min-height: auto !important;
 }
+/* ════════════════════════════════════════
+    [최종 교정] 유압프레스 해제 및 상하 여백 밸런스 정돈
+════════════════════════════════════════ */
+
+/* 1. 상단 유형 카드 (01, 02, 03) 내부 여백 최적화 */
+.project-card {
+  /* 원본 구조인 바닥 정렬과 원래 높이(420px)를 철저히 보존하여 찌그러짐 방지 */
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-end !important;
+  min-height: 420px !important;
+
+  /* 기존 100px였던 천장 여백을 60px로 자연스럽게 줄여 윗공백 해결 */
+  padding-top: 60px !important;
+  /* 바닥 여백도 글자가 답답하지 않게 24px로 슬림하게 조정 */
+  padding-bottom: 24px !important;
+}
+
+
+/* 2. 하단 메인 프로젝트 카드 (주요 프로젝트) 내부 여백 최적화 */
+.main-project-grid .main-project-card {
+  /* 원래 높이(340px)와 정렬 구조 완벽 유지 */
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-end !important;
+  min-height: 340px !important;
+  
+  /* 사방 16px 패딩에서 상하 밸런스를 미세조정하여 썸네일 위쪽의 붕 뜨는 공백 완화 */
+  padding: 10px 16px 14px 16px !important;
+  gap: 10px !important;
+}
+
+/* 썸네일 이미지 박스가 카드 최상단에 자연스럽게 맺히도록 유도 */
+.main-project-card .project-thumb {
+  margin-top: 0 !important;
+}
