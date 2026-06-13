@@ -177,7 +177,6 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 영롱한 크리스탈 투명 유리 재질
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
@@ -196,32 +195,42 @@ const initThree = () => {
         clearcoatRoughness: 0.0
       });
 
-      // 🛠️ 정밀 타격 알고리즘: 모든 메쉬 중 기하학적 데이터(정점 수)가 가장 큰 진짜 본체 찾기
-      let masterMesh = null;
-      let maxVertexCount = 0;
-
+      // 🛠️ 파일 안의 모든 메쉬 수집
+      const meshes = [];
       model.traverse((child) => {
-        if (child.isMesh && child.geometry && child.geometry.attributes.position) {
-          const count = child.geometry.attributes.position.count;
-          if (count > maxVertexCount) {
-            maxVertexCount = count;
-            masterMesh = child;
-          }
+        if (child.isMesh) {
+          meshes.push(child);
         }
       });
 
-      // 💥 [예린님 오더 반영 완결]
-      // 찾아낸 단 하나의 진짜 본체 별만 살리고, 안쪽에서 꿈틀대며 노이즈를 만들던 나머지 모든 잡다한 메쉬들은 예외 없이 전부 지워버립니다.
-      model.traverse((child) => {
-        if (child.isMesh) {
-          if (child === masterMesh) {
-            child.visible = true;
-            child.material = crystalMaterial;
-            child.castShadow = false;
-            child.receiveShadow = false;
-          } else {
-            child.visible = false; // 꿈틀거리는 내부/외부 가짜 메쉬들 남김없이 완전 제거!
-          }
+      // 💥 화면 좌측 상단에 디버깅 정보 표기용 돔 생성
+      let debugDiv = document.getElementById('three-debug-hud');
+      if (!debugDiv) {
+        debugDiv = document.createElement('div');
+        debugDiv.id = 'three-debug-hud';
+        debugDiv.style.cssText = 'position:fixed;top:10px;left:10px;z-index:99999;background:rgba(0,0,0,0.85);color:#00ffcc;font-family:monospace;font-size:11px;padding:10px;border-radius:5px;pointer-events:none;line-height:1.4;border:1px solid #00ffcc;';
+        document.body.appendChild(debugDiv);
+      }
+      
+      let hudContent = `<b>[가이드] 살릴 인덱스를 확인하세요</b><br/>`;
+      meshes.forEach((m, idx) => {
+        hudContent += `Index [${idx}] : ${m.name || '이름없음'}<br/>`;
+      });
+      debugDiv.innerHTML = hudContent;
+
+      // 💥 [수동 매칭 공정] 
+      // 만약 1번이 진짜 별이고 0번이 가짜라면, 'index !== 1'로 세팅하면 1번만 살고 다 꺼집니다.
+      // 현재는 1번만 살리는 기본 세팅입니다. 화면 보고 숫자를 맞춰보아요!
+      const TARGET_INDEX_TO_SAVE = 1; 
+
+      meshes.forEach((mesh, index) => {
+        if (index === TARGET_INDEX_TO_SAVE) {
+          mesh.visible = true;
+          mesh.material = crystalMaterial;
+          mesh.castShadow = false;
+          mesh.receiveShadow = false;
+        } else {
+          mesh.visible = false; // 타겟 제외 나머지 조각 완전 차단!
         }
       });
 
