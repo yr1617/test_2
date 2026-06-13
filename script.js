@@ -99,7 +99,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    HIGH-FREQUENCY 환경광 맵 (반사용 고해상도 소스)
+    HIGH-FREQUENCY 환경광 맵 생성
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
@@ -137,23 +137,24 @@ const initThree = () => {
   const W = shell.offsetWidth;
   const H = shell.offsetHeight;
 
+  // 💥 미세하게 겹친 면들의 렌더링 우선순위 싸움을 방지하기 위해 depthBuffer 활성화 명시
   window.threeRenderer = new THREE.WebGLRenderer({
     canvas: modelCanvas,
     alpha: true,
     antialias: true,
-    powerPreference: "high-performance"
+    powerPreference: "high-performance",
+    depth: true
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  // 유리 투명감을 극대화해 줄 대비 조명 세팅
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 2.0);
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 2.5);
   dirLight1.position.set(5, 10, 7);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xa3e5ff, 1.2);
-  dirLight2.position.set(-5, -5, 2);
+  const dirLight2 = new THREE.DirectionalLight(0xa3e5ff, 1.5);
+  dirLight2.position.set(-5, -5, 5);
   window.threeScene.add(dirLight2);
 
   window.threeCamera = new THREE.PerspectiveCamera(32, W / H, 0.1, 100);
@@ -178,45 +179,40 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 💎 완벽한 투명 오로라 유리를 위한 최고급 물리 질감 세팅
+      // 💎 형태 손실 없이 지직거림만 완벽히 지우는 물리 기반 프리즘 재질
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.02,            
+        roughness: 0.01,            
         transparent: true,
-        opacity: 0.6,               
-        transmission: 1.0,          // 내부 투과율 100% (속을 맑게 비춤)
-        ior: 1.5,                  
-        side: THREE.FrontSide,      
-        depthWrite: true,
-        depthTest: true,
-        iridescence: 1.0,           // 오로라 광택 활성화
-        iridescenceIOR: 1.9,        
-        iridescenceThicknessRange: [100, 400], 
+        opacity: 0.45,               
+        transmission: 1.0,          // 속을 투명하고 맑게 비움
+        ior: 1.45,                  
+        side: THREE.FrontSide,      // 바깥 표면만 렌더링
+        
+        // 💥 [Z-Fighting 해결의 핵심 핵심 핵심 옵션]
+        depthWrite: true,           // 깊이 버퍼 기록 유지
+        depthTest: true,            
+        polygonOffset: true,        // 겹쳐진 면들의 렌더링 순서에 미세한 격차를 두어 
+        polygonOffsetFactor: 1,     // 지직거리며 깨지는 현상을
+        polygonOffsetUnits: 1,      // 엔진 레벨에서 강제로 분리 밀어내기 처리!
+
+        iridescence: 1.0,           // 표면 오로라 무지갯빛 코팅
+        iridescenceIOR: 1.7,        
+        iridescenceThicknessRange: [120, 380], 
         clearcoat: 1.0,             
         clearcoatRoughness: 0.0
       });
 
-      // 💥 [핵심 공정] 겹쳐서 지지직거리는 다중 메쉬를 필터링하여 딱 '하나'만 남깁니다.
-      let singleMesh = null;
+      // 메쉬를 숨기지 않고 "모든 조각"을 다 살려서 원래의 완벽한 별 모양을 유지합니다.
       model.traverse((child) => {
         if (child.isMesh) {
-          if (!singleMesh) {
-            singleMesh = child; // 가장 첫 번째 메쉬만 대표로 선정
-          } else {
-            // 이미 메쉬를 하나 확보했다면, 겹쳐 있는 나머지 메쉬들은 가시성을 꺼서 완전히 제거
-            child.visible = false;
-          }
+          child.visible = true; // 모든 메쉬 강제 활성화 (형태 복구)
+          child.material = crystalMaterial;
+          child.castShadow = false;
+          child.receiveShadow = false;
         }
       });
-
-      // 살아남은 단 하나의 메쉬에만 투명 유리 재질을 부여합니다.
-      if (singleMesh) {
-        singleMesh.visible = true;
-        singleMesh.material = crystalMaterial;
-        singleMesh.castShadow = false;
-        singleMesh.receiveShadow = false;
-      }
 
       const IDEAL_LAYOUT_BOUNDS = 2.6; 
       
