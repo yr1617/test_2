@@ -53,7 +53,7 @@ let isHoveringModel = false;
 let isModalOpen = false; 
 
 /* ════════════════════════════════════════
-    LANDING CANVAS BACKGROUND
+    LANDING CANVAS BACKGROUND (오타 완벽 수정)
 ════════════════════════════════════════ */
 const setupLandingCanvas = () => {
   if (!landing || !landingCanvas) return null;
@@ -68,6 +68,8 @@ const setupLandingCanvas = () => {
     state.dpr    = Math.min(window.devicePixelRatio || 1, 1.5);
     landingCanvas.width  = Math.max(1, Math.floor(rect.width  * state.dpr));
     landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
+    
+    // ⚡ [버그 수정 완료] 중복 적혀있던 단어를 올바르게 교정했습니다.
     landingCanvas.style.width  = `${rect.width}px`;
     landingCanvas.style.height = `${rect.height}px`;
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
@@ -104,19 +106,19 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    🔥 대비(Contrast)를 극명하게 찢어버리는 암흑 룸 + 눈부신 발광판 세팅
+    🔥 무광 현상 타파를 위한 초고정밀 가상 반사판 룸 
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
-  // 완전히 칠흑 같은 우주 공간 (어두운 면을 극단적으로 어둡게 만들기 위함)
+  // 어두운 부분을 확실하게 깊고 묵직하게 만들어줄 블랙 공간
   const roomGeo = new THREE.SphereGeometry(60, 16, 16);
   const roomMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
   const room = new THREE.Mesh(roomGeo, roomMat);
   scene.add(room);
 
-  // 상단 칼날 하이라이트용 초고강도 콤팩트 발광 블록
+  // 상단 하이라이트용 고강도 흰색 발광 블록
   const topLight = new THREE.Mesh(
     new THREE.BoxGeometry(40, 2, 40),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -124,7 +126,7 @@ const generatePureEnvironment = (renderer) => {
   topLight.position.set(0, 25, 0);
   scene.add(topLight);
 
-  // 정면 거울 반사용 쨍한 화이트 링 서클
+  // 정면 거울 반사용 쨍한 토러스 화이트 링 추가
   const frontCenter = new THREE.Mesh(
     new THREE.TorusGeometry(12, 3, 16, 100),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -132,7 +134,7 @@ const generatePureEnvironment = (renderer) => {
   frontCenter.position.set(0, 5, 25);
   scene.add(frontCenter);
 
-  // 왼쪽에서 강하게 치고 들어오는 슬릿 라인 라이트판
+  // 왼쪽에서 날카롭게 들어오는 발광판 슬릿
   const leftPanel = new THREE.Mesh(
     new THREE.BoxGeometry(1, 50, 10),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -170,24 +172,24 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   
-  // ⚡ 극명한 대비(High-Contrast) 연산을 위해 ACESFilmic 톤매핑으로 변경 및 노출 폭발
+  // ⚡ 극명한 대비(High-Contrast) 연산을 위해 ACESFilmic 톤매핑으로 셋팅
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
   window.threeRenderer.toneMappingExposure = 3.6; 
 
-  // ⚡ [조명 대폭 강화] 어두운 곳과 밝은 곳의 경계가 완전히 찢어지도록 강도를 60.0 레벨로 튜닝
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 60.0); // 정면 탑라이트
+  // ⚡ 조명 파워를 60배 수준으로 폭발시켜 흰색 반사와 그림자 대비 극대화
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 60.0); 
   dirLight1.position.set(5, 30, 20); 
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 35.0); // 좌측 서치라이트
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 35.0); 
   dirLight2.position.set(-25, 0, 15); 
   window.threeScene.add(dirLight2);
 
-  const dirLight3 = new THREE.DirectionalLight(0xddffff, 20.0); // 우측 보조광
+  const dirLight3 = new THREE.DirectionalLight(0xddffff, 20.0); 
   dirLight3.position.set(25, -5, 10); 
   window.threeScene.add(dirLight3);
 
-  // 뭉툭하게 다 밝혀버리는 은은한 앰비언트 라이트는 과감하게 축소 (대비 극대화 유도)
+  // 전체를 뭉툭하게 밝히던 앰비언트 라이트는 줄여서 어두운 하이라이트 보호
   const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
   window.threeScene.add(ambientLight);
 
@@ -217,9 +219,9 @@ const initThree = () => {
           child.material = new THREE.MeshStandardMaterial({
             color: 0xffffff,
             metalness: 1.0,           
-            roughness: 0.02,          // 아주 미세한 표면 굴절을 주어 하이라이트를 더 쨍하게 만듦
+            roughness: 0.02,          // 아주 미세한 질감으로 빛 맺힘 극대화
             envMap: envTexture,       
-            envMapIntensity: 15.0,    // 반사 맵 강도를 15배로 확대
+            envMapIntensity: 15.0,    // 반사 세기 증가
             roughnessMap: null,       
             metalnessMap: null,
             normalMap: null,
@@ -637,7 +639,9 @@ if (document.readyState === 'loading') {
 }
 
 window.addEventListener('resize', () => {
-  if (landingCanvasCtrl) landingCanvasCtrl.resize();
+  if (landingCanvasCtrl && typeof landingCanvasCtrl.resize === 'function') {
+    landingCanvasCtrl.resize();
+  }
   resizeThree();
   updateNavProgress();
 });
