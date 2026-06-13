@@ -1019,3 +1019,38 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
     min-height: 600px !important;
     display: block;
 }
+/* ⚡ 랜딩 전체와 디스플레이 쉘의 가로/세로 제한을 완전히 풀어서 좌우 잘림을 방지합니다 */
+.landing {
+    position: relative;
+    width: 100% !important;
+    min-height: 100vh;
+    overflow: hidden !important;
+}
+
+.landing-display-shell {
+    width: 100vw !important;  /* 뷰포트 전체 가로폭 확보 */
+    height: 700px !important; /* 높이도 시원하게 확장 */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    overflow: visible !important; 
+}
+
+#landing-display {
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+#model-canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+    /* 만약 부모 패딩 때문에 밀린다면 마진으로 정중앙 보정 */
+    margin: 0 auto !important; 
+}
