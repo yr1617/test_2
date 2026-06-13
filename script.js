@@ -131,7 +131,19 @@ const generatePureEnvironment = (renderer) => {
   );
   rightPanel.position.set(15, 5, 0);
   scene.add(rightPanel);
+const backPanel = new THREE.Mesh(
+  new THREE.BoxGeometry(40, 40, 2),
+  new THREE.MeshBasicMaterial({ color: 0xffffff })
+);
+backPanel.position.set(0, 5, -15);
+scene.add(backPanel);
 
+const frontPanel = new THREE.Mesh(
+  new THREE.BoxGeometry(40, 40, 2),
+  new THREE.MeshBasicMaterial({ color: 0xcccccc })
+);
+frontPanel.position.set(0, 5, 15);
+scene.add(frontPanel);
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
   const rt = pmrem.fromScene(scene);
@@ -197,9 +209,9 @@ const initThree = () => {
       const model = gltf.scene;
 
 const silverMetalMat = new THREE.MeshStandardMaterial({
-  color: 0xe0e0e0,
-  metalness: 0.0,
-  roughness: 0.5,
+  color: 0xd0d0d0,
+  metalness: 1.0,
+  roughness: 0.15,
   side: THREE.DoubleSide
 });
 model.traverse((child) => {
