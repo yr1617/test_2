@@ -46,11 +46,11 @@ const pointer = {
 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
-// 모델링이 공중에 누워있지 않고 사용자를 똑바로 바라보도록 세팅
+// 모델링이 공중에 눕지 않고 정면을 보도록 베이스 각도 정밀 교정
 const baseRotation = { x: 0, y: 0 }; 
 const rotState     = { x: 0, y: 0 };
 
-let isHoveringModel = false;
+let isHoveringModel = false; // 마우스가 3D 박스 위에 있는지 감지하는 플래그
 let isModalOpen = false; 
 
 /* ════════════════════════════════════════
@@ -105,39 +105,38 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    가상 돔 조명 (실버 메탈 환경맵 용 스튜디오 조명)
+    가상 스튜디오 환경 맵 생성 (실버 메탈 전용)
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
-  // 스스로 강력하게 빛나는 고휘도 박스들 배치 (메탈 표면에 하얗게 맺힘)
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(70, 6, 70),
+    new THREE.BoxGeometry(80, 8, 80),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  topLight.position.set(0, 25, 0);
+  topLight.position.set(0, 30, 0);
   scene.add(topLight);
 
   const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(4, 40, 40),
+    new THREE.BoxGeometry(4, 50, 50),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  leftPanel.position.set(-20, 10, 0);
+  leftPanel.position.set(-25, 10, 0);
   scene.add(leftPanel);
 
   const rightPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(4, 40, 40),
+    new THREE.BoxGeometry(4, 50, 50),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  rightPanel.position.set(20, 10, 0);
+  rightPanel.position.set(25, 10, 0);
   scene.add(rightPanel);
 
   const frontPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(40, 40, 4),
+    new THREE.BoxGeometry(50, 50, 4),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  frontPanel.position.set(0, 10, 20);
+  frontPanel.position.set(0, 10, 25);
   scene.add(frontPanel);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -171,15 +170,15 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  window.threeRenderer.toneMappingExposure = 2.2; 
+  window.threeRenderer.toneMappingExposure = 2.3; 
 
-  // 실버 메탈의 에지를 쨍하게 깎아줄 스튜디오 직사광선 보강
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 8.0);
-  dirLight1.position.set(5, 15, 10);
+  // 실버 메탈의 에지를 눈부시게 다듬어줄 조명 세팅 상향
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 8.5);
+  dirLight1.position.set(5, 15, 12);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 4.5);
-  dirLight2.position.set(-8, -5, 5);
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 5.0);
+  dirLight2.position.set(-10, -5, 6);
   window.threeScene.add(dirLight2);
 
   const ambientLight = new THREE.AmbientLight(0xffffff, 2.5); 
@@ -204,16 +203,15 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // ⚡ [버그 완벽 수정 및 고휘도 실버 메탈릭 튜닝]
+      // ⚡ [재질 완벽 복구] 변수 에러 원천 차단 및 최고급 실버 크롬 재질 강제 주입
       const chromeSilverMat = new THREE.MeshStandardMaterial({
-        color: 0xffffff,          // 탁한 기운이 없는 깨끗한 순백 실버
-        metalness: 1.0,           // 100% 완전한 하드 메탈 재질
-        roughness: 0.12,          // 거울보다 약간 더 은은하고 세련된 반사 질감
-        emissive: 0x333333,       // 어두운 배경 뒤에서도 스스로 은빛 광택을 머금도록 보정
+        color: 0xffffff,          // 탁한 기운을 완전히 제거한 순백 실버
+        metalness: 1.0,           // 100% 완전한 금속 성질
+        roughness: 0.11,          // 거울처럼 맑으면서 매끄러운 텍스처
+        emissive: 0x3a3a3a,       // 어두운 배경 뒤에서도 스스로 은빛 휘도를 보존하는 안전장치
         side: THREE.DoubleSide
       });
 
-      // 에러의 원인이었던 변수명 불일치를 chromeSilverMat으로 깔끔하게 매핑 완료!
       model.traverse((child) => {
         if (child.isMesh) {
           child.material    = chromeSilverMat;
@@ -238,6 +236,7 @@ const initThree = () => {
       window.modelAnchor.add(model);
       window.threeScene.add(window.modelAnchor);
 
+      // 누워있지 않게 각도 초기화
       window.modelAnchor.rotation.x = baseRotation.x;
       window.modelAnchor.rotation.y = baseRotation.y;
 
@@ -351,16 +350,26 @@ const animate = () => {
 
   if (window.threeRenderer && window.threeScene && window.threeCamera) {
     if (window.modelAnchor) {
-      // ⚡ 똑바로 누워있지 않게 세우고 마우스 좌우/위아래 무빙 각도 보정
-      const targetX = 0 + (-mouse.y * 0.25);
-      const targetY = 0 + (mouse.x * 0.45);
+      let targetX = 0;
+      let targetY = 0;
 
-      rotState.x += (targetX - rotState.x) * 0.05;
-      rotState.y += (targetY - rotState.y) * 0.05;
+      if (isHoveringModel) {
+        // ⚡ 1. 중앙 박스 안에 마우스가 들어왔을 때만 마우스를 부드럽게 째려봄
+        targetX = 0 + (-mouse.y * 0.25);
+        targetY = 0 + (mouse.x * 0.45);
+        
+        rotState.x += (targetX - rotState.x) * 0.06;
+        rotState.y += (targetY - rotState.y) * 0.06;
+      } else {
+        // ⚡ 2. 마우스가 멀거나 박스 밖으로 나가면, 스스로 은은하게 무한 자동 회전 (Auto-rotation)
+        rotState.x += (0 - rotState.x) * 0.03; // 수평 정면 싱크 복귀
+        rotState.y += 0.004;                   // 혼자서 스스로 자전 회전하는 속도
+      }
 
       window.modelAnchor.rotation.x = rotState.x;
       window.modelAnchor.rotation.y = rotState.y;
       
+      // 공중 부양 효과 무드 유지
       window.modelAnchor.position.y = Math.sin(clock * 0.6) * 0.02; 
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
@@ -368,23 +377,31 @@ const animate = () => {
 };
 
 /* ════════════════════════════════════════
-    HOVER & POINTER EVENTS
+    HOVER & POINTER EVENTS (정밀 타깃 제한)
 ════════════════════════════════════════ */
 const setupHoverEvents = () => {
   window.addEventListener('mousemove', (e) => {
     pointer.tx = e.clientX;
     pointer.ty = e.clientY;
     
-    const winW = window.innerWidth || 1;
-    const winH = window.innerHeight || 1;
-    mouse.x = (e.clientX / winW) * 2 - 1;
-    mouse.y = -(e.clientY / winH) * 2 + 1;
+    // 호버 박스 안에 있을 때만 각도 계산 좌표 갱신
+    if (isHoveringModel) {
+      const winW = window.innerWidth || 1;
+      const winH = window.innerHeight || 1;
+      mouse.x = (e.clientX / winW) * 2 - 1;
+      mouse.y = -(e.clientY / winH) * 2 + 1;
+    }
   }, { passive: true });
 
+  // ⚡ 마우스 호버 구역을 전체 화면이 아닌 오직 3D 진열장 박스로 정밀 축소 제한
   const displayShell = document.querySelector('.landing-display-shell');
   if (displayShell) {
-    displayShell.addEventListener('pointerenter', () => { isHoveringModel = true; });
-    displayShell.addEventListener('pointerleave', () => { isHoveringModel = false; });
+    displayShell.addEventListener('pointerenter', () => { 
+      isHoveringModel = true; 
+    });
+    displayShell.addEventListener('pointerleave', () => { 
+      isHoveringModel = false; 
+    });
   }
 };
 
