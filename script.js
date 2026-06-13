@@ -105,7 +105,7 @@ const updateLandingVars = () => {
   landing.style.setProperty('--pointer-y', `${clamp01(y / 100) * 100}%`);
 };
 
-// 🔥 레퍼런스의 영롱한 무지개(오로라) 반사광을 표면에 강제로 주입할 하이엔드 광원 맵 세팅
+// 💡 하이라이트와 프리즘 무지개 반사광을 극대화할 화려한 인공 스튜디오 광원 맵 생성
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null; 
@@ -117,27 +117,27 @@ const generatePureEnvironment = (renderer) => {
   topLight.position.set(0, 10, 0);
   scene.add(topLight);
 
-  // 무지개 프리즘 굴절광을 가상으로 만들어줄 초고휘도 네온 패널 배치
+  // 프리즘 굴절을 아름답게 깨뜨려줄 다채로운 고휘도 컬러 광원판 배치
   const cyanPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(0.1, 10, 10),
+    new THREE.BoxGeometry(0.1, 8, 8),
     new THREE.MeshBasicMaterial({ color: 0x00ffff })
   );
-  cyanPanel.position.set(-8, 4, -2);
+  cyanPanel.position.set(-7, 4, -2);
   scene.add(cyanPanel);
 
   const magentaPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(0.1, 10, 10),
+    new THREE.BoxGeometry(0.1, 8, 8),
     new THREE.MeshBasicMaterial({ color: 0xff00ff })
   );
-  magentaPanel.position.set(8, 3, 2);
+  magentaPanel.position.set(7, 3, 2);
   scene.add(magentaPanel);
 
-  const yellowPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(10, 10, 0.1),
-    new THREE.MeshBasicMaterial({ color: 0xffff00 })
+  const whitePanel = new THREE.Mesh(
+    new THREE.BoxGeometry(8, 8, 0.1),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  yellowPanel.position.set(0, -4, -6);
-  scene.add(yellowPanel);
+  whitePanel.position.set(0, 2, -8);
+  scene.add(whitePanel);
 
   const pmremGenerator = new THREE.PMREMGenerator(renderer);
   pmremGenerator.compileEquirectangularShader();
@@ -171,18 +171,17 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping; 
-  window.threeRenderer.toneMappingExposure = 2.6; // 크리스탈 하이라이트를 극대화하기 위해 업그레이드
+  window.threeRenderer.toneMappingExposure = 2.5; // 유리 반사광을 쨍하게 올리기 위해 노출 최적화
 
-  // 계단식 칼각 엣지를 선명하게 각인시킬 강력한 스포트라이트 조합
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 9.0);
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 8.0);
   dirLight1.position.set(6, 15, 8);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xecf5ff, 5.0);
-  dirLight2.position.set(-8, -4, 6);
+  const dirLight2 = new THREE.DirectionalLight(0xddeeff, 4.0);
+  dirLight2.position.set(-6, -4, 6);
   window.threeScene.add(dirLight2);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   window.threeScene.add(ambientLight);
 
   window.threeCamera = new THREE.PerspectiveCamera(25, W / H, 0.1, 100);
@@ -207,30 +206,28 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 🔥 [진짜 최종 정답] 내부 꼬인 거미줄 선은 100% 무조건 삭제하고, 레퍼런스의 영롱한 프리즘 유리만 남기는 기법
+      // 🔥 [최종 완성형 정석 코드] 내부선은 묻어버리고 투명함과 화려한 프리즘 무지개를 살리는 물리 유리 재질
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.0,               // 유리 표면을 맑고 쨍하게 윤이 나도록 세팅
-        transparent: true,
+        roughness: 0.0,               // 완전하게 쨍하고 윤기 나는 크리스탈 유리 표면
+        transmission: 1.0,            // 💎 광학 물리 투과 100% 가동 (회색 플라스틱 현상 완벽 해결!)
+        ior: 1.5,                     // 순수 유리 크리스탈의 정석 굴절률 (내부 블랙아웃 버그 차단)
         
-        // 🔮 [치명적 버그 수정] transmission을 0.0으로 빼서 내부 메쉬 정렬 에러(시꺼멓게 타는 버그)를 원천 차단합니다.
-        transmission: 0.0,            
-        opacity: 0.45,                // 대신 투명도를 직접 제어하여 내부 선 비침 없이 맑은 투명 필름 효과 유도
-        
-        // 🛠️ 내부 관통선 차단을 위한 완벽한 드로잉 차폐막 설정
-        side: THREE.FrontSide,        // 6단 별의 '겉피부면'만 그리고 내부로 파고든 쓰레기 거미줄 면은 렌더링에서 강제 제외!
-        depthWrite: false,            // 면이 다중으로 겹칠 때 생기는 투명도 정렬 오류 및 시꺼먼 얼룩 원천 차단
+        // 🔮 [가장 핵심] 투명 유리 재질을 유지하되 내부 꼬인 선을 세탁하는 최적화 조합
+        side: THREE.FrontSide,        // 6단 별의 '겉 표면'만 그리고 내부로 관통한 지저분한 거미줄 선 연산 생략
+        transparent: true,            
+        depthWrite: true,             // 정렬 버퍼를 강제 고정하여 내부 교차선의 실루엣이 투과되는 현상 차단
         depthTest: true,
 
-        // ✨ [레퍼런스 저격] 프리즘 유리 특유의 영롱한 무지개 오로라 광채 주입
-        iridescence: 1.0,             // 무지개 스펙트럼 강도를 100% 최대로 끌어올림
-        iridescenceIOR: 2.4,          // 무지개 반사광 굴절률을 높여 엣지마다 보석처럼 반짝이게 묘사
-        iridescenceThicknessRange: [150, 380], // 레퍼런스와 정확히 똑같은 핑크, 네온 블루, 그린 오로라 그라데이션 형성
+        // ✨ 레퍼런스의 핵심인 영롱한 엣지 무지개 오로라 프리즘 구현
+        iridescence: 0.8,             // 표면에 감도는 프리즘 스펙트럼 효과 극대화
+        iridescenceIOR: 1.8,          
+        iridescenceThicknessRange: [130, 380], // 레퍼런스 특유의 영롱한 네온 핑크/오렌지/블루 그라데이션 강제 유도
         
-        clearcoat: 1.0,               // 표면에 고광택 투명 코팅막을 한 겹 레이어링하여 칼각 단차 강조
+        clearcoat: 1.0,               // 유리 겉면에 투명 코팅을 한 겹 더 얹어 각진 단차 칼각 하이라이트 각인
         clearcoatRoughness: 0.0,
-        specularIntensity: 3.0,       // 빛을 받았을 때 각진 모서리가 눈부시게 빛나도록 하이라이트 추가
+        specularIntensity: 3.0,       // 빛을 받는 각도에 따라 눈부시게 빛나는 반사광 레이어 추가
         specularColor: new THREE.Color(0xffffff)
       });
 
