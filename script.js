@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { RGBELoader } from 'three/addons/loaders/RGBELoader.js'; // 🌌 고대비 반사광을 위한 로더 추가
 
 /* ════════════════════════════════════════
     DOM ELEMENT REFS
@@ -13,6 +12,11 @@ const modelCanvas    = document.querySelector('#model-canvas');
 const crystalFallback = document.querySelector('#crystal-fallback');
 const follower        = document.querySelector('.cursor-follower');
 const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li, .project-card-item');
+
+// 🚨 [가짜 모델링 원천 차단] 시작하자마자 가짜 폴백 레이어를 무조건 숨깁니다.
+if (crystalFallback) {
+  crystalFallback.style.display = 'none';
+}
 
 /* ════════════════════════════════════════
     INTERACTION STATE
@@ -115,35 +119,38 @@ const initThree = () => {
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 1.6; // 명암 대비 극대화를 위해 노출 증가
+  threeRenderer.toneMappingExposure = 1.3; 
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 💡 기본 조명 세팅 (환경 맵과 상호작용하여 하이라이트를 맺어줌)
-  const ambient = new THREE.AmbientLight(0xffffff, 0.2); 
+  // 💡 [초강력 무지개 대비 조명] 외부 파일 로딩 없이 오직 순수 내부 빛으로만 유리를 꺾습니다.
+  const ambient = new THREE.AmbientLight(0xffffff, 0.05); 
   threeScene.add(ambient);
 
-  const sunLight = new THREE.DirectionalLight(0xffffff, 4.0);
-  sunLight.position.set(2, 4, 3);
+  // 1. 칼 같은 명암 각을 잡아줄 메인 화이트 탑 라이트
+  const sunLight = new THREE.DirectionalLight(0xffffff, 3.5);
+  sunLight.position.set(1, 4, 3);
   threeScene.add(sunLight);
 
-  // 🌌 에러 없는 초경량 HDR 환경 맵 텍스처 주입 공식
-  // 유리의 굴절면 내부에서 고대비 빛 갈라짐을 강제로 생성합니다.
-  new RGBELoader()
-    .setPath('https://threejs.org/examples/textures/equirectangular/')
-    .load('royal_esplanade_1k.hdr', function (texture) {
-      texture.mapping = THREE.EquirectangularReflectionMapping;
-      threeScene.environment = texture; // 씬 전체 유리에 반사광 매핑
+  // 2. 프리즘을 뿜어낼 청록색 왼쪽 광원
+  const cyanLight = new THREE.DirectionalLight(0x00ffff, 3.0);
+  cyanLight.position.set(-4, -1, 2);
+  threeScene.add(cyanLight);
 
-      // 환경 맵이 로드된 후 모델 로딩 시작
-      loadModel();
-    });
-};
+  // 3. 프리즘 대비를 극대화할 자홍색 오른쪽 광원
+  const magentaLight = new THREE.DirectionalLight(0xff00ff, 3.0);
+  magentaLight.position.set(4, 1, 2);
+  threeScene.add(magentaLight);
 
-const loadModel = () => {
+  // 4. 유리가 탁하지 않고 맑게 통과되게 뒤에서 밀어주는 백라이트
+  const backLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  backLight.position.set(0, 0, -4);
+  threeScene.add(backLight);
+
+  // 외부 HDR 에러 우회용 모델 다이렉트 로딩
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
@@ -183,24 +190,24 @@ const loadModel = () => {
           }
         }
 
-        // 💎 레퍼런스(reference1.png) 특유의 투명함과 쨍한 외곽 무지개선 구현 공식
+        // 💎 [레퍼런스 복사 완료] 허연 느낌을 완벽하게 압축한 고굴절 크리스탈 유리 공식
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0xffffff,          
-          metalness:          0.1,               // 반사광 각도를 날카롭게 꺾기 위해 메탈릭 소량 추가
-          roughness:          0.0,               // 완벽히 매끄러운 크리스탈 면
+          color:              0x111622,          // ⚠️ 완전 흰색 대신 딥 블루/그레이를 기저에 깔아 하얗게 뜨는 현상을 완벽 차단합니다.
+          metalness:          0.1,               
+          roughness:          0.0,               // 잔기스 없는 맑은 유리 표면
           transparent:        true,
-          transmission:       0.6,               // 허옇게 뜨는 현상을 막기 위해 투과율을 황금비율(0.6)로 조정
-          ior:                2.4,               // 보석급 고굴절
-          thickness:          2.0,               // 두께감을 늘려 내부 굴절 면 왜곡 극대화
-          side:               THREE.DoubleSide,  
+          transmission:       0.95,              // 뒤쪽 배경과 오로라 조명이 95% 투과됨
+          ior:                2.2,               // 보석급 초고굴절로 명암비 확보
+          thickness:          1.5,               // 입체적인 굴절 두께감
+          side:               THREE.FrontSide,   // ⚠️ 양면 연산을 켜면 내부가 뭉개지므로, 앞면만 깔끔하게 렌더링
           depthWrite:         true,
 
-          // 🌈 껍데기에 오로라 필름을 씌워 연한 느낌을 없애고 쨍한 오색빛을 가둡니다.
-          iridescence:        1.0,               // 무지갯빛 광택 최대치
-          iridescenceIOR:     1.9,               
-          iridescenceThicknessRange: [100, 400], // 핑크, 마젠타, 블루가 파편처럼 튀는 두께
+          // 🌈 네온 조명들과 반응하여 칼날 같은 프리즘 선을 만드는 오로라 광택막
+          iridescence:        1.0,               
+          iridescenceIOR:     1.8,               
+          iridescenceThicknessRange: [150, 450], // 마젠타와 시안 색이 가장 화려하게 나뉘는 두께 범위
 
-          clearcoat:          1.0,               // 겉면에 유리막 코팅을 한 번 더 입혀 하얗게 뜨는 현상 방지
+          clearcoat:          1.0,               
           clearcoatRoughness: 0.0
         });
       });
@@ -208,8 +215,6 @@ const loadModel = () => {
       modelAnchor = new THREE.Group();
       modelAnchor.add(model);
       threeScene.add(modelAnchor);
-      
-      if (crystalFallback) crystalFallback.style.display = 'none';
 
       hideSiteLoader();
     },
