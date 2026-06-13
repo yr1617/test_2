@@ -876,3 +876,16 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   }
   .reveal-card { opacity: 1; transform: none; }
 }
+/* ════════════════════════════════════════
+    [진짜 수정] 카드 내부(안쪽) 위쪽 여백만 축소
+════════════════════════════════════════ */
+
+/* 1. 프로젝트 유형 카드 안쪽 위쪽 여백 축소 (기존 100px -> 40px로 수정) */
+.project-card {
+  padding-top: 40px !important;  /* 카드 내부의 글자나 콘텐츠가 위로 바짝 올라갑니다 */
+}
+
+/* 2. 메인 프로젝트 카드 안쪽 위쪽 여백 축소 (기존 16px -> 4px로 수정) */
+.main-project-card {
+  padding-top: 4px !important;   /* 카드 내부 썸네일/컨텐츠 위쪽 여백을 타이트하게 조입니다 */
+}
