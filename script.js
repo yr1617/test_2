@@ -619,3 +619,10 @@ const realCursor = document.querySelector('.cursor-follower');
 if (realCursor) document.body.appendChild(realCursor);
 // 모달창(#folder-modal) 내부에서 일어나는 모든 마우스 이벤트가 3D/배경 캔버스로 뺏기는 것을 원천 차단
 document.getElementById('folder-modal')?.addEventListener('pointermove', (e) => e.stopPropagation(), { passive: true });
+// 모달이 열려있을 때는 윈도우의 포인터 가로채기를 중단하여 모달 내 마우스 조작 완벽 허용
+window.addEventListener('pointermove', (e) => {
+  if (isModalOpen) {
+    // 모달창 내부의 클릭/이벤트가 가상 커서에 씹히지 않도록 강제 방류
+    e.stopPropagation();
+  }
+}, { capture: true, passive: false });
