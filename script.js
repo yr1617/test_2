@@ -12,6 +12,20 @@ const modelCanvas    = document.querySelector('#model-canvas');
 const follower        = document.querySelector('.cursor-follower');
 const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li, .project-card-item');
 
+// 🚨 [HTML 가짜 별 레이어 강제 완전 소멸]
+const eliminateFakeModels = () => {
+  const fakeIds = ['#crystal-fallback', '#codex-3d', '.fallback-layer', '.crystal-backup'];
+  fakeIds.forEach(selector => {
+    const el = document.querySelector(selector);
+    if (el) {
+      el.style.display = 'none' !important;
+      el.style.opacity = '0' !important;
+      el.style.visibility = 'hidden' !important;
+      el.style.pointerEvents = 'none' !important;
+    }
+  });
+};
+
 /* ════════════════════════════════════════
     INTERACTION STATE
 ════════════════════════════════════════ */
@@ -78,7 +92,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (CLEAN & PRISM EFFECT)
+    THREE.JS ENGINE
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -94,16 +108,13 @@ const initThree = () => {
     animFrameId = null;
   }
 
-  // 🚨 [가짜 모델링 원천 차단] 씬이 이미 존재한다면 내부 오브젝트를 모조리 폐기
   if (threeScene) {
     while(threeScene.children.length > 0){ 
       const obj = threeScene.children[0];
-      if (obj.isMesh) {
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) {
-          if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
-          else obj.material.dispose();
-        }
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) {
+        if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+        else obj.material.dispose();
       }
       threeScene.remove(obj); 
     }
@@ -122,7 +133,7 @@ const initThree = () => {
 
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
-    alpha:       true, // 투명 배경 유지
+    alpha:       true, 
     antialias:   true,
     powerPreference: 'high-performance'
   });
@@ -131,22 +142,22 @@ const initThree = () => {
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 1.0; // 겉면이 하얗게 타버리지 않도록 노출값 하향 조정
+  threeRenderer.toneMappingExposure = 1.0; 
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 💡 가짜 색칠 공부 방지: 백색 고대비 라이트만 배치하여 오직 굴절로만 무지개색 유도
-  const ambient = new THREE.AmbientLight(0xffffff, 0.4); 
+  // 💡 흰색으로 타버리는 파스텔 톤 억제 조명 세팅
+  const ambient = new THREE.AmbientLight(0xffffff, 0.5); 
   threeScene.add(ambient);
 
-  const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
-  keyLight.position.set(5, 5, 4);
-  threeScene.add(keyLight);
+  const sunLight = new THREE.DirectionalLight(0xff00ff, 2.0); // 엣지에 보라/핑크 반사 유도
+  sunLight.position.set(3, 3, 2);
+  threeScene.add(sunLight);
 
-  const rimLight = new THREE.DirectionalLight(0xffffff, 1.5);
-  rimLight.position.set(-5, -3, 2);
-  threeScene.add(rimLight);
+  const subLight = new THREE.DirectionalLight(0x00ffff, 2.0); // 반대편 엣지에 청록 반사 유도
+  subLight.position.set(-3, -3, 2);
+  threeScene.add(subLight);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -180,25 +191,22 @@ const initThree = () => {
           else child.material.dispose();
         }
 
-        // 💎 [레퍼런스 1:1 매칭 광학 프리즘 재질 구현]
-        // 파스텔 칠이 아니라, 각진 단면에 빛이 통과할 때 실제로 쪼개지는 연산을 수행합니다.
+        // 💎 [레퍼런스 근접 투명 반사 크리스탈]
         child.material = new THREE.MeshPhysicalMaterial({
-          color: 0xffffff,
-          roughness: 0.0,            // 푸석한 느낌 0%화, 완전 매끄러운 표면
-          metalness: 0.0,
-          transparent: true,
-          transmission: 0.95,        // 뒤쪽 코드가 맑게 다 투과되어 비침
-          ior: 1.7,                  // 굴절률 조정으로 내부 전반사 각도 확보
-          thickness: 1.5,            // 프리즘 왜곡을 일으킬 유리 두께감
-          side: THREE.DoubleSide,
-          depthWrite: true,
+          color:              0x111115,          // ⚠️ 쌩하얀색을 버리고 베이스를 어둡게 주어야 투명하게 뒤가 뚫립니다.
+          metalness:          0.1,               
+          roughness:          0.02,              // 극도로 매끈한 표면
+          transparent:        true,              
+          opacity:            0.5,               // 뒷배경 요소들이 선명하게 투과되는 최적값
+          side:               THREE.FrontSide,   // 겹침 지직거림 전면 차단
+          depthWrite:         false,
 
-          // 🌈 하이라이트에 맺히는 서늘한 무지개 분산광 (Chromatic Aberration 시뮬레이션)
-          iridescence: 1.0,
-          iridescenceIOR: 1.9,
-          iridescenceThicknessRange: [100, 400], // 모서리 틈새마다 무지갯빛이 얇고 날카롭게 분산됨
+          // 🌈 꺾이는 모서리 경계선에만 오로라 선을 응축하는 속성
+          iridescence:        1.0,               
+          iridescenceIOR:     2.2,               
+          iridescenceThicknessRange: [200, 400], 
 
-          clearcoat: 1.0,
+          clearcoat:          1.0,               
           clearcoatRoughness: 0.0
         });
       });
@@ -207,6 +215,7 @@ const initThree = () => {
       modelAnchor.add(model);
       threeScene.add(modelAnchor);
 
+      eliminateFakeModels(); // 로드 완료 즉시 HTML 가짜 별 레이어 무력화
       hideSiteLoader();
     },
     undefined,
@@ -311,6 +320,7 @@ const initAll = () => {
 
   landingCanvasCtrl = setupLandingCanvas();
   setupDragEvents(); 
+  eliminateFakeModels(); // 시작할 때도 가짜 삭제 실행
 
   highlightElements.forEach((el) => {
     el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
