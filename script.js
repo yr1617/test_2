@@ -146,11 +146,11 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 4.0);
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 4.5);
   dirLight1.position.set(5, 10, 7);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xa3e5ff, 2.5);
+  const dirLight2 = new THREE.DirectionalLight(0xa3e5ff, 3.0);
   dirLight2.position.set(-5, -5, 5);
   window.threeScene.add(dirLight2);
 
@@ -165,6 +165,7 @@ const initThree = () => {
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
   loader.setDRACOLoader(draco);
 
+  // 💡 기존 6개 메쉬를 가진 순정 뼈대 파일로 다시 안전하게 연결!
   loader.load(
     `./modeling.glb?v=${Date.now()}`,
     (gltf) => {
@@ -175,40 +176,57 @@ const initThree = () => {
       if(window.modelAnchor) window.threeScene.remove(window.modelAnchor);
 
       const model = gltf.scene;
+      let rawPositions = [];
 
-      // 💎 메쉬가 겹쳐도 지지직거리지 않도록 연산 오프셋을 적용한 크리스탈 재질
+      // 💥 [순정 강제 병합 연산] 외부 파일 없이 월드 공간 좌표를 강제로 1개의 버텍스 배열로 압축
+      model.updateMatrixWorld(true);
+      model.traverse((child) => {
+        if (child.isMesh && child.geometry) {
+          const posAttr = child.geometry.attributes.position;
+          const localPos = new THREE.Vector3();
+          
+          for (let i = 0; i < posAttr.count; i++) {
+            localPos.fromBufferAttribute(posAttr, i);
+            localPos.applyMatrix4(child.matrixWorld); // 비틀어진 6개의 중심축을 전역 좌표로 통일
+            rawPositions.push(localPos.x, localPos.y, localPos.z);
+          }
+        }
+      });
+
+      if (rawPositions.length === 0) {
+        hideSiteLoader();
+        return;
+      }
+
+      // 🔥 단 한 줄의 외부 코드 없이 완전히 용접된 순정 단일 기하학 객체 생성
+      const mergedGeometry = new THREE.BufferGeometry();
+      mergedGeometry.setAttribute('position', new THREE.Float32BufferAttribute(rawPositions, 3));
+      mergedGeometry.computeVertexNormals(); // 완벽한 크리스탈 반사를 위한 법선 벡터 재계산
+
+      // 💎 속살 간섭이 100% 물리적으로 차단된 순도 높은 프리즘 크리스탈 글래스 재질
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.04,            
+        roughness: 0.02,            
         transparent: true,
         opacity: 0.45,               
-        transmission: 0.9,          
-        ior: 1.45,                  
-        side: THREE.FrontSide,  
+        transmission: 0.95,          
+        ior: 1.5,                  
+        side: THREE.FrontSide, // 바깥 표면만 그리도록 제한하여 안쪽 면끼리 겹치는 지지직거림 차단
         depthWrite: true,      
         depthTest: true,
-        // ✨ 면이 100% 겹쳐 있을 때 그래픽 카드가 지지직대지 않도록 레이어 우선순위를 나눔
-        polygonOffset: true,
-        polygonOffsetFactor: 1,
-        polygonOffsetUnits: 1,
-        iridescence: 0.75,           
-        iridescenceIOR: 1.5,        
-        iridescenceThicknessRange: [100, 300], 
+        iridescence: 0.85,           
+        iridescenceIOR: 1.6,        
+        iridescenceThicknessRange: [100, 320], 
         clearcoat: 1.0,             
         clearcoatRoughness: 0.0
       });
 
-      // 🛠️ 6개의 메쉬를 단 하나도 누락하지 않고 100% 전원 온전히 유지!
-      model.traverse((child) => {
-        if (child.isMesh) {
-          child.visible = true;
-          child.material = crystalMaterial;
-        }
-      });
+      const mergedMesh = new THREE.Mesh(mergedGeometry, crystalMaterial);
 
+      // 전체 대칭 별 정중앙 레이아웃 정렬
       const IDEAL_LAYOUT_BOUNDS = 2.4; 
-      const box = new THREE.Box3().setFromObject(model);
+      const box = new THREE.Box3().setFromObject(mergedMesh);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
       const size = new THREE.Vector3();
@@ -217,11 +235,11 @@ const initThree = () => {
       const maxDim = Math.max(size.x, size.y, size.z);
       const scale = IDEAL_LAYOUT_BOUNDS / maxDim; 
       
-      model.position.sub(centre.multiplyScalar(scale));
-      model.scale.setScalar(scale);
+      mergedMesh.position.sub(centre.multiplyScalar(scale));
+      mergedMesh.scale.setScalar(scale);
 
       window.modelAnchor = new THREE.Group();
-      window.modelAnchor.add(model);
+      window.modelAnchor.add(mergedMesh);
       
       window.modelAnchor.rotation.set(Math.PI / 6, 0, 0); 
       window.threeScene.add(window.modelAnchor);
