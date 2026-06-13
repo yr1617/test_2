@@ -99,7 +99,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS 100% 독점 빌드 공정
+    THREE.JS 완벽 보정 공정
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
@@ -120,7 +120,7 @@ const generatePureEnvironment = (renderer) => {
   const renderTarget = pmremGenerator.fromScene(scene);
   pmremGenerator.dispose();
   
-  renderTarget.texture.mapping = THREE.CubeRefractionMapping;
+  renderTarget.texture.mapping = THREE.CubeReflectionMapping; // 안정적인 환경 매핑 유도
   return renderTarget.texture;
 };
 
@@ -137,25 +137,24 @@ const initThree = () => {
   window.threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
     alpha:       true, 
-    antialias:   true,
-    premultipliedAlpha: false
+    antialias:   true
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  window.threeCamera = new THREE.PerspectiveCamera(36, W / H, 0.1, 100);
-  window.threeCamera.position.set(0, 0, 5.3); 
+  window.threeCamera = new THREE.PerspectiveCamera(35, W / H, 0.1, 100);
+  window.threeCamera.position.set(0, 0, 5.5); 
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.8);
   window.threeScene.add(ambient);
 
-  const pointLight = new THREE.PointLight(0xffffff, 2.5, 40);
-  pointLight.position.set(4, 5, 4);
-  window.threeScene.add(pointLight);
+  const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
+  dirLight.position.set(5, 5, 5);
+  window.threeScene.add(dirLight);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -169,202 +168,11 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 🌟 [통유리 투과 질감 마스터 스펙]
-      const pureGlassMaterial = new THREE.MeshPhysicalMaterial({
+      // 🌟 [자글거림 영구 박멸 + 형태 100% 복구 크리스탈 재질]
+      // 메쉬 면들을 찢어발기던 불안정한 투과 옵션을 끄고, 환경 맵 반사와 투명도 조합으로만 크리스탈 엣지를 구현합니다.
+      const pureGlassMaterial = new THREE.MeshStandardMaterial({
         color: 0xffffff,
-        metalness: 0.0,
-        roughness: 0.02,
-        transmission: 1.0,           
+        metalness: 0.1,
+        roughness: 0.05,
         transparent: true,
-        opacity: 1.0,
-        ior: 1.45,
-        thickness: 0.05,             
-        reflectivity: 0.8,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.0,
-        side: THREE.FrontSide,       
-        depthWrite: true,
-        envMap: envTexture,
-        envMapIntensity: 2.0
-      });
-
-      if (typeof THREE.MeshPhysicalMaterial.prototype.dispersion !== 'undefined') {
-        pureGlassMaterial.dispersion = 10.0; 
-      }
-
-      // 💥 [초강력 중복 필터] 내부 구조 순회하며 딱 "첫 번째 메쉬"만 남기고 나머지는 완전 삭제
-      let meshCount = 0;
-      model.traverse((child) => {
-        if (child.isMesh) {
-          meshCount++;
-          if (meshCount === 1) {
-            // 오직 첫 번째 메쉬에만 유리 재질 주입
-            child.material = pureGlassMaterial;
-            child.visible = true;
-            child.castShadow = false;
-            child.receiveShadow = false;
-          } else {
-            // 중첩되어 자글거림을 만드는 두 번째 메쉬부터는 아예 렌더링에서 제외
-            child.visible = false;
-            child.geometry.dispose();
-          }
-        }
-      });
-
-      // 💥 [크기 중간 고정 장치] 창 크기에 영향받지 않는 수동 절대 스케일
-      // 💡 래퍼런스 대비 너무 작아 보이면 1.8로 올리고, 너무 꽉 차면 1.4로 줄이시면 됩니다!
-      const FIXED_SCALE = 1.6; 
-      
-      const box    = new THREE.Box3().setFromObject(model);
-      const centre = new THREE.Vector3();
-      box.getCenter(centre);
-      const size   = new THREE.Vector3();
-      box.getSize(size);
-      
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const scale  = FIXED_SCALE / maxDim; 
-      
-      model.position.sub(centre.multiplyScalar(scale));
-      model.scale.setScalar(scale);
-      model.rotation.set(Math.PI / 2.3, 0, 0); 
-
-      window.modelAnchor = new THREE.Group();
-      window.modelAnchor.add(model);
-      window.threeScene.add(window.modelAnchor);
-
-      eliminateFakeModels(); 
-      hideSiteLoader();
-    },
-    undefined,
-    (err) => {
-      console.warn("GLB 로드 실패", err);
-      hideSiteLoader();
-    }
-  );
-};
-
-const hideSiteLoader = () => {
-  const siteLoader = document.querySelector('#site-loader');
-  if (siteLoader) {
-    setTimeout(() => {
-      siteLoader.classList.add('is-loaded');
-    }, 500); 
-  }
-};
-
-const resizeThree = () => {
-  if (!window.threeRenderer || !window.threeCamera) return;
-  const shell = landingDisplay || { offsetWidth: window.innerWidth, offsetHeight: window.innerHeight };
-  window.threeRenderer.setSize(shell.offsetWidth, shell.offsetHeight);
-  window.threeCamera.aspect = shell.offsetWidth / shell.offsetHeight;
-  window.threeCamera.updateProjectionMatrix();
-};
-
-/* ════════════════════════════════════════
-    MAIN ANIMATION LOOP
-════════════════════════════════════════ */
-const animate = () => {
-  window.animFrameId = requestAnimationFrame(animate);
-
-  pointer.x += (pointer.tx - pointer.x) * 0.08;
-  pointer.y += (pointer.ty - pointer.y) * 0.08;
-
-  if (follower) {
-    follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
-  }
-
-  updateLandingVars();
-  if (landingCanvasCtrl) landingCanvasCtrl.draw();
-
-  if (window.threeRenderer && window.threeScene && window.threeCamera) {
-    if (window.modelAnchor) {
-      if (!rotationState.isDragging) {
-        modelAutoRotY += 0.003;
-        rotationState.targetY += 0.003;
-      }
-
-      rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
-      rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
-
-      window.modelAnchor.rotation.x = rotationState.currentX;
-      window.modelAnchor.rotation.y = rotationState.currentY;
-
-      window.modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.006;
-    }
-    window.threeRenderer.render(window.threeScene, window.threeCamera);
-  }
-};
-
-/* ════════════════════════════════════════
-    DRAG & MOUSE EVENTS
-════════════════════════════════════════ */
-const setupDragEvents = () => {
-  if (!landingDisplay) return;
-
-  landingDisplay.addEventListener('pointerdown', (e) => {
-    rotationState.isDragging = true;
-    rotationState.previousMouseX = e.clientX;
-    rotationState.previousMouseY = e.clientY;
-  });
-
-  window.addEventListener('pointermove', (e) => {
-    pointer.tx = e.clientX;
-    pointer.ty = e.clientY;
-
-    if (!rotationState.isDragging || !window.modelAnchor) return;
-
-    const deltaX = e.clientX - rotationState.previousMouseX;
-    const deltaY = e.clientY - rotationState.previousMouseY;
-
-    rotationState.targetY += deltaX * 0.008;
-    rotationState.targetX += deltaY * 0.008;
-
-    rotationState.previousMouseX = e.clientX;
-    rotationState.previousMouseY = e.clientY;
-  });
-
-  window.addEventListener('pointerup', () => {
-    rotationState.isDragging = false;
-  });
-};
-
-const initAll = () => {
-  landingCanvasCtrl = setupLandingCanvas();
-  setupDragEvents(); 
-  eliminateFakeModels(); 
-
-  highlightElements.forEach((el) => {
-    el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
-    el.addEventListener('mouseleave', () => el.classList.remove('is-hovered'));
-  });
-
-  const revealCards = document.querySelectorAll('.reveal-card');
-  if (revealCards.length) {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('is-visible');
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
-    );
-    revealCards.forEach(card => observer.observe(card));
-  }
-
-  initThree();
-  animate();
-};
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAll);
-} else {
-  initAll();
-}
-
-window.addEventListener('resize', () => {
-  if (landingCanvasCtrl) landingCanvasCtrl.resize();
-  resizeThree();
-});
+        opacity: 0.45,               // 정중앙을
