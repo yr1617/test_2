@@ -196,16 +196,10 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-const silverMetalMat = new THREE.MeshPhysicalMaterial({
-  color: 0xffffff,
-
-  metalness: 1.0,
-  roughness: 0.03,
-
-  envMapIntensity: 8.0,
-
-  clearcoat: 1.0,
-  clearcoatRoughness: 0.0,
+const silverMetalMat = new THREE.MeshStandardMaterial({
+  color: 0xcfcfcf,
+  metalness: 0.8,
+  roughness: 0.3,
 
   side: THREE.DoubleSide
 });
