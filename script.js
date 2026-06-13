@@ -125,17 +125,17 @@ const generatePureEnvironment = (renderer) => {
 };
 
 /* ════════════════════════════════════════
-    🌈 면 깨짐 자글거림 무력화 + 오로라 프리즘 셰이더
+    🌈 플라스틱 느낌 완전 삭제 -> 투명 유리 프리즘 셰이더
 ════════════════════════════════════════ */
 const createAntiOverlapPrismMaterial = (envTexture) => {
   return new THREE.ShaderMaterial({
     uniforms: {
       envMap: { value: envTexture },
-      iorR: { value: 1.05 },
-      iorG: { value: 1.10 },
-      iorB: { value: 1.15 },
-      rainbowIntensity: { value: 3.2 },
-      brightness: { value: 1.4 }
+      iorR: { value: 1.12 },
+      iorG: { value: 1.18 },
+      iorB: { value: 1.25 },
+      rainbowIntensity: { value: 4.5 }, 
+      brightness: { value: 1.6 }
     },
     vertexShader: `
       varying vec3 vNormal;
@@ -166,13 +166,12 @@ const createAntiOverlapPrismMaterial = (envTexture) => {
       varying vec3 vViewDir;
 
       void main() {
-        // 뒤집히거나 겹친 노멀 벡터를 화면 방향에 맞춰 보정 (자글거리는 깨짐 현상 차단)
         vec3 normal = normalize(vWorldNormal);
         if (!gl_FrontFacing) normal = -normal; 
 
         vec3 viewDir = vViewDir;
 
-        // 분산 효과 연산
+        // 1. 굴절 빛 갈라짐 계산
         vec3 reR = refract(viewDir, normal, 1.0 / iorR);
         vec3 reG = refract(viewDir, normal, 1.0 / iorG);
         vec3 reB = refract(viewDir, normal, 1.0 / iorB);
@@ -182,24 +181,27 @@ const createAntiOverlapPrismMaterial = (envTexture) => {
         float b = textureCube(envMap, reB).b;
         vec3 rainbow = vec3(r, g, b) * rainbowIntensity;
 
-        // 표면 하이라이트 매끄럽게 처리
+        // 2. 표면 크리스탈 반사광 하이라이트
         vec3 refDir = reflect(viewDir, normal);
-        vec3 reflection = textureCube(envMap, refDir).rgb * 1.5;
+        vec3 reflection = textureCube(envMap, refDir).rgb * 2.0;
 
-        float fresnel = pow(1.0 + dot(viewDir, normal), 2.0);
+        // 3. 프레넬 계산 지수를 높여 정면은 완전히 투과시키고 외곽선만 얇고 날카롭게 맺히게 함
+        float fresnel = pow(1.0 + dot(viewDir, normal), 3.5); 
         fresnel = clamp(fresnel, 0.0, 1.0);
 
-        // 시커먼 어둠을 지우고 맑은 크리스탈 베이스 투과
-        vec3 baseGlass = vec3(0.95, 0.96, 0.98) * brightness;
-        vec3 finalColor = mix(baseGlass + rainbow * 0.2, rainbow + reflection, fresnel);
-        float alpha = mix(0.20, 0.85, fresnel);
+        // 플라스틱 같은 탁한 흰색 베이스를 날려버리기 위해 어두운 굴절 값을 베이스로 설정
+        vec3 baseGlass = vec3(0.3, 0.32, 0.35) * brightness;
+        vec3 finalColor = mix(baseGlass + rainbow * 0.4, rainbow * 1.2 + reflection, fresnel);
+        
+        // 정면 투명도를 극도로 낮춰(0.04) 내부 면들이 겹쳐도 답답하지 않게 투명 유리화
+        float alpha = mix(0.04, 0.80, fresnel); 
 
         gl_FragColor = vec4(finalColor, alpha);
       }
     `,
     transparent: true,
-    blending: THREE.NormalBlending,
-    side: THREE.DoubleSide, // 💥 앞뒷면 연산을 안전하게 켜두되, 내부 셰이더 조건문으로 깨짐을 잡습니다.
+    blending: THREE.AdditiveBlending, // 💥 겹칠수록 탁해지지 않고 맑게 빛이 중첩되는 가산 혼합 적용
+    side: THREE.DoubleSide, 
     depthWrite: false, 
     depthTest: true
   });
@@ -259,7 +261,6 @@ const initThree = () => {
         }
       });
 
-      // 우측 영역 꽉 차게 밸런스 조정
       const IDEAL_LAYOUT_BOUNDS = 2.6; 
       
       const box = new THREE.Box3().setFromObject(model);
