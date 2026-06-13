@@ -165,9 +165,8 @@ const initThree = () => {
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
   loader.setDRACOLoader(draco);
 
-  // 💡 새로 가공한 깨끗한 모델링 파일을 로드합니다!
   loader.load(
-    `./modeling_clean.glb?v=${Date.now()}`,
+    `./modeling.glb?v=${Date.now()}`,
     (gltf) => {
       if(!gltf || !gltf.scene) {
         hideSiteLoader();
@@ -177,27 +176,33 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 💎 찌꺼기가 다 날아간 단일 껍데기에 입히는 고순도 리얼 크리스탈 글래스 재질
+      // 💎 메쉬가 겹쳐도 지지직거리지 않도록 연산 오프셋을 적용한 크리스탈 재질
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.03,            
+        roughness: 0.04,            
         transparent: true,
-        opacity: 0.5,               
-        transmission: 0.95,          
-        ior: 1.5,                  
-        side: THREE.DoubleSide,  // 껍데기가 하나이므로 내부 뒤쪽 벽면도 이쁘게 비치도록 양면 활성화!
+        opacity: 0.45,               
+        transmission: 0.9,          
+        ior: 1.45,                  
+        side: THREE.FrontSide,  
         depthWrite: true,      
         depthTest: true,
-        iridescence: 0.8,           
+        // ✨ 면이 100% 겹쳐 있을 때 그래픽 카드가 지지직대지 않도록 레이어 우선순위를 나눔
+        polygonOffset: true,
+        polygonOffsetFactor: 1,
+        polygonOffsetUnits: 1,
+        iridescence: 0.75,           
         iridescenceIOR: 1.5,        
         iridescenceThicknessRange: [100, 300], 
         clearcoat: 1.0,             
         clearcoatRoughness: 0.0
       });
 
+      // 🛠️ 6개의 메쉬를 단 하나도 누락하지 않고 100% 전원 온전히 유지!
       model.traverse((child) => {
         if (child.isMesh) {
+          child.visible = true;
           child.material = crystalMaterial;
         }
       });
