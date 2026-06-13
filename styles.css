@@ -653,41 +653,71 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   max-width: 80px;
 }
 .folder-label-accent { color: #f8d97a; font-weight: 600; }
-
 /* ════════════════════════════════
-   FOLDER MODAL (더블클릭 팝업)
+    FOLDER MODAL (더블클릭 팝업)
 ════════════════════════════════ */
 .folder-modal {
-  position: fixed; inset: 0;
-  z-index: 999999;
+  position: fixed; 
+  inset: 0;
+  z-index: 99999; /* 가상 커서보다는 아래, 일반 본문보다는 위에 배치 */
   display: none;
-  align-items: center; justify-content: center;
+  align-items: center; 
+  justify-content: center;
+  
+  /* ⚡ [필수] 모달창이 아예 없을 때는 마우스가 100% 관통해서 본문 클릭 가능하게 설정 */
+  pointer-events: none; 
 }
-.folder-modal.is-open { display: flex; }
 
+/* 모달이 활성화되었을 때 */
+.folder-modal.is-open { 
+  display: flex; 
+  pointer-events: auto; /* 열렸을 때만 마우스 클릭을 받음 */
+}
+
+/* ⚡ 뒷배경 레이어 (가장 아래 1층으로 격리) */
 .modal-backdrop {
-  position: absolute; inset: 0;
-  background: rgba(0,0,0,0.62);
+  position: absolute; 
+  inset: 0;
+  background: rgba(0, 0, 0, 0.62);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  
+  z-index: 1; /* 윈도우창(2층)보다 무조건 아래로 가게 1층 고정 */
 }
 
+/* ⚡ 실제 폴더 팝업 창 (배경 장막보다 위인 2층으로 격리) */
 .modal-window {
-  position: relative; z-index: 2;
+  position: relative; 
+  z-index: 2; /* 1층 백드롭 장막 위로 완벽하게 띄우기 (클릭 뚫림) */
+  
   width: min(680px, calc(100vw - 40px));
   max-height: calc(100vh - 80px);
-  background:
-    linear-gradient(160deg, rgba(35,32,50,0.97), rgba(20,18,28,0.98));
+  background: linear-gradient(160deg, rgba(35,32,50,0.97), rgba(20,18,28,0.98));
   border: 1px solid rgba(255,255,255,0.14);
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(93,53,163,0.22);
   animation: modal-in 0.28s cubic-bezier(0.2,0.8,0.2,1) forwards;
-  display: flex; flex-direction: column;
+  display: flex; 
+  flex-direction: column;
+  
+  /* ⚡ 창 내부 글씨나 닫기 버튼은 흐려지지 않도록 강제 방어 */
+  filter: none !important;
+  backdrop-filter: none !important;
 }
+
 @keyframes modal-in {
   from { opacity: 0; transform: scale(0.92) translateY(16px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ════════════════════════════════
+    가상 커서 안전장치 (CSS 맨 밑에 추가)
+════════════════════════════════ */
+.cursor-follower {
+  position: fixed !important;
+  z-index: 99999999 !important; /* 모달창(99999)보다도 무조건 위에 띄우기 */
+  pointer-events: none !important; /* 커서 자체가 마우스 클릭을 가로막지 않도록 관통 */
 }
 
 /* 타이틀바 */
