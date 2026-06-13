@@ -936,3 +936,26 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   z-index: 999998 !important;     /* 모달창 내용물보다 한 단계 아래로 깔아줌 */
   pointer-events: auto !important; 
 }
+/* 가상 커서는 화면 최고 권력 레이어로 얹고 클릭 완벽 투과 */
+.cursor-follower {
+  position: fixed !important;
+  z-index: 100000000 !important;
+  pointer-events: none !important;
+}
+
+/* 모달창 내용물과 폴더 파일 리스트 클릭 허용 */
+#folder-modal, 
+.modal-content, 
+.modal-file-list {
+  pointer-events: auto !important;
+}
+
+/* 모달 본체 레이어 고정 */
+#folder-modal {
+  z-index: 9999999 !important;
+}
+
+/* 뒷배경 블러 레이어 위치 고정 */
+.modal-backdrop {
+  z-index: 9999998 !important;
+}
