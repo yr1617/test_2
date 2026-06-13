@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js'; // 🌌 고대비 반사광을 위한 로더 추가
 
 /* ════════════════════════════════════════
     DOM ELEMENT REFS
@@ -103,50 +104,46 @@ const initThree = () => {
   const W = shell.offsetWidth;
   const H = shell.offsetHeight;
 
-  // 💎 렌더러가 투명 유리의 뒤 배경 굴절을 정상 추적하도록 강제 세팅
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
     alpha:       true,
     antialias:   true,
-    powerPreference: 'high-performance',
-    premultipliedAlpha: false
+    powerPreference: 'high-performance'
   });
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   threeRenderer.setSize(W, H);
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 1.4; // 대비감을 위해 노출을 더 끌어올림
+  threeRenderer.toneMappingExposure = 1.6; // 명암 대비 극대화를 위해 노출 증가
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 💡 레퍼런스 특유의 칼 같은 명암비와 투명 굴절을 만들기 위한 고광도 조명 배치
-  const ambient = new THREE.AmbientLight(0xffffff, 0.1); 
+  // 💡 기본 조명 세팅 (환경 맵과 상호작용하여 하이라이트를 맺어줌)
+  const ambient = new THREE.AmbientLight(0xffffff, 0.2); 
   threeScene.add(ambient);
 
-  // 강렬한 화이트 정면광 (유리 표면에 쨍한 하이라이트를 맺히게 함)
-  const mainWhite = new THREE.DirectionalLight(0xffffff, 3.5);
-  mainWhite.position.set(1, 3, 4);
-  threeScene.add(mainWhite);
+  const sunLight = new THREE.DirectionalLight(0xffffff, 4.0);
+  sunLight.position.set(2, 4, 3);
+  threeScene.add(sunLight);
 
-  // 좌측 사이드 청록색 광원
-  const neonCyan = new THREE.DirectionalLight(0x00ffff, 2.5);
-  neonCyan.position.set(-4, -1, 2);
-  threeScene.add(neonCyan);
+  // 🌌 에러 없는 초경량 HDR 환경 맵 텍스처 주입 공식
+  // 유리의 굴절면 내부에서 고대비 빛 갈라짐을 강제로 생성합니다.
+  new RGBELoader()
+    .setPath('https://threejs.org/examples/textures/equirectangular/')
+    .load('royal_esplanade_1k.hdr', function (texture) {
+      texture.mapping = THREE.EquirectangularReflectionMapping;
+      threeScene.environment = texture; // 씬 전체 유리에 반사광 매핑
 
-  // 우측 사이드 자홍색(마젠타) 광원
-  const neonMagenta = new THREE.DirectionalLight(0xff00ff, 2.5);
-  neonMagenta.position.set(4, 1, 2);
-  threeScene.add(neonMagenta);
+      // 환경 맵이 로드된 후 모델 로딩 시작
+      loadModel();
+    });
+};
 
-  // 유리를 뒤에서 관통해 맑게 뚫어줄 후면 백라이트
-  const backRim = new THREE.DirectionalLight(0xffffff, 2.0);
-  backRim.position.set(0, 0, -4);
-  threeScene.add(backRim);
-
+const loadModel = () => {
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
@@ -186,25 +183,25 @@ const initThree = () => {
           }
         }
 
-        // 💎 레퍼런스(reference1.png)의 완벽한 프리즘 유리 재현 공공식
+        // 💎 레퍼런스(reference1.png) 특유의 투명함과 쨍한 외곽 무지개선 구현 공식
         child.material = new THREE.MeshPhysicalMaterial({
           color:              0xffffff,          
-          metalness:          0.0,               
-          roughness:          0.0,               // 극도의 투명함을 위한 매끄러움
+          metalness:          0.1,               // 반사광 각도를 날카롭게 꺾기 위해 메탈릭 소량 추가
+          roughness:          0.0,               // 완벽히 매끄러운 크리스탈 면
           transparent:        true,
-          transmission:       1.0,               // 100% 뒤 배경이 완벽하게 투과됨
-          ior:                2.4,               // 다이아몬드급 고굴절로 주변 배경을 왜곡시킴
-          thickness:          1.5,               // 유리 두께감 부여
+          transmission:       0.6,               // 허옇게 뜨는 현상을 막기 위해 투과율을 황금비율(0.6)로 조정
+          ior:                2.4,               // 보석급 고굴절
+          thickness:          2.0,               // 두께감을 늘려 내부 굴절 면 왜곡 극대화
           side:               THREE.DoubleSide,  
-          depthWrite:         false,             // 투명 재질끼리 겹쳤을 때 뒤가 잘 보이도록 마스킹 해제
+          depthWrite:         true,
 
-          // 🌈 레퍼런스 속 모서리가 오색 무지개로 갈라지는 핵심 광학 효과
-          dispersion:         5.0,               // 빛을 빨/초/파랑으로 쪼개주는 분산값 활성화
-          
-          clearcoat:          1.0,
-          clearcoatRoughness: 0.0,
-          iridescence:        0.8,               // 표면 오로라 막 효과 추가
-          iridescenceIOR:     1.5
+          // 🌈 껍데기에 오로라 필름을 씌워 연한 느낌을 없애고 쨍한 오색빛을 가둡니다.
+          iridescence:        1.0,               // 무지갯빛 광택 최대치
+          iridescenceIOR:     1.9,               
+          iridescenceThicknessRange: [100, 400], // 핑크, 마젠타, 블루가 파편처럼 튀는 두께
+
+          clearcoat:          1.0,               // 겉면에 유리막 코팅을 한 번 더 입혀 하얗게 뜨는 현상 방지
+          clearcoatRoughness: 0.0
         });
       });
 
