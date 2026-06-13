@@ -114,34 +114,40 @@ const initThree = () => {
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 1.6; 
+  threeRenderer.toneMappingExposure = 1.4; 
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 💡 검게 죽는 사각지대를 완전히 없애기 위해 부드러운 환경광을 적절히 주입
-  const ambient = new THREE.AmbientLight(0xffffff, 1.2); 
+  // 💡 [유리 질감 심폐소생술] 외부 파일 없이 코드 내부에서 인공 오로라 반사판(Environment Map)을 굽습니다.
+  const pmremGenerator = new THREE.PMREMGenerator(threeRenderer);
+  pmremGenerator.compileEquirectangularShader();
+
+  const envScene = new THREE.Scene();
+  const fovLight1 = new THREE.DirectionalLight(0x00ffff, 3.0); // 민트색 반사광
+  fovLight1.position.set(5, 3, 2);
+  envScene.add(fovLight1);
+
+  const fovLight2 = new THREE.DirectionalLight(0xff00ff, 3.0); // 핑크보라색 반사광
+  fovLight2.position.set(-5, -3, 2);
+  envScene.add(fovLight2);
+
+  const fovLight3 = new THREE.DirectionalLight(0xffffff, 2.0); // 정면 화이트 하이라이트
+  fovLight3.position.set(0, 0, 5);
+  envScene.add(fovLight3);
+
+  const renderTarget = pmremGenerator.fromScene(envScene, 0.05);
+  threeScene.environment = renderTarget.texture; // 별 표면에 영롱한 반사광 강제 주입!
+
+  // 기본 조명 밸런스 설정
+  const ambient = new THREE.AmbientLight(0xffffff, 0.8); 
   threeScene.add(ambient);
 
-  // 사방에서 보석을 비춰줄 3차원 기본 화이트 조명 세팅
-  const mainLight1 = new THREE.DirectionalLight(0xffffff, 1.5);
+  const mainLight1 = new THREE.DirectionalLight(0xffffff, 1.2);
   mainLight1.position.set(2, 4, 3);
   threeScene.add(mainLight1);
-
-  const mainLight2 = new THREE.DirectionalLight(0xffffff, 1.0);
-  mainLight2.position.set(-2, -3, 2);
-  threeScene.add(mainLight2);
-
-  // 🌈 표면 무지갯빛 하이라이트를 더 넓고 영롱하게 퍼트릴 네온 스폿라이트 2개
-  const laserCyan = new THREE.SpotLight(0x00f5ff, 120.0, 40, Math.PI / 3, 0.6, 0.2);
-  laserCyan.position.set(4, 3, 3);
-  threeScene.add(laserCyan);
-
-  const laserMagenta = new THREE.SpotLight(0xff00b5, 140.0, 40, Math.PI / 3, 0.6, 0.2);
-  laserMagenta.position.set(-4, -3, 3);
-  threeScene.add(laserMagenta);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -182,25 +188,24 @@ const initThree = () => {
           }
         }
 
-        // 💎 [하얗지도 까맣지도 않은 영롱 보석 질감 공식]
+        // 💎 [진짜 반짝이는 투명 크리스탈 재질 공식]
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0xb0b5cf,          // 투명감을 머금은 은은한 크리스탈 스카이 블루 기반
-          metalness:          0.05,              // 돌덩어리 반사 현상을 잡기 위해 금속성 최소화
-          roughness:          0.0,               // 겉표면은 잡티 없이 맑게 정렬
+          color:              0xffffff,          // 유리 자체는 맑고 깨끗한 투명색으로 설정
+          metalness:          0.0,               // 메탈을 완전히 빼야 장난감처럼 안 보입니다.
+          roughness:          0.0,               // 매끄러운 유리 거울 표면
           transparent:        true,
-          opacity:            0.75,              // 배경과 조명이 적절히 융합되도록 투명도 최적화
-          side:               THREE.DoubleSide,  
-          
-          // 중첩된 하얀 면들이 서로 뭉치지 않고 투명하게 투과되도록 강제 정렬
-          depthWrite:         false,
-          blending:           THREE.NormalBlending,
+          transmission:       0.95,              // 95% 투명하게 뚫어서 뒤쪽 배경이 다 투과되게 처리
+          ior:                1.5,               // 실제 유리의 광학 굴절률 설정
+          thickness:          1.0,               // 빛이 굴절될 수 있는 물리적 두께감 부여
+          side:               THREE.FrontSide,   
+          depthWrite:         true,
 
-          // 🌈 표면 전체를 휘감는 프리즘 오로라 레이어 수치 맥스업
-          clearcoat:          1.0,               
+          // 🌈 표면을 스치는 영롱한 진주펄/오로라 효과 맥스업
+          clearcoat:          1.0,
           clearcoatRoughness: 0.0,
-          iridescence:        1.0,               
-          iridescenceIOR:     2.5,               
-          iridescenceThicknessRange: [250, 550]  
+          iridescence:        1.0,
+          iridescenceIOR:     2.2,
+          iridescenceThicknessRange: [200, 500]
         });
       });
 
