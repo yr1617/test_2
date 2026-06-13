@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    GLOBAL ENGINE REF
+    GLOBAL ENGINE REF (안전 초기화)
 ════════════════════════════════════════ */
 window.threeScene     = window.threeScene || null;
 window.threeCamera    = window.threeCamera || null;
@@ -11,9 +11,6 @@ window.threeRenderer  = window.threeRenderer || null;
 window.modelAnchor    = window.modelAnchor || null;
 window.animFrameId    = window.animFrameId || null;
 
-/* ════════════════════════════════════════
-    DOM ELEMENT REFS
-════════════════════════════════════════ */
 const landing        = document.querySelector('.landing');
 const landingCanvas  = document.querySelector('.landing-canvas');
 const landingDisplay = document.querySelector('#landing-display');
@@ -29,28 +26,12 @@ const eliminateFakeModels = () => {
       el.style.setProperty('display', 'none', 'important');
       el.style.setProperty('opacity', '0', 'important');
       el.style.setProperty('visibility', 'hidden', 'important');
-      el.style.setProperty('pointer-events', 'none', 'important');
     }
   });
 };
 
-/* ════════════════════════════════════════
-    INTERACTION STATE
-════════════════════════════════════════ */
-const pointer = { 
-  x: window.innerWidth * 0.5, 
-  y: window.innerHeight * 0.5, 
-  tx: window.innerWidth * 0.5, 
-  ty: window.innerHeight * 0.5 
-};
-
-const rotationState = {
-  currentX: 0, currentY: 0,
-  targetX:  0, targetY:  0,
-  isDragging: false,
-  previousMouseX: 0, previousMouseY: 0
-};
-
+const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, tx: window.innerWidth * 0.5, ty: window.innerHeight * 0.5 };
+const rotationState = { currentX: 0, currentY: 0, targetX: 0, targetY: 0, isDragging: false, previousMouseX: 0, previousMouseY: 0 };
 let modelAutoRotY = 0; 
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
@@ -105,31 +86,30 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (가산 혼합형 초투명 오로라 프리즘)
+    THREE.JS ENGINE (독점 통유리 렌더 공정)
 ════════════════════════════════════════ */
-const generateRefractionEnvironment = (renderer) => {
+const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
-  const geo = new THREE.BoxGeometry(10, 10, 10);
+  const geo = new THREE.BoxGeometry(12, 12, 12);
   
-  // 회색 서리를 차단하기 위해 환경 스카이박스 자체를 맑고 선명한 원색 프리즘 밴드로 구성
+  // 회색 서리 원인을 원천 차단하기 위해 주변 환경에 강렬한 네온 무지개 대조만 배치
   const mats = [
-    new THREE.MeshBasicMaterial({ color: 0x00ffff, side: THREE.BackSide }), // 시안
-    new THREE.MeshBasicMaterial({ color: 0x020205, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.BackSide }), // 마젠타
+    new THREE.MeshBasicMaterial({ color: 0x00f3ff, side: THREE.BackSide }), // Cyan
+    new THREE.MeshBasicMaterial({ color: 0x020206, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0xff00ca, side: THREE.BackSide }), // Magenta
     new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // 화이트
-    new THREE.MeshBasicMaterial({ color: 0x050508, side: THREE.BackSide })  
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // 쨍한 엣지 라이트용 화이트
+    new THREE.MeshBasicMaterial({ color: 0x030308, side: THREE.BackSide })  
   ];
   const box = new THREE.Mesh(geo, mats);
   scene.add(box);
 
   const pmremGenerator = new THREE.PMREMGenerator(renderer);
   pmremGenerator.compileEquirectangularShader();
-  
   const renderTarget = pmremGenerator.fromScene(scene);
   pmremGenerator.dispose();
   
-  renderTarget.texture.mapping = THREE.CubeRefractionMapping;
+  renderTarget.texture.mapping = THREE.CubeRefractionMapping; // 투과 굴절 모드 강제 적용
   return renderTarget.texture;
 };
 
@@ -141,6 +121,12 @@ const initThree = () => {
     window.animFrameId = null;
   }
 
+  // 💥 기존 잔여 씬 인스턴스 완전 파괴 후 재생성 (중첩 버그 방지)
+  if (window.threeScene) {
+    while(window.threeScene.children.length > 0){ 
+      window.threeScene.remove(window.threeScene.children[0]); 
+    }
+  }
   window.threeScene = new THREE.Scene();
 
   if (window.threeRenderer) {
@@ -156,7 +142,7 @@ const initThree = () => {
     canvas:      modelCanvas,
     alpha:       true, 
     antialias:   true,
-    premultipliedAlpha: false
+    premultipliedAlpha: false // 투명 배경 완전 관통 셋팅
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
@@ -165,20 +151,15 @@ const initThree = () => {
   window.threeCamera = new THREE.PerspectiveCamera(36, W / H, 0.1, 100);
   window.threeCamera.position.set(0, 0, 5.3); 
 
-  const envTexture = generateRefractionEnvironment(window.threeRenderer);
+  const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
 
-  // 회색 칙칙함을 날려줄 화사하고 맑은 조명 셋팅
-  const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.5);
   window.threeScene.add(ambient);
 
-  const pointLight1 = new THREE.PointLight(0x00faff, 3.0, 30);
-  pointLight1.position.set(-4, 4, 3);
-  window.threeScene.add(pointLight1);
-
-  const pointLight2 = new THREE.PointLight(0xff00b4, 3.0, 30);
-  pointLight2.position.set(4, -4, 3);
-  window.threeScene.add(pointLight2);
+  const pointLight = new THREE.PointLight(0xffffff, 2.5, 40);
+  pointLight.position.set(4, 5, 4);
+  window.threeScene.add(pointLight);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -203,23 +184,34 @@ const initThree = () => {
       model.scale.setScalar(scale);
       model.rotation.set(Math.PI / 2.3, 0, 0); 
 
-      // 🌟 [회색 덩어리 버그 원천 봉쇄 프리즘 재질]
-      // 내부 면들이 무수히 겹쳐도 어두워지지 않고, 투명하게 통과되면서 외곽 엣지만 쨍하게 살리는 치트키 조합
-      const glassMaterial = new THREE.MeshBasicMaterial({
-        color: 0x44bbff,                 // 💥 칙칙한 잿빛을 완전히 덮어씌울 청량한 스카이 프리즘 베이스 컬러
-        transparent: true,
-        opacity: 0.18,                   // 💥 투명도를 극단적으로 낮춰 내부 면이 겹쳐도 정중앙이 회색으로 막히는 현상 차단
+      // 🌟 [중첩 버그 파괴용 클리어 글래스 마스터 재질]
+      // 메쉬가 내부에서 겹치더라도 회색 서리가 끼지 않고 100% 뒷배경을 투과시키는 물리 수식 조합
+      const pureGlassMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        metalness: 0.0,
+        roughness: 0.01,
+        transmission: 1.0,           // 100% 빛 투과
+        transparent: true,           // 투명도 활성화
+        opacity: 1.0,
+        ior: 1.42,                   // 굴절률을 살짝 낮춰서 정중앙의 왜곡 뭉침을 최소화
+        thickness: 0.05,             // 💥 두께 연산을 거의 제로에 가깝게 깎아 회색 덩어리 현상 원천 차단!
+        reflectivity: 0.9,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.0,
+        side: THREE.FrontSide,       // 💥 [초핵심] 뒷면까지 전부 렌더링해서 겹치게 만들던 옵션을 FrontSide(겉면만)로 제한하여 투명 통유리 완성!
+        depthWrite: true,
         envMap: envTexture,
-        combine: THREE.MixOperation,
-        reflectivity: 0.9,               // 💥 표면 반사율을 극대화하여 엣지 가이드 라인이 영롱하게 도드라지도록 처리
-        side: THREE.DoubleSide,
-        depthWrite: false,               // 앞뒷면 뎁스 가림현상 영구 박멸
-        blending: THREE.AdditiveBlending // 💥 [초핵심] 면이 겹칠수록 어두워지는(Normal) 게 아니라, 겹칠수록 맑고 화사하게 빛나는 모드로 변환
+        envMapIntensity: 2.2
       });
+
+      // 프리즘 분산 효과 강제 주입
+      if (typeof THREE.MeshPhysicalMaterial.prototype.dispersion !== 'undefined') {
+        pureGlassMaterial.dispersion = 12.0; // 엣지에 맺힐 오로라 스펙트럼 강도
+      }
 
       model.traverse((child) => {
         if (child.isMesh) {
-          child.material = glassMaterial;
+          child.material = pureGlassMaterial;
           child.castShadow = false;
           child.receiveShadow = false;
         }
@@ -325,9 +317,6 @@ const setupDragEvents = () => {
   });
 };
 
-/* ════════════════════════════════════════
-    INITIALIZE
-════════════════════════════════════════ */
 const initAll = () => {
   if (window.__threeInitialized) return; 
   window.__threeInitialized = true;
