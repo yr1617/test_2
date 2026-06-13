@@ -64,7 +64,6 @@ const setupLandingCanvas = () => {
     state.height = rect.height;
     state.dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     
-    // 💡 [오타 수정 완료] landingCanvasCanvas -> landingCanvas로 정상 수정했습니다!
     landingCanvas.width = Math.max(1, Math.floor(rect.width * state.dpr));
     landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
     
@@ -109,12 +108,12 @@ const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   const geo = new THREE.BoxGeometry(16, 16, 16);
   const mats = [
-    new THREE.MeshBasicMaterial({ color: 0x00faff, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x223344, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xff00d4, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x331144, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0x101015, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x020205, side: THREE.BackSide })  
+    new THREE.MeshBasicMaterial({ color: 0xededed, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x0a0a10, side: THREE.BackSide })  
   ];
   const box = new THREE.Mesh(geo, mats);
   scene.add(box);
@@ -151,13 +150,17 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 3.5);
-  dirLight1.position.set(5, 10, 7);
+  // 💡 더 정갈하고 세련된 무드를 위한 조명 리밸런싱
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 2.5);
+  dirLight1.position.set(5, 8, 5);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xa3e5ff, 2.5);
-  dirLight2.position.set(-5, -5, 5);
+  const dirLight2 = new THREE.DirectionalLight(0xd9ecff, 1.8);
+  dirLight2.position.set(-5, -3, 4);
   window.threeScene.add(dirLight2);
+
+  const hemiLight = new THREE.HemisphereLight(0xffffff, 0x111115, 1.2);
+  window.threeScene.add(hemiLight);
 
   window.threeCamera = new THREE.PerspectiveCamera(30, W / H, 0.1, 100);
   window.threeCamera.position.set(0, 0, 5.5); 
@@ -179,25 +182,15 @@ const initThree = () => {
       }
       if(window.modelAnchor) window.threeScene.remove(window.modelAnchor);
 
-      const crystalMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        metalness: 0.0,
-        roughness: 0.01,            
-        transparent: true,
-        opacity: 0.45,               
-        transmission: 0.95,          
-        ior: 1.5,                  
-        side: THREE.FrontSide, 
-        depthWrite: true,      
-        depthTest: true,
-        iridescence: 0.8,           
-        iridescenceIOR: 1.5,        
-        iridescenceThicknessRange: [100, 300], 
-        clearcoat: 1.0,             
-        clearcoatRoughness: 0.0
+      // ✨ [재질 전면 교체] 못생긴 투명 유리를 버리고 은은하게 반짝이는 고급 진주 메탈릭을 적용합니다.
+      const pearlMaterial = new THREE.MeshStandardMaterial({
+        color: 0xeeeeee,            // 우아한 백색 메탈릭 베이스
+        roughness: 0.18,            // 은은하고 부드러운 반사 효과
+        metalness: 0.85,            // 세련된 금속 질감 표면
+        side: THREE.FrontSide,       // 뒷면 겹침 현상을 원천 차단
+        shadowSide: THREE.FrontSide
       });
 
-      // 복잡한 하위 트리 무시하고 단 하나의 순수 Geometry 알맹이만 선점
       let pureGeometry = null;
       gltf.scene.traverse((child) => {
         if (child.isMesh && child.geometry && !pureGeometry) {
@@ -213,8 +206,8 @@ const initThree = () => {
         return;
       }
 
-      // 겹침의 소지가 전혀 없는 순정 메쉬 1개 새로 생성
-      const singleCleanMesh = new THREE.Mesh(pureGeometry, crystalMaterial);
+      // 복잡하게 얽힌 계층 구조 없이 '단 1개의 정품 알맹이 메쉬'만 깨끗하게 생성
+      const singleCleanMesh = new THREE.Mesh(pureGeometry, pearlMaterial);
 
       const IDEAL_LAYOUT_BOUNDS = 2.4; 
       const box = new THREE.Box3().setFromObject(singleCleanMesh);
