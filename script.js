@@ -79,7 +79,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (오로라 버그 수정 최종판)
+    THREE.JS ENGINE
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -113,34 +113,33 @@ const initThree = () => {
   threeRenderer.setSize(W, H);
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
-  // 대비를 찢어서 강렬한 명암을 만들어주는 ACESFilmic 설정 유지
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 2.0; 
+  threeRenderer.toneMappingExposure = 2.4; // 오로라 광택의 대비를 한층 더 쨍하게 강조
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 불필요한 전체 앰비언트 광원 완벽 소멸
+  // 공간을 하얗게 덮어씌우던 잔여 환경광 완전 봉쇄
   const ambient = new THREE.AmbientLight(0xffffff, 0.0); 
   threeScene.add(ambient);
 
-  // 실루엣을 부각해 줄 탑 메인 라이트
-  const mainLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  // 굴절 엣지 각도를 살려줄 입체 탑 라이트
+  const mainLight = new THREE.DirectionalLight(0xffffff, 1.8);
   mainLight.position.set(0, 4, 2);
   threeScene.add(mainLight);
 
-  // 🌈 레퍼런스처럼 선명한 색상이 엣지에 맺히도록 스폿 조명 파워 강화
-  const laserCyan = new THREE.SpotLight(0x00f3ff, 150.0, 30, Math.PI / 4, 0.5, 0.2);
+  // 🌈 레퍼런스처럼 외곽 라인에 깊고 선명한 네온색이 반사되도록 스폿 광원 전력 집중
+  const laserCyan = new THREE.SpotLight(0x00f2ff, 170.0, 30, Math.PI / 4, 0.5, 0.1);
   laserCyan.position.set(4, 3, 2);
   threeScene.add(laserCyan);
 
-  const laserMagenta = new THREE.SpotLight(0xff00aa, 160.0, 30, Math.PI / 4, 0.5, 0.2);
+  const laserMagenta = new THREE.SpotLight(0xff00b7, 190.0, 30, Math.PI / 4, 0.5, 0.1);
   laserMagenta.position.set(-4, -2, 2);
   threeScene.add(laserMagenta);
 
-  const laserPurple = new THREE.SpotLight(0x8800ff, 100.0, 25, Math.PI / 3, 0.6, 0.2);
+  const laserPurple = new THREE.SpotLight(0x7e00ff, 110.0, 25, Math.PI / 3, 0.6, 0.1);
   laserPurple.position.set(0, 4, -2);
   threeScene.add(laserPurple);
 
@@ -172,34 +171,38 @@ const initThree = () => {
       
       model.rotation.set(Math.PI / 2.3, 0, 0); 
 
+      // 🔥 [결정적 교정] 일반 Mesh뿐만 아니라 GLB 파일 내부의 모든 스킨드 메쉬, 라인 등 
+      // 흰색 장벽을 치고 있는 모든 하위 데이터를 빠짐없이 추적하여 재질을 강제 오버라이드합니다.
       model.traverse((child) => {
-        if (!child.isMesh) return;
-        
-        if (child.material) {
-          child.material.dispose();
+        if (child.isMesh || child.isSkinnedMesh || child.geometry) {
+          
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach(m => m.dispose());
+            } else {
+              child.material.dispose();
+            }
+          }
+          
+          // 💎 기존 하얀 껍질 데이터를 영구 파괴하고 100% 관통하는 오로라 유리막 강제 이식
+          child.material = new THREE.MeshPhysicalMaterial({
+            color:              0xffffff,          // 완전한 순백색 레이어 적용
+            metalness:          0.05,              
+            roughness:          0.01,              // 무광기를 걷어내고 맑은 유광 텍스처 복원
+            transparent:        true,
+            opacity:            0.15,              // 중첩 껍질이 몇 장이든 무조건 뒤가 투과되도록 강제 다운
+            depthWrite:         false,             // 겹쳐진 면들이 하얗게 엉키는 현상 원천 봉쇄
+            side:               THREE.DoubleSide,
+            
+            // 🌈 엣지 굴절면에 반사되는 하이라이트 코팅과 네온 박막 간섭 레이어
+            clearcoat:          1.0,               
+            clearcoatRoughness: 0.0,
+            
+            iridescence:        1.0,               
+            iridescenceIOR:     2.8,               // 굴절 수치를 한계까지 높여 외곽선에만 오색 컬러가 쨍하게 압착
+            iridescenceThicknessRange: [200, 750]  
+          });
         }
-        
-        // 💎 [해결책] 모델의 겹친 면으로 인한 지직거림(Z-fighting)과 하얀 누적 현상 강제 차단 매핑
-        child.material = new THREE.MeshPhysicalMaterial({
-          color:              0xffffff,          
-          metalness:          0.0,
-          roughness:          0.02,              // 미세하게 조명을 머금도록 설정
-          transparent:        true,
-          opacity:            0.12,              // 수십 겹이 쌓여도 하얗게 차지 않도록 알파 기본 투명도를 대폭 다운
-          
-          // 🔥 핵심 버그 수정: 중첩된 면들끼리 깊이 버퍼를 경쟁하며 지직거리는 현상을 제거
-          depthWrite:         false,             
-          blending:           THREE.NormalBlending,
-          side:               THREE.DoubleSide,
-          
-          // 🌈 외곽선에만 쨍한 오로라 반사광을 남기기 위한 클리어코트 및 박막 레이어
-          clearcoat:          1.0,               
-          clearcoatRoughness: 0.0,
-          
-          iridescence:        1.0,               
-          iridescenceIOR:     2.7,               // 굴절률을 최대로 높여 엣지 경계면에만 무지갯빛이 맺히도록 유도
-          iridescenceThicknessRange: [250, 700]  
-        });
       });
 
       modelAnchor = new THREE.Group();
