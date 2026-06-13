@@ -79,7 +79,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (안쪽 코어 완벽 분리 교정판)
+    THREE.JS ENGINE (오로라 프리즘 대수술 버전)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -113,8 +113,9 @@ const initThree = () => {
   threeRenderer.setSize(W, H);
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  // 톤매핑 노출도를 조절하여 오로라 반사광의 경계를 더 강렬하고 선명하게 조율
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 2.2; 
+  threeRenderer.toneMappingExposure = 2.5; 
 
   threeScene = new THREE.Scene();
 
@@ -124,21 +125,21 @@ const initThree = () => {
   const ambient = new THREE.AmbientLight(0xffffff, 0.0); 
   threeScene.add(ambient);
 
-  // 무지개 반사광 명암을 찢어줄 메인 직사광선
-  const mainLight = new THREE.DirectionalLight(0xffffff, 2.2);
+  // 크리스탈 실루엣의 대비를 찢어줄 메인 탑 조명
+  const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
   mainLight.position.set(0, 4, 2);
   threeScene.add(mainLight);
 
-  // 🌈 외곽선에 크리스탈 무지갯빛 하이라이트를 강하게 맺히게 할 3중 빔 조명
-  const laserCyan = new THREE.SpotLight(0x00f5ff, 190.0, 35, Math.PI / 4, 0.4, 0.1);
-  laserCyan.position.set(4, 4, 2);
+  // 🌈 레퍼런스 특유의 영롱한 네온 무지갯빛 하이라이트를 강제로 맺히게 할 3중 테크니컬 스폿 조명
+  const laserCyan = new THREE.SpotLight(0x00f5ff, 220.0, 35, Math.PI / 4, 0.4, 0.1);
+  laserCyan.position.set(4, 3, 2);
   threeScene.add(laserCyan);
 
-  const laserMagenta = new THREE.SpotLight(0xff00b5, 210.0, 35, Math.PI / 4, 0.4, 0.1);
+  const laserMagenta = new THREE.SpotLight(0xff00b5, 240.0, 35, Math.PI / 4, 0.4, 0.1);
   laserMagenta.position.set(-4, -2, 2);
   threeScene.add(laserMagenta);
 
-  const laserPurple = new THREE.SpotLight(0x8a00ff, 130.0, 30, Math.PI / 3, 0.5, 0.1);
+  const laserPurple = new THREE.SpotLight(0x8a00ff, 150.0, 30, Math.PI / 3, 0.5, 0.1);
   laserPurple.position.set(0, 5, -2);
   threeScene.add(laserPurple);
 
@@ -170,7 +171,8 @@ const initThree = () => {
       
       model.rotation.set(Math.PI / 2.3, 0, 0); 
 
-      // 🔥 [오늘의 핵심 교정] 모델 내부의 파트별 메쉬 이름을 분석하여 이중 매핑 처리
+      // 🔥 [대수술 복구] 구조에 상관없이 들어오는 모든 메쉬의 잠금장치를 해제하고 
+      // 뒤가 투명하게 뚫리면서 엣지에 무지갯빛이 맺히도록 일괄 리모델링합니다.
       model.traverse((child) => {
         if (!child.isMesh) return;
 
@@ -182,16 +184,185 @@ const initThree = () => {
           }
         }
 
-        const meshName = child.name.toLowerCase();
+        // 💎 하얗게 굳어버리게 만들던 원인들을 소멸시키고 맑은 크리스탈 질감 강제 압착
+        const crystalMat = new THREE.MeshPhysicalMaterial({
+          color:              0xffffff,
+          metalness:          0.1,               // 미세한 금속성으로 조명의 무지갯빛을 쨍하게 반사
+          roughness:          0.0,               // 탁한 기운을 완전히 제거한 맑은 유광 표면
+          transparent:        true,
+          opacity:            0.3,               // 정면 면적은 웹 사이트 배경이 투명하게 비치도록 다운
+          side:               THREE.DoubleSide,
+          
+          // 중첩된 껍질면들이 하얗게 뭉치고 지직거리던 버그를 엔진 단에서 연산 차단
+          depthWrite:         false,             
+          blending:           THREE.NormalBlending,
 
-        // 1️⃣ 안쪽을 불투명하게 채우고 있던 코어 덩어리 데이터를 완전 증발시킵니다.
-        if (meshName.includes('core') || meshName.includes('base') || meshName.includes('inner')) {
-          child.material = new THREE.MeshBasicMaterial({
-            color: 0x000000,
-            transparent: true,
-            opacity: 0.0, // 완전히 안 보이게 처리하여 하얀 장벽 원천 소멸
-            depthWrite: false,
-            visible: false
-          });
-        } 
-        // 2️⃣ 바깥쪽
+          // 🌈 엣지 라인을 따라 레퍼런스처럼 칼 같은 오로라 하이라이트를 만들어내는 코팅막 설정
+          clearcoat:          1.0,               
+          clearcoatRoughness: 0.0,
+          
+          iridescence:        1.0,               // 비눗방울/오로라 같은 박막 간섭 효과 ON
+          iridescenceIOR:     2.8,               // 굴절률을 최대치로 밀어붙여 오색빛깔이 흐려지지 않고 쨍하게 배치
+          iridescenceThicknessRange: [200, 700]  
+        });
+
+        // GLB 내부에 박혀있을 수 있는 불투명 맵들 강제 초기화
+        crystalMat.map = null;
+        crystalMat.normalMap = null;
+        crystalMat.roughnessMap = null;
+        crystalMat.metalnessMap = null;
+        crystalMat.aoMap = null;
+        crystalMat.needsUpdate = true;
+
+        child.material = crystalMat;
+      });
+
+      modelAnchor = new THREE.Group();
+      modelAnchor.add(model);
+      threeScene.add(modelAnchor);
+      
+      if (crystalFallback) crystalFallback.style.display = 'none';
+
+      hideSiteLoader();
+    },
+    undefined,
+    (err) => {
+      console.warn("GLB 로드 에러", err);
+      hideSiteLoader();
+    }
+  );
+};
+
+/* ════════════════════════════════════════
+    ⏱️ ★ 로고 뱅글뱅글 로딩 화면 제어
+════════════════════════════════════════ */
+const hideSiteLoader = () => {
+  const siteLoader = document.querySelector('#site-loader');
+  if (siteLoader) {
+    setTimeout(() => {
+      siteLoader.classList.add('is-loaded');
+    }, 500); 
+  }
+};
+
+const resizeThree = () => {
+  if (!threeRenderer || !threeCamera) return;
+  const shell = landingDisplay || { offsetWidth: window.innerWidth, offsetHeight: window.innerHeight };
+  threeRenderer.setSize(shell.offsetWidth, shell.offsetHeight);
+  threeCamera.aspect = shell.offsetWidth / shell.offsetHeight;
+  threeCamera.updateProjectionMatrix();
+};
+
+/* ════════════════════════════════════════
+    MAIN ANIMATION LOOP
+════════════════════════════════════════ */
+const animate = () => {
+  animFrameId = requestAnimationFrame(animate);
+
+  pointer.x += (pointer.tx - pointer.x) * 0.08;
+  pointer.y += (pointer.ty - pointer.y) * 0.08;
+
+  if (follower) {
+    follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
+  }
+
+  updateLandingVars();
+  if (landingCanvasCtrl) landingCanvasCtrl.draw();
+
+  if (threeRenderer && threeScene && threeCamera) {
+    if (modelAnchor) {
+      if (!rotationState.isDragging) {
+        modelAutoRotY += 0.003;
+        rotationState.targetY += 0.003;
+      }
+
+      rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
+      rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
+
+      modelAnchor.rotation.x = rotationState.currentX;
+      modelAnchor.rotation.y = rotationState.currentY;
+
+      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.005;
+    }
+    threeRenderer.render(threeScene, threeCamera);
+  }
+};
+
+/* ════════════════════════════════════════
+    DRAG EVENTS
+════════════════════════════════════════ */
+const setupDragEvents = () => {
+  if (!landingDisplay) return;
+
+  landingDisplay.addEventListener('pointerdown', (e) => {
+    rotationState.isDragging = true;
+    rotationState.previousMouseX = e.clientX;
+    rotationState.previousMouseY = e.clientY;
+  });
+
+  window.addEventListener('pointermove', (e) => {
+    pointer.tx = e.clientX;
+    pointer.ty = e.clientY;
+
+    if (!rotationState.isDragging || !modelAnchor) return;
+
+    const deltaX = e.clientX - rotationState.previousMouseX;
+    const deltaY = e.clientY - rotationState.previousMouseY;
+
+    rotationState.targetY += deltaX * 0.008;
+    rotationState.targetX += deltaY * 0.008;
+
+    rotationState.previousMouseX = e.clientX;
+    rotationState.previousMouseY = e.clientY;
+  });
+
+  window.addEventListener('pointerup', () => {
+    rotationState.isDragging = false;
+  });
+};
+
+/* ════════════════════════════════════════
+    INITIALIZE
+════════════════════════════════════════ */
+const initAll = () => {
+  if (window.__threeInitialized) return; 
+  window.__threeInitialized = true;
+
+  landingCanvasCtrl = setupLandingCanvas();
+  setupDragEvents(); 
+
+  highlightElements.forEach((el) => {
+    el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
+    el.addEventListener('mouseleave', () => el.classList.remove('is-hovered'));
+  });
+
+  const revealCards = document.querySelectorAll('.reveal-card');
+  if (revealCards.length) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
+    );
+    revealCards.forEach(card => observer.observe(card));
+  }
+
+  initThree();
+  animate();
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAll);
+} else {
+  initAll();
+}
+
+window.addEventListener('resize', () => {
+  if (landingCanvasCtrl) landingCanvasCtrl.resize();
+  resizeThree();
+});
