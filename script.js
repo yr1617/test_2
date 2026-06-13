@@ -105,30 +105,31 @@ const updateLandingVars = () => {
   landing.style.setProperty('--pointer-y', `${clamp01(y / 100) * 100}%`);
 };
 
-// 인공 스튜디오 광원 맵 생성
+// 프리즘 유리의 환경 반사광을 극대화할 다채로운 인공 스튜디오 광원 맵 생성
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null; 
 
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(10, 0.5, 10),
+    new THREE.BoxGeometry(12, 0.5, 12),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
   topLight.position.set(0, 8, 0);
   scene.add(topLight);
 
+  // 프리즘 오로라 빛을 유도하기 위한 사이드 컬러 패널 배치
   const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(0.1, 6, 6),
+    new THREE.BoxGeometry(0.1, 8, 8),
     new THREE.MeshBasicMaterial({ color: 0x00ffff })
   );
-  leftPanel.position.set(-7, 3, -2);
+  leftPanel.position.set(-6, 3, -2);
   scene.add(leftPanel);
 
   const rightPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(0.1, 6, 6),
+    new THREE.BoxGeometry(0.1, 8, 8),
     new THREE.MeshBasicMaterial({ color: 0xff00ff })
   );
-  rightPanel.position.set(7, 2, 2);
+  rightPanel.position.set(6, 2, 2);
   scene.add(rightPanel);
 
   const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -163,17 +164,18 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping; 
-  window.threeRenderer.toneMappingExposure = 2.2; // 맑고 선명함을 위해 노출 살짝 조정 
+  window.threeRenderer.toneMappingExposure = 2.4; // 유리 광택을 위해 노출값 최적화
 
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 7.0);
-  dirLight1.position.set(5, 12, 7);
+  // 각진 칼각 단차를 날카롭게 때려줄 직사 조명 
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 8.0);
+  dirLight1.position.set(6, 12, 8);
   window.threeScene.add(dirLight1);
 
   const dirLight2 = new THREE.DirectionalLight(0xddf0ff, 4.0);
-  dirLight2.position.set(-6, -2, 5);
+  dirLight2.position.set(-6, -3, 6);
   window.threeScene.add(dirLight2);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   window.threeScene.add(ambientLight);
 
   window.threeCamera = new THREE.PerspectiveCamera(25, W / H, 0.1, 100);
@@ -198,28 +200,28 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 🔥 [예린님 치트키 머티리얼] 내부 꼬인 선은 숨기고 외곽 단차만 레퍼런스처럼 살리는 조합
+      // 🔥 [최종 정답] 시꺼멓게 타는 현상을 막고 내부 선을 차단하는 영롱한 프리즘 크리스탈 세팅
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.0,               // 쨍하고 맑은 진짜 크리스탈 유리 표면
+        roughness: 0.0,               // 극도로 매끄러운 크리스탈 표면 (뿌연 느낌 100% 제거)
         transparent: true,
-        transmission: 1.0,            // 물리적 광학 투과 100%로 영롱한 빛 투과 효과
-        ior: 1.5,                     // 크리스탈 표준 굴절률 (교차선 왜곡 최소화)
+        transmission: 0.95,           // 맑고 투명하게 빛이 통과하는 유리를 구현하되 완전히 터지는 걸 방지하기 위해 0.95 제어
+        ior: 1.45,                    // 굴절률을 표준 유리 수준으로 조절하여 내부 면 꼬임으로 인한 블랙아웃 버그 원천 차단
         
-        // 🛠️ 내부 관통 거미줄선을 투명하게 지워버리는 렌더 마스킹 세팅
-        side: THREE.FrontSide,        // 안쪽 면과 내부 관통면 연산 제외, 겉껍데기 피부만 렌더링!
-        depthWrite: true,             // 불투명 큐 버퍼를 강제하여 내부 교차선의 투과 정렬 뒤틀림 차단
+        // 🛠️ 내부 관통선 차단을 위한 렌더 큐 마스킹 핵심 세팅
+        side: THREE.FrontSide,        // 6단 계단 모양의 '바깥 피부'만 그리고 내부로 파고든 거미줄 면 연산 강제 생략
+        depthWrite: true,             // 투명 큐의 정렬 꼬임을 방지하여 내부 선 비침을 차단하는 차폐막 형성
         depthTest: true,
 
-        // ✨ 레퍼런스 특유의 영롱한 엣지 무지개광 프리즘 효과 추가
-        iridescence: 0.35,            
-        iridescenceIOR: 1.7,
-        iridescenceThicknessRange: [100, 400],
+        // ✨ 레퍼런스 특유의 오로라빛 프리즘 반사광 구현
+        iridescence: 0.9,             // 표면에 감도는 프리즘 무지개 효과 극대화
+        iridescenceIOR: 1.9,          
+        iridescenceThicknessRange: [140, 380], // 레퍼런스 특유의 영롱한 오렌지/핑크/블루 그라데이션 유도
         
-        clearcoat: 1.0,               // 표면에 하이라이트를 맺히게 하는 탑코트 유리막 코팅
+        clearcoat: 1.0,               // 유리 겉면에 하이라이트 코팅막을 한 겹 더 씌워 각진 단차 칼각 강조
         clearcoatRoughness: 0.0,
-        specularIntensity: 2.5,
+        specularIntensity: 3.0,       
         specularColor: new THREE.Color(0xffffff)
       });
 
