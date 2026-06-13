@@ -118,17 +118,18 @@ const initThree = () => {
   const W = shell.offsetWidth;
   const H = shell.offsetHeight;
 
+  // 뒷 배경 투명하게 뚫는 옵션 복구
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
-    alpha:       true, // 배경 투명하게 뚫기 보장
+    alpha:       true, 
     antialias:   true
   });
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   threeRenderer.setSize(W, H);
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  // 영역 잘림 방지를 위해 FOV 각도 시원하게 확보
-  threeCamera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
+  // 회전 시 위아래 안 잘리도록 카메라 시야 확보
+  threeCamera = new THREE.PerspectiveCamera(38, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 5.2); 
 
   const ambient = new THREE.AmbientLight(0xffffff, 1.0);
@@ -139,8 +140,9 @@ const initThree = () => {
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
   loader.setDRACOLoader(draco);
 
+  // ⚡ 파일 뒤에 ?v=2 쿼리스트링을 붙여서 끈질긴 브라우저 GLB 캐시를 강제로 박살냅니다.
   loader.load(
-    './modeling.glb',
+    './modeling.glb?v=2',
     (gltf) => {
       const model = gltf.scene;
 
@@ -151,38 +153,37 @@ const initThree = () => {
       box.getSize(size);
       
       const maxDim = Math.max(size.x, size.y, size.z);
-      // 사방 회전 마진을 위해 스케일을 안전 자리에 고정 (절대 안 잘림)
-      const scale   = 1.55 / maxDim; 
+      // 🌟 크기 작아졌던 문제를 해결하기 위해 시원시원한 원래 크기(1.95)로 원상복구!
+      const scale   = 1.95 / maxDim; 
       
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
       
       model.rotation.set(Math.PI / 2.3, 0, 0); 
 
-      // 🛠️ [긴급 처방: 꼬인 내부 메쉬 계층 구조 강제 무력화 순회]
+      // 내부 꼬인 계층 메쉬 구조 완벽 침투 순회
       model.traverse((child) => {
-        // child가 Mesh이거나, 자식 노드가 존재하는 객체라면 무조건 하위 메쉬를 강제로 추적
         if (child.isMesh || (child.children && child.children.length > 0)) {
           
           if (child.isMesh) {
-            // 1. 기존 파일에 박혀있던 완고한 회색 재질 완전히 폐기
+            // 기존 텁텁한 회색 재질 포맷
             if (child.material) {
               if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
               else child.material.dispose();
             }
 
-            // 2. 챗지피티가 피드백한 홀로그래픽 프리즘 뷰 재질 강제 강제 주입
+            // 지피티 피드백: 빛과 환경에 영향받지 않고 무조건 영롱하게 각도별로 빛나는 프리즘 주입
             child.material = new THREE.MeshNormalMaterial({
               side: THREE.DoubleSide,
               blending: THREE.NormalBlending
             });
 
-            // 3. 디지털 아트워크 엣지 라인 생성
+            // 쨍하고 날카로운 사이버 테두리 엣지 하이라이트 생성
             const wireframeGeom = new THREE.WireframeGeometry(child.geometry);
             const wireframeMat = new THREE.LineBasicMaterial({
               color: 0xffffff,
               transparent: true,
-              opacity: 0.6,
+              opacity: 0.65,
               blending: THREE.AdditiveBlending
             });
             const wireframe = new THREE.LineSegments(wireframeGeom, wireframeMat);
