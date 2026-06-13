@@ -43,11 +43,11 @@ const eliminateFakeModels = () => {
   });
 };
 
-// 마우스 트래킹 변수 (화면 중심 기준 -1 ~ 1 값으로 변환용)
+// 마우스 트래킹 변수
 const mouse = { x: 0, y: 0 };
 const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, tx: window.innerWidth * 0.5, ty: window.innerHeight * 0.5 };
 
-// 💡 기본 시작 각도 셋팅 (정면에서 입체감이 딱 예쁘게 살아나는 기본 고정축)
+// 기본 시작 각도 셋팅
 const baseRotation = { x: 0.45, y: -0.4 };
 const rotationState = { currentX: 0.45, currentY: -0.4 };
 
@@ -105,7 +105,7 @@ const updateLandingVars = () => {
   landing.style.setProperty('--pointer-y', `${clamp01(y / 100) * 100}%`);
 };
 
-// 💡 맑은 투명도와 대비감을 극대화하기 위한 가상 인공 스튜디오 광원 맵 생성
+// 인공 스튜디오 광원 맵 생성
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null; 
@@ -155,7 +155,7 @@ const initThree = () => {
 
   window.threeRenderer = new THREE.WebGLRenderer({
     canvas: modelCanvas,
-    alpha: true,         // 배경 투명화 필수 (웹사이트 배경 그라데이션 투과)
+    alpha: true,         
     antialias: true,
     powerPreference: "high-performance"
   });
@@ -163,9 +163,8 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping; 
-  window.threeRenderer.toneMappingExposure = 2.0; 
+  window.threeRenderer.toneMappingExposure = 2.2; // 맑고 선명함을 위해 노출 살짝 조정 
 
-  // 강력한 직사 핀조명 세팅 (대비감 극대화)
   const dirLight1 = new THREE.DirectionalLight(0xffffff, 7.0);
   dirLight1.position.set(5, 12, 7);
   window.threeScene.add(dirLight1);
@@ -199,24 +198,29 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 💡 불투명한 회색 유기를 지우고, 안쪽 겹침이 투명하게 정돈되도록 메터리얼 전면 재설계
+      // 🔥 [예린님 치트키 머티리얼] 내부 꼬인 선은 숨기고 외곽 단차만 레퍼런스처럼 살리는 조합
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.02,             // 극도로 투명하고 매끄러운 질감
+        roughness: 0.0,               // 쨍하고 맑은 진짜 크리스탈 유리 표면
         transparent: true,
-        opacity: 0.28,               // 불투명함을 걷어내고 배경이 완전히 투과되도록 투명도 설정
-        transmission: 1.0,           // 빛을 100% 통과시켜 맑은 크리스탈 구현
-        ior: 2.2,                    // 굴절률을 높여 겹친 내부 메쉬가 영롱하게 굴절되도록 유도
-        side: THREE.DoubleSide,      
-        depthWrite: false,           // 투명 메쉬 내부 정렬 꼬임 방지
+        transmission: 1.0,            // 물리적 광학 투과 100%로 영롱한 빛 투과 효과
+        ior: 1.5,                     // 크리스탈 표준 굴절률 (교차선 왜곡 최소화)
+        
+        // 🛠️ 내부 관통 거미줄선을 투명하게 지워버리는 렌더 마스킹 세팅
+        side: THREE.FrontSide,        // 안쪽 면과 내부 관통면 연산 제외, 겉껍데기 피부만 렌더링!
+        depthWrite: true,             // 불투명 큐 버퍼를 강제하여 내부 교차선의 투과 정렬 뒤틀림 차단
         depthTest: true,
-        iridescence: 1.0,            // 프리즘 무지개 효과 활성화
-        iridescenceIOR: 2.5,
-        iridescenceThicknessRange: [140, 380], // 영롱한 오로라 스펙트럼 유도
-        clearcoat: 1.0,              // 겉면에 유리가 코팅된 듯한 반사광 레이어 추가
+
+        // ✨ 레퍼런스 특유의 영롱한 엣지 무지개광 프리즘 효과 추가
+        iridescence: 0.35,            
+        iridescenceIOR: 1.7,
+        iridescenceThicknessRange: [100, 400],
+        
+        clearcoat: 1.0,               // 표면에 하이라이트를 맺히게 하는 탑코트 유리막 코팅
         clearcoatRoughness: 0.0,
-        specularIntensity: 2.5
+        specularIntensity: 2.5,
+        specularColor: new THREE.Color(0xffffff)
       });
 
       model.traverse((child) => {
@@ -291,8 +295,6 @@ const animate = () => {
 
   if (window.threeRenderer && window.threeScene && window.threeCamera) {
     if (window.modelAnchor) {
-      // 💡 [호버 기반 유연한 제한 관성 회전 인터랙션]
-      // 마우스의 위치(mouse.x, mouse.y)에 따라 정해진 범위(최대 약 25도 내외) 안에서만 부드럽게 기울어집니다.
       const targetRotationX = baseRotation.x + (mouse.y * 0.45);
       const targetRotationY = baseRotation.y + (mouse.x * 0.55);
 
@@ -302,7 +304,7 @@ const animate = () => {
       window.modelAnchor.rotation.x = rotationState.currentX;
       window.modelAnchor.rotation.y = rotationState.currentY;
 
-      // 부드러운 유영 효과 추가
+      // 부드러운 유영 효과
       window.modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.015;
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
@@ -317,7 +319,6 @@ const setupHoverEvents = () => {
     pointer.tx = e.clientX;
     pointer.ty = e.clientY;
 
-    // 💡 화면 중심을 기준으로 마우스의 위치를 -1 ~ 1 사이의 비율값으로 정규화
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
   });
@@ -325,7 +326,7 @@ const setupHoverEvents = () => {
 
 const initAll = () => {
   landingCanvasCtrl = setupLandingCanvas();
-  setupHoverEvents(); // 드래그 제거 후 원본 호버 이벤트 리스너 결합
+  setupHoverEvents(); 
   eliminateFakeModels(); 
 
   highlightElements.forEach((el) => {
