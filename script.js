@@ -51,7 +51,7 @@ const pointer = {
 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
-// [대수술] 모델이 정수리를 보이며 눕지 않고 똑바로 일어서서 정면을 보도록 각도축 오프셋 주입
+// [정면 교정] 모델이 정수리를 보이지 않고 똑바로 세워져 정면을 바라보도록 하는 오프셋 각도
 const baseRotation = { x: Math.PI * 0.5, y: 0.0 }; 
 const rotState     = { x: Math.PI * 0.5, y: 0.0 };
 
@@ -111,7 +111,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    [교정] 리얼한 금속 크롬 반사를 유도하는 가상 스튜디오 박스 환경 맵 생성
+    [반사광 연산] 크롬 은빛 재질을 만들어주는 내부 스튜디오 맵 환경 정의
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
@@ -176,9 +176,9 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  window.threeRenderer.toneMappingExposure = 2.4; // 노출도를 끌어올려 물체가 까맣게 죽어 번지는 현상 원천 봉쇄
+  window.threeRenderer.toneMappingExposure = 2.4; // 노출도를 맑게 올려 검게 그을리는 타는 현상 차단
 
-  // 360도 전 방향 입체 3점 조명 세팅
+  // 입체감을 더해줄 무결점 화이트 광원 세팅
   const dirLight1 = new THREE.DirectionalLight(0xffffff, 9.0);
   dirLight1.position.set(10, 15, 10);
   window.threeScene.add(dirLight1);
@@ -213,11 +213,11 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      /* ── 칙칙했던 색상을 빛을 강하게 반사하는 실버 크롬 메탈릭 질감으로 정교하게 오버라이드 ── */
+      /* ── [크롬 은빛 재질 하드코딩 교정] 탁한 검은색을 날리고 거울처럼 맑은 실버 크롬 재질 적용 ── */
       const chromeSilverMat = new THREE.MeshStandardMaterial({
-        color: 0xffffff,       
-        metalness: 1.0,        // 금속 반사율 최대로 지정
-        roughness: 0.01,       // 표면을 완전히 매끄럽게 깎아 주변 반사를 선명하게 만듦
+        color: 0xffffff,       // 베이스를 화이트로 고정하여 어두워지는 현상 방지
+        metalness: 1.0,        // 금속 광택 100% 최대로 활성화
+        roughness: 0.01,       // 표면 거칠기를 없애 거울 효과 극대화
         side: THREE.DoubleSide
       });
 
@@ -245,7 +245,7 @@ const initThree = () => {
       window.modelAnchor.add(model);
       window.threeScene.add(window.modelAnchor);
 
-      // 정면 각도가 찌그러지지 않도록 90도 베이스 피벗 보정 주입
+      // 모델이 누워있지 않고 똑바로 서서 정면을 보게끔 축 각도 설정
       window.modelAnchor.rotation.x = baseRotation.x;
       window.modelAnchor.rotation.y = baseRotation.y;
 
@@ -276,7 +276,7 @@ const resizeThree = () => {
 };
 
 /* ════════════════════════════════════════
-    SCROLL INDICATOR (기존 스크롤 매핑 완벽 유지)
+    SCROLL INDICATOR (원본 상태 유지)
 ════════════════════════════════════════ */
 const buildSectionMap = () => {
   navLinks.forEach(link => {
@@ -338,7 +338,7 @@ const updateNavProgress = () => {
 };
 
 /* ════════════════════════════════════════
-    MAIN ANIMATION LOOP (회전 감속 완료)
+    MAIN ANIMATION LOOP (원래의 .cursor-follower를 그대로 제어)
 ════════════════════════════════════════ */
 let clock = 0;
 
@@ -349,6 +349,7 @@ const animate = () => {
   pointer.x += (pointer.tx - pointer.x) * 0.08;
   pointer.y += (pointer.ty - pointer.y) * 0.08;
 
+  // 원래 사용하시던 .cursor-follower 엘리먼트 위치를 렌더링 루프에서 매끄럽게 제어
   if (follower) {
     follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
   }
@@ -366,7 +367,7 @@ const animate = () => {
         rotState.x += (targetX - rotState.x) * 0.05;
         rotState.y += (targetY - rotState.y) * 0.05;
       } else {
-        // 어지럽지 않게 기존 속도보다 매우 얌전하고 고급스러운 루프로 감속 (0.001)
+        // 어지럽지 않게 우아하고 조용한 속도(0.001)로 부드러운 자전 연산 진행
         autoRotY += 0.001;
         const targetX = baseRotation.x + Math.sin(clock * 0.2) * 0.015;
         const targetY = autoRotY;
@@ -405,7 +406,7 @@ const setupHoverEvents = () => {
 };
 
 /* ════════════════════════════════════════
-    폴더 GUI 인터랙션
+    폴더 GUI 인터랙션 (원본 데이터 100% 무변경 유지)
 ════════════════════════════════════════ */
 const FOLDER_DATA = {
   academic: {
