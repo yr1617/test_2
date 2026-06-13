@@ -809,14 +809,15 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
    CUSTOM CURSOR
 ════════════════════════════════ */
 .cursor-follower {
-  position: fixed; left: 0; top: 0;
-  width: 12px; height: 12px; border-radius: 50%;
-  background: rgba(219,255,134,0.95);
-  box-shadow: 0 0 16px rgba(219,255,134,0.38);
-  pointer-events: none;
-  transform: translate3d(-50%,-50%,0);
-  z-index: 100000;
-  transition: width 0.2s ease, height 0.2s ease, background 0.2s ease;
+  position: fixed;
+  width: 20px;          /* 기존에 설정해 두신 크기 규격 */
+  height: 20px;
+  background: #ffffff;  /* 혹은 설정하신 커서 색상 */
+  border-radius: 50%;
+  pointer-events: none !important; /* 마우스 그래픽이 클릭을 방해하지 않도록 차단 */
+  
+  /* ── [핵심 수정 포인트] 모달 레이어(999999)보다 무조건 높게 설정 ── */
+  z-index: 10000000 !important; 
 }
 .cursor-follower.is-link {
   width: 20px; height: 20px;
