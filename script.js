@@ -1,3 +1,8 @@
+// HTML의 importmap 설정을 인식하여 외부 모듈을 충돌 없이 안전하게 가져옵니다.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+
 /* ════════════════════════════════════════
     ENGINE DESTROY & CLEAN
 ════════════════════════════════════════ */
@@ -48,7 +53,7 @@ const pointer = {
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
 /* ════════════════════════════════════════
-    [교정] 모델링이 누워있지 않도록 정면 기준 축 고정
+    모델링이 상단으로 누워버리지 않도록 세우는 기준각
 ════════════════════════════════════════ */
 const baseRotation = { x: 0.0, y: 0.55 };
 const rotState     = { x: 0.0, y: 0.55 };
@@ -108,7 +113,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    메탈릭 반사광 유도용 스튜디오 가상 환경 구축
+    메탈 크롬 광택 유도용 고대비 가상 반사 스튜디오 환경 설정
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
@@ -173,7 +178,7 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  window.threeRenderer.toneMappingExposure = 1.3;
+  window.threeRenderer.toneMappingExposure = 1.35; // 잿빛 찰흙 현상을 지우기 위한 정밀 광량 조정
 
   const dirLight1 = new THREE.DirectionalLight(0xffffff, 4.5);
   dirLight1.position.set(5, 8, 6);
@@ -192,9 +197,9 @@ const initThree = () => {
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
 
-  // HTML에 설정된 importmap 기반 라이브러리 직접 참조 호출
-  const loader = new THREE.GLTFLoader();
-  const draco  = new THREE.DRACOLoader();
+  // 상단에서 명시적으로 import 한 GLTFLoader와 DRACOLoader 인스턴스를 정상적으로 매핑합니다.
+  const loader = new GLTFLoader();
+  const draco  = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
   loader.setDRACOLoader(draco);
 
@@ -206,11 +211,11 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      /* ── [교정] 찰흙 같은 느낌을 지우고 반짝이는 실버 크롬 메탈릭 재질 바인딩 ── */
+      /* ── 칙칙하고 뭉개지던 회색 재질을 완전한 실버 크롬 메탈릭 질감으로 강제 교체 ── */
       const realSilverMetallicMat = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        metalness: 1.0,
-        roughness: 0.08,
+        color: 0xffffff,       // 베이스를 밝은 화이트로 처리하여 어둡게 타는 현상 차단
+        metalness: 1.0,        // 100% 반사 메탈 속성 부여
+        roughness: 0.08,       // 표면 거칠기를 최소화하여 날카로운 은빛 광택선 형성
         side: THREE.DoubleSide
       });
 
@@ -238,6 +243,7 @@ const initThree = () => {
       window.modelAnchor.add(model);
       window.threeScene.add(window.modelAnchor);
 
+      // 모델링이 하늘을 보며 눕지 않도록 정면 영점 세팅 적용
       window.modelAnchor.rotation.x = baseRotation.x;
       window.modelAnchor.rotation.y = baseRotation.y;
 
@@ -268,7 +274,7 @@ const resizeThree = () => {
 };
 
 /* ════════════════════════════════════════
-    SCROLL INDICATOR (프로그레스 바 100% 매핑 보정)
+    SCROLL INDICATOR
 ════════════════════════════════════════ */
 const buildSectionMap = () => {
   navLinks.forEach(link => {
@@ -395,7 +401,7 @@ const setupHoverEvents = () => {
 };
 
 /* ════════════════════════════════════════
-    폴더 GUI 인터랙션 (원본 보존 및 더블 클릭 최적화)
+    폴더 GUI 인터랙션 (원본 완벽 보존)
 ════════════════════════════════════════ */
 const FOLDER_DATA = {
   academic: {
