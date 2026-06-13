@@ -91,51 +91,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    ⚡ 초강력 고대비 프리즘 인공 광학 환경 맵
-════════════════════════════════════════ */
-const generatePrismEnvMap = (renderer) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1024; // 스펙트럼 선명도를 위해 해상도 2배 상향
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-
-  // 레퍼런스처럼 완벽한 대비를 위해 우주는 칠흑색
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, 1024, 512);
-
-  // 좌우에 칼날 같은 백색 반사광 기둥 배치
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(150, 50, 60, 412);
-  ctx.fillRect(814, 50, 60, 412);
-
-  // 중앙에 레퍼런스의 오색 스펙트럼을 재현할 네온 그라데이션 주입
-  const gradient = ctx.createLinearGradient(300, 0, 724, 0);
-  gradient.addColorStop(0.0, 'rgba(0,0,0,0)');
-  gradient.addColorStop(0.15, '#ff0055'); // 핫핑크
-  gradient.addColorStop(0.35, '#00ffaa'); // 민트 스크린
-  gradient.addColorStop(0.50, '#ffff00'); // 옐로우
-  gradient.addColorStop(0.70, '#0077ff'); // 네온 블루
-  gradient.addColorStop(0.85, '#aa00ff'); // 퍼플
-  gradient.addColorStop(1.0, 'rgba(0,0,0,0)');
-  
-  ctx.fillStyle = gradient;
-  ctx.fillRect(250, 30, 524, 452);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.mapping = THREE.EquirectangularReflectionMapping;
-
-  const pmremGenerator = new THREE.PMREMGenerator(renderer);
-  pmremGenerator.compileEquirectangularShader();
-  const renderTarget = pmremGenerator.fromEquirectangular(texture);
-
-  pmremGenerator.dispose();
-  texture.dispose();
-
-  return renderTarget.texture;
-};
-
-/* ════════════════════════════════════════
-    THREE.JS ENGINE
+    THREE.JS ENGINE (NORMAL BASED PRISM)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -151,19 +107,7 @@ const initThree = () => {
     animFrameId = null;
   }
 
-  if (threeScene) {
-    while(threeScene.children.length > 0){ 
-      const obj = threeScene.children[0];
-      if (obj.geometry) obj.geometry.dispose();
-      if (obj.material) {
-        if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
-        else obj.material.dispose();
-      }
-      threeScene.remove(obj); 
-    }
-  } else {
-    threeScene = new THREE.Scene();
-  }
+  threeScene = new THREE.Scene();
 
   if (threeRenderer) {
     threeRenderer.dispose();
@@ -176,32 +120,20 @@ const initThree = () => {
 
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
-    alpha:       false, // ⚠️ 대비(Contrast) 확보를 위해 투명을 끄고 칠흑색 스페이스로 세팅
-    antialias:   true,
-    powerPreference: 'high-performance'
+    alpha:       true, // 뚫린 배경 다시 온전히 복구
+    antialias:   true
   });
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   threeRenderer.setSize(W, H);
-  threeRenderer.setClearColor(0x101012, 1); // 배경을 웹사이트 톤과 맞는 어두운 블랙으로 고정
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
-  threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 2.2; // 레퍼런스처럼 쨍하게 터지도록 노출 대폭 상향
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 환경 맵 주입
-  const prismEnv = generatePrismEnvMap(threeRenderer);
-  threeScene.environment = prismEnv;
-
-  // 쨍한 고대비 탑-사이드 조명 커스텀
-  const ambient = new THREE.AmbientLight(0xffffff, 0.3); 
+  // 조명 의존성 제로화 (NormalMaterial은 조명 없이 스스로 빛납니다)
+  const ambient = new THREE.AmbientLight(0xffffff, 0.8);
   threeScene.add(ambient);
-
-  const sunLight = new THREE.DirectionalLight(0xffffff, 5.0); 
-  sunLight.position.set(5, 8, 4);
-  threeScene.add(sunLight);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -227,40 +159,29 @@ const initThree = () => {
       
       model.rotation.set(Math.PI / 2.3, 0, 0); 
 
-      // 🛠️ [치명적인 원인 해결: 기존 3D 모델의 회색 재질 완벽 강제 포맷]
       model.traverse((child) => {
         if (!child.isMesh) return;
 
-        // 기존에 먹혀있던 모든 똥색/회색 기본 재질 폐기처분
-        if (child.material) {
-          if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
-          else child.material.dispose();
-        }
-
-        // 오직 코드가 제어하는 프리즘 광학 글래스 재질만 강제로 뼈대에 박아버림
-        child.material = new THREE.MeshPhysicalMaterial({
-          color:              0xffffff,          // 완전한 백색 무색 유리
-          metalness:          0.0,               
-          roughness:          0.005,             // 칼날 같은 반사면
-          transparent:        true,              
-          side:               THREE.DoubleSide,  // 내부 안쪽 면까지 전부 굴절 계산 강제 적용
-          depthWrite:         true,
-
-          transmission:       0.95,              // 뒤쪽의 빛을 투과율 95%로 굴절 통과
-          ior:                2.4,               // 다이아몬드급 굴절률로 모서리 대비 극대화
-          thickness:          2.5,               // 유리 덩어리 두께감 맥시멈
-
-          // 🌈 회전할 때마다 네온 오로라가 칼날 경계선에 맺히게 하는 강제 필름 주입
-          iridescence:        1.0,               
-          iridescenceIOR:     2.8,               
-          iridescenceThicknessRange: [300, 600], 
-
-          clearcoat:          1.0,               
-          clearcoatRoughness: 0.0
+        // 🌈 [지피티 치트키 반영: 환경 노상관 무조건 오로라 프리즘 질감]
+        // 각도에 따라 핑크, 민트, 블루가 매끄럽게 교차하는 정밀 노멀 치트키 세팅
+        child.material = new THREE.MeshNormalMaterial({
+          transparent: true,
+          opacity:     0.55,              // 서늘하게 투명도를 주어 뒷배경 완벽 투과
+          side:        THREE.DoubleSide,  // 앞뒷면을 다 렌더링해서 유리 겹침 굴절 효과 유도
+          blending:    THREE.NormalBlending
         });
-        
-        child.castShadow = false;
-        child.receiveShadow = false;
+
+        // ✨ [레퍼런스 매치 핵심: 칼날 같은 백색 와이어프레임 강제 오버레이]
+        // 각진 모서리에 쨍한 하이라이트 경계선을 만들어주기 위해 얇은 선 메쉬를 한 겹 겹칩니다.
+        const wireframeGeom = new THREE.WireframeGeometry(child.geometry);
+        const wireframeMat = new THREE.LineBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.4,                  // 모서리에 맺히는 서늘한 흰색 선
+          blending: THREE.AdditiveBlending
+        });
+        const wireframe = new THREE.LineSegments(wireframeGeom, wireframeMat);
+        child.add(wireframe);
       });
 
       modelAnchor = new THREE.Group();
