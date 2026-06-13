@@ -462,13 +462,23 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   background:
     linear-gradient(180deg, rgba(255,250,241,0.04), rgba(255,250,241,0.02)),
     linear-gradient(180deg, rgba(17,17,19,0.96), rgba(10,10,12,0.98));
-  min-height: 420px; position: relative; display: flex;
-  flex-direction: column; justify-content: flex-end;
-  border-left: 1px solid var(--line); border-top: 0; border-right: 0;
-  border-bottom: 1px solid var(--line); padding: 100px 32px 32px;
-  color: #f6f2ea; filter: grayscale(0.08) brightness(0.9); opacity: 0.94;
-  transform: translateY(0) scale(0.985); transform-origin: center bottom;
-  z-index: 1; overflow: hidden;
+  min-height: 320px;          /* ◀ [수정] 카드 높이를 420px에서 320px로 조절 */
+  position: relative; 
+  display: flex;
+  flex-direction: column; 
+  justify-content: flex-end;
+  border-left: 1px solid var(--line); 
+  border-top: 0; 
+  border-right: 0;
+  border-bottom: 1px solid var(--line); 
+  padding: 42px 32px 32px;    /* ◀ [수정] 상단 여백을 100px에서 42px로 좁힘 */
+  color: #f6f2ea; 
+  filter: grayscale(0.08) brightness(0.9); 
+  opacity: 0.94;
+  transform: translateY(0) scale(0.985); 
+  transform-origin: center bottom;
+  z-index: 1; 
+  overflow: hidden;
 }
 .reveal-card.project-card { transform: translateY(42px) scale(0.985); }
 .reveal-card.project-card.is-visible { transform: translateY(0) scale(0.985); }
