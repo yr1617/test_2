@@ -959,3 +959,53 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
 .modal-backdrop {
   z-index: 9999998 !important;
 }
+/* 1. 전체 화면을 덮는 모달 컨테이너 (정렬용 유령 레이어) */
+#folder-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999999;
+  opacity: 0;
+  pointer-events: none; /* 닫혀있을 땐 클릭 차단 */
+  transition: opacity 0.3s ease;
+}
+
+/* 모달이 열렸을 때 */
+#folder-modal.is-open {
+  opacity: 1;
+  pointer-events: auto; /* 열리면 내부에 클릭 작동 */
+}
+
+/* 2. 뒷배경 백드롭 (여기에만 블러를 걸어야 글씨가 안 흐려짐!) */
+#modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(16, 16, 18, 0.4); /* 어두운 투명도 */
+  backdrop-filter: blur(12px);              /* 오직 배경에만 블러 맥이기 */
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 1;
+}
+
+/* 3. 모달 팝업 본체 (백드롭과 형제 관계이므로 절대 흐려지지 않음) */
+.modal-content, #modal-body, #modal-title, #modal-path {
+  position: relative;
+  z-index: 2; /* 백드롭(1)보다 위에 띄우기 */
+  filter: none !important; /* 흐림 효과 완벽 원천 차단 */
+  backdrop-filter: none !important;
+  pointer-events: auto !important; /* 마우스 클릭 정상화 */
+}
+
+/* 4. 마우스 커서 팔로워 (최상단 배치 후 클릭 무시) */
+.cursor-follower {
+  position: fixed !important;
+  z-index: 10000000 !important;
+  pointer-events: none !important; /* 가상 커서가 클릭을 방해하지 않도록 관통 */
+}
