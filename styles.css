@@ -992,3 +992,30 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
     min-height: 580px !important; /* 캔버스 자체 최소 높이 강제 확보 */
     display: block;
 }
+/* ⚡ 캔버스를 감싸는 쉘이 화면 정중앙에 고정되도록 배치 */
+.landing-display-shell {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 600px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative;
+    overflow: visible !important; /* 캔버스가 절대 잘리지 않도록 안전장치 */
+}
+
+#landing-display {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 600px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+#model-canvas {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 600px !important;
+    display: block;
+}
