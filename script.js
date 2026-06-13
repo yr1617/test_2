@@ -40,7 +40,7 @@ const eliminateFakeModels = () => {
   fakeIds.forEach(selector => {
     const el = document.querySelector(selector);
     if (el) el.style.setProperty('display', 'none', 'important');
-    if (el && selector === '#three-debug-hud') el.remove(); // 디버그 허드 삭제
+    if (el && selector === '#three-debug-hud') el.remove(); 
   });
 };
 
@@ -143,17 +143,17 @@ const initThree = () => {
     alpha: true,
     antialias: true,
     powerPreference: "high-performance",
-    logarithmicDepthBuffer: true // 겹쳐진 조각들의 지직거림을 물리적으로 평정하는 옵션
+    logarithmicDepthBuffer: true 
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 2.5);
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 2.8);
   dirLight1.position.set(5, 10, 7);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xa3e5ff, 1.5);
+  const dirLight2 = new THREE.DirectionalLight(0xa3e5ff, 1.8);
   dirLight2.position.set(-5, -5, 5);
   window.threeScene.add(dirLight2);
 
@@ -179,26 +179,26 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 겹치는 메쉬 조각들이 서로 투과되며 영롱하게 연출되도록 재질 밸런싱 수정
+      // 영롱함을 극대화한 크리스탈 글래스 매티리얼
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.05,            
+        roughness: 0.02,            
         transparent: true,
-        opacity: 0.45,               
-        transmission: 0.9,          
-        ior: 1.5,                  
-        side: THREE.DoubleSide, // 안쪽 면까지 다 렌더링하여 온전한 입체감 구현
-        depthWrite: false,      // 투명 물체끼리 겹칠 때 뒤쪽이 가려지는 버그 방지
+        opacity: 0.35,               
+        transmission: 0.95,          
+        ior: 1.52,                  
+        side: THREE.DoubleSide, 
+        depthWrite: false,      
         depthTest: true,
-        iridescence: 0.8,           
-        iridescenceIOR: 1.5,        
-        iridescenceThicknessRange: [100, 300], 
+        iridescence: 0.9,           
+        iridescenceIOR: 1.6,        
+        iridescenceThicknessRange: [100, 320], 
         clearcoat: 1.0,             
         clearcoatRoughness: 0.0
       });
 
-      // 🛠️ 5개의 모든 정품 크리스탈 조각들을 온전하게 융합하고 재질을 입힙니다.
+      // ⭐ [핵심 변경] 개별 메쉬의 원래 위치/회전은 절대로 건드리지 않고 재질만 스왑합니다.
       model.traverse((child) => {
         if (child.isMesh) {
           child.visible = true;
@@ -208,8 +208,8 @@ const initThree = () => {
         }
       });
 
-      const IDEAL_LAYOUT_BOUNDS = 2.6; 
-      
+      // 전체 모델의 통합 바운딩 박스를 구해 스케일과 중앙 정렬만 안전하게 수행합니다.
+      const IDEAL_LAYOUT_BOUNDS = 2.4; 
       const box = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
@@ -219,12 +219,16 @@ const initThree = () => {
       const maxDim = Math.max(size.x, size.y, size.z);
       const scale = IDEAL_LAYOUT_BOUNDS / maxDim; 
       
+      // 개별 자식들이 아닌, 전체 최상위 부모 그룹의 축만 옮겨줍니다.
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
-      model.rotation.set(Math.PI / 2.3, 0, 0); 
 
+      // ⚠️ 기존에 개별 메쉬를 짓눌렀던 강제 회전 코드를 삭제하고, 원본 상태를 유지합니다.
       window.modelAnchor = new THREE.Group();
       window.modelAnchor.add(model);
+      
+      // 첫 화면에서 별이 정면을 예쁘게 바라보도록 앵커 그룹만 살짝 눕혀줍니다.
+      window.modelAnchor.rotation.set(Math.PI / 6, 0, 0); 
       window.threeScene.add(window.modelAnchor);
 
       eliminateFakeModels(); 
@@ -281,7 +285,8 @@ const animate = () => {
       rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
       rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
 
-      window.modelAnchor.rotation.x = rotationState.currentX;
+      // 마우스 드래그 회전값이 순정 각도 위에 부드럽게 더해지도록 처리
+      window.modelAnchor.rotation.x = Math.PI / 6 + rotationState.currentX;
       window.modelAnchor.rotation.y = rotationState.currentY;
 
       window.modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.006;
