@@ -99,7 +99,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    HIGH-FREQUENCY 환경광 맵 생성
+    HIGH-FREQUENCY 환경광 맵 
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
@@ -137,13 +137,11 @@ const initThree = () => {
   const W = shell.offsetWidth;
   const H = shell.offsetHeight;
 
-  // 💥 미세하게 겹친 면들의 렌더링 우선순위 싸움을 방지하기 위해 depthBuffer 활성화 명시
   window.threeRenderer = new THREE.WebGLRenderer({
     canvas: modelCanvas,
     alpha: true,
     antialias: true,
-    powerPreference: "high-performance",
-    depth: true
+    powerPreference: "high-performance"
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
@@ -179,38 +177,52 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 💎 형태 손실 없이 지직거림만 완벽히 지우는 물리 기반 프리즘 재질
+      // 영롱한 오로라 통유리 재질 세팅
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.01,            
+        roughness: 0.02,            
         transparent: true,
-        opacity: 0.45,               
-        transmission: 1.0,          // 속을 투명하고 맑게 비움
-        ior: 1.45,                  
-        side: THREE.FrontSide,      // 바깥 표면만 렌더링
-        
-        // 💥 [Z-Fighting 해결의 핵심 핵심 핵심 옵션]
-        depthWrite: true,           // 깊이 버퍼 기록 유지
-        depthTest: true,            
-        polygonOffset: true,        // 겹쳐진 면들의 렌더링 순서에 미세한 격차를 두어 
-        polygonOffsetFactor: 1,     // 지직거리며 깨지는 현상을
-        polygonOffsetUnits: 1,      // 엔진 레벨에서 강제로 분리 밀어내기 처리!
-
-        iridescence: 1.0,           // 표면 오로라 무지갯빛 코팅
-        iridescenceIOR: 1.7,        
-        iridescenceThicknessRange: [120, 380], 
+        opacity: 0.5,               
+        transmission: 1.0,          
+        ior: 1.5,                  
+        side: THREE.FrontSide,      
+        depthWrite: true,
+        depthTest: true,
+        iridescence: 1.0,           
+        iridescenceIOR: 1.8,        
+        iridescenceThicknessRange: [100, 400], 
         clearcoat: 1.0,             
         clearcoatRoughness: 0.0
       });
 
-      // 메쉬를 숨기지 않고 "모든 조각"을 다 살려서 원래의 완벽한 별 모양을 유지합니다.
+      // 💥 [예린님 아이디어 반영 핵심 스마트 공정]
+      // 내부의 찌그러진 가이드용 메쉬를 버리고, 가장 정점(Vertex) 데이터가 풍부하고 거대한 '진짜 겉껍데기'를 찾아냅니다.
+      let perfectOuterMesh = null;
+      let maxVertexCount = 0;
+
+      model.traverse((child) => {
+        if (child.isMesh && child.geometry) {
+          const vertexCount = child.geometry.attributes.position.count;
+          // 정점의 개수가 가장 많다는 것은 디테일이 살아있는 최종 완성형 겉껍데기 메쉬라는 뜻입니다.
+          if (vertexCount > maxVertexCount) {
+            maxVertexCount = vertexCount;
+            perfectOuterMesh = child;
+          }
+        }
+      });
+
+      // 다시 한 바퀴 돌면서, 우리가 찾은 단 하나의 완벽한 메쉬만 켜고 나머지는 흔적도 없이 숨깁니다!
       model.traverse((child) => {
         if (child.isMesh) {
-          child.visible = true; // 모든 메쉬 강제 활성화 (형태 복구)
-          child.material = crystalMaterial;
-          child.castShadow = false;
-          child.receiveShadow = false;
+          if (child === perfectOuterMesh) {
+            child.visible = true;
+            child.material = crystalMaterial;
+            child.castShadow = false;
+            child.receiveShadow = false;
+          } else {
+            child.visible = false; // 찌그러지거나 중첩을 일으키는 가짜 메쉬들 제거
+          }
         }
       });
 
