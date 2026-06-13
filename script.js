@@ -101,19 +101,16 @@ const updateLandingVars = () => {
   landing.style.setProperty('--pointer-y', `${clamp01(y / 100) * 100}%`);
 };
 
-/* ════════════════════════════════════════
-    HIGH-FREQUENCY 환경광 맵 생성
-════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   const geo = new THREE.BoxGeometry(16, 16, 16);
   const mats = [
-    new THREE.MeshBasicMaterial({ color: 0x223344, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x00faff, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x331144, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0xff00d4, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0x101015, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xededed, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x0a0a10, side: THREE.BackSide })  
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x020205, side: THREE.BackSide })  
   ];
   const box = new THREE.Mesh(geo, mats);
   scene.add(box);
@@ -144,23 +141,20 @@ const initThree = () => {
     canvas: modelCanvas,
     alpha: true,
     antialias: true,
-    powerPreference: "high-performance"
+    powerPreference: "high-performance",
+    logarithmicDepthBuffer: true // 💡 인접한 다중 메쉬 간의 지직거림(Z-Fighting)을 하드웨어 레벨에서 차단
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  // 💡 더 정갈하고 세련된 무드를 위한 조명 리밸런싱
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 2.5);
-  dirLight1.position.set(5, 8, 5);
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 3.2);
+  dirLight1.position.set(5, 10, 7);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xd9ecff, 1.8);
-  dirLight2.position.set(-5, -3, 4);
+  const dirLight2 = new THREE.DirectionalLight(0xa3e5ff, 2.0);
+  dirLight2.position.set(-5, -5, 5);
   window.threeScene.add(dirLight2);
-
-  const hemiLight = new THREE.HemisphereLight(0xffffff, 0x111115, 1.2);
-  window.threeScene.add(hemiLight);
 
   window.threeCamera = new THREE.PerspectiveCamera(30, W / H, 0.1, 100);
   window.threeCamera.position.set(0, 0, 5.5); 
@@ -182,35 +176,45 @@ const initThree = () => {
       }
       if(window.modelAnchor) window.threeScene.remove(window.modelAnchor);
 
-      // ✨ [재질 전면 교체] 못생긴 투명 유리를 버리고 은은하게 반짝이는 고급 진주 메탈릭을 적용합니다.
-      const pearlMaterial = new THREE.MeshStandardMaterial({
-        color: 0xeeeeee,            // 우아한 백색 메탈릭 베이스
-        roughness: 0.18,            // 은은하고 부드러운 반사 효과
-        metalness: 0.85,            // 세련된 금속 질감 표면
-        side: THREE.FrontSide,       // 뒷면 겹침 현상을 원천 차단
-        shadowSide: THREE.FrontSide
+      const model = gltf.scene;
+
+      // 💎 복원된 영롱한 프리즘 크리스탈 글래스 재질
+      const crystalMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        metalness: 0.0,
+        roughness: 0.02,            
+        transparent: true,
+        opacity: 0.35,               
+        transmission: 0.95,          
+        ior: 1.5,                  
+        side: THREE.FrontSide, 
+        depthWrite: true,       // 깊이 버퍼 활성화로 정갈한 외곽선 보존
+        depthTest: true,
+        iridescence: 0.85,           
+        iridescenceIOR: 1.6,        
+        iridescenceThicknessRange: [100, 320], 
+        clearcoat: 1.0,             
+        clearcoatRoughness: 0.0
       });
 
-      let pureGeometry = null;
-      gltf.scene.traverse((child) => {
-        if (child.isMesh && child.geometry && !pureGeometry) {
-          if (child.geometry.attributes.position.count > 0) {
-            pureGeometry = child.geometry;
-          }
+      // 🛠️ [심폐소생] 지우는 코드를 싹 다 걷어내고, 디자이너가 배치한 모든 순정 레이어를 100% 전부 다시 켭니다.
+      model.traverse((child) => {
+        if (child.isMesh) {
+          child.visible = true; 
+          child.material = crystalMaterial;
+          child.castShadow = false;
+          child.receiveShadow = false;
+
+          // 💡 여러 메쉬가 겹쳐있을 때 렌더링 순서가 꼬여 투박하게 뭉개지는 현상을 방지하는 특수 그래픽 옵션
+          child.material.polygonOffset = true;
+          child.material.polygonOffsetFactor = 1;
+          child.material.polygonOffsetUnits = 1;
         }
       });
 
-      if (!pureGeometry) {
-        console.warn("유효한 메쉬를 찾지 못했습니다.");
-        hideSiteLoader();
-        return;
-      }
-
-      // 복잡하게 얽힌 계층 구조 없이 '단 1개의 정품 알맹이 메쉬'만 깨끗하게 생성
-      const singleCleanMesh = new THREE.Mesh(pureGeometry, pearlMaterial);
-
+      // 전체 덩어리의 중심축 정렬 공정
       const IDEAL_LAYOUT_BOUNDS = 2.4; 
-      const box = new THREE.Box3().setFromObject(singleCleanMesh);
+      const box = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
       const size = new THREE.Vector3();
@@ -219,13 +223,14 @@ const initThree = () => {
       const maxDim = Math.max(size.x, size.y, size.z);
       const scale = IDEAL_LAYOUT_BOUNDS / maxDim; 
       
-      singleCleanMesh.position.sub(centre.multiplyScalar(scale));
-      singleCleanMesh.scale.setScalar(scale);
+      model.position.sub(centre.multiplyScalar(scale));
+      model.scale.setScalar(scale);
 
       window.modelAnchor = new THREE.Group();
-      window.modelAnchor.add(singleCleanMesh);
+      window.modelAnchor.add(model);
       
-      window.modelAnchor.rotation.set(Math.PI / 5, Math.PI / 4, 0); 
+      // 별이 사방으로 온전하게 뻗어 보이게 만드는 정면 기본 배치 각도
+      window.modelAnchor.rotation.set(Math.PI / 6, 0, 0); 
       window.threeScene.add(window.modelAnchor);
 
       eliminateFakeModels(); 
@@ -282,8 +287,8 @@ const animate = () => {
       rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
       rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
 
-      window.modelAnchor.rotation.x = Math.PI / 5 + rotationState.currentX;
-      window.modelAnchor.rotation.y = Math.PI / 4 + rotationState.currentY;
+      window.modelAnchor.rotation.x = Math.PI / 6 + rotationState.currentX;
+      window.modelAnchor.rotation.y = rotationState.currentY;
 
       window.modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.006;
     }
