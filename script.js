@@ -44,7 +44,17 @@ const eliminateFakeModels = () => {
 };
 
 const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, tx: window.innerWidth * 0.5, ty: window.innerHeight * 0.5 };
-const rotationState = { currentX: 0, currentY: 0, targetX: 0, targetY: 0, isDragging: false, previousMouseX: 0, previousMouseY: 0 };
+
+// 💡 [초기 각도 변경] 시작할 때 뻣뻣하게 서 있지 않고, 예린님 원본처럼 비스듬하게 누워있도록 타겟 로테이션 수정
+const rotationState = { 
+  currentX: 0.35,     // 살짝 위에서 아래를 내려다보도록 눕힘 (약 20도)
+  currentY: -0.45,    // 정면이 아닌 비스듬하게 우측을 바라보도록 회전 (약 -25도)
+  targetX: 0.35, 
+  targetY: -0.45, 
+  isDragging: false, 
+  previousMouseX: 0, 
+  previousMouseY: 0 
+};
 let modelAutoRotY = 0; 
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
@@ -100,7 +110,7 @@ const updateLandingVars = () => {
   landing.style.setProperty('--pointer-y', `${clamp01(y / 100) * 100}%`);
 };
 
-// 고품격 크리스탈 스튜디오 환경맵 생성
+// 고품격 크리스탈 프리즘 스튜디오 환경맵 생성
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   const geo = new THREE.BoxGeometry(20, 20, 20);
@@ -142,26 +152,26 @@ const initThree = () => {
     alpha: true,         
     antialias: true,
     powerPreference: "high-performance",
-    logarithmicDepthBuffer: true // 수치적 면 겹침 완벽 보정
+    logarithmicDepthBuffer: true // 수치적 면 겹침 노이즈 완벽 보정
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping; 
-  window.threeRenderer.toneMappingExposure = 1.5;
+  window.threeRenderer.toneMappingExposure = 1.6;
 
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 5.5);
-  dirLight1.position.set(5, 10, 7);
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 5.0);
+  dirLight1.position.set(5, 12, 8);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0x00f0ff, 3.5);
+  const dirLight2 = new THREE.DirectionalLight(0x00f0ff, 3.0);
   dirLight2.position.set(-6, -4, 5);
   window.threeScene.add(dirLight2);
 
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   window.threeScene.add(ambientLight);
 
-  // 코앞까지 다가와도 절대 위아래가 칼로 썰리듯 잘리지 않도록 Clip 한계선 전면 개방
+  // 상하단 컷팅 방지용 카메라 클리핑 완전 개방
   window.threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.01, 100);
   window.threeCamera.position.set(0, 0, 5.5); 
 
@@ -184,7 +194,7 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 영롱한 하이퍼 무지갯빛 프리즘 크리스탈 재질 설정
+      // 하이퍼 무지갯빛 프리즘 크리스탈 고유 재질 
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
@@ -196,7 +206,7 @@ const initThree = () => {
         side: THREE.DoubleSide,      
         depthWrite: false,           
         depthTest: true,
-        iridescence: 1.0,            // 프리즘 무지갯빛 필터 활성화
+        iridescence: 1.0,            
         iridescenceIOR: 1.9,
         iridescenceThicknessRange: [100, 350],
         clearcoat: 1.0,              
@@ -204,26 +214,21 @@ const initThree = () => {
         specularIntensity: 2.0
       });
 
-      // 💡 [핵심 공정: 분리된 메쉬 강제 정렬 및 눕방 처단]
-      // 각각 지멋대로 돌아가 있던 원본 트랜스폼 정보를 강제로 동기화하여 한 축으로 묶습니다.
+      // 💡 [구조 정상화 복구] 임의로 메쉬 위치를 한 점에 뭉치게 하던 파괴적인 강제 코드를 완전히 걷어냈습니다!
       let meshIndex = 0;
       model.traverse((child) => {
         if (child.isMesh) {
           child.material = crystalMaterial;
           child.renderOrder = meshIndex++; 
           
-          // 💡 개별 메쉬가 따로 놀지 않도록 트랜스폼 오프셋 초기화 후 강제 동기화
-          child.position.set(0, 0, 0);
-          child.rotation.set(0, 0, 0);
-          child.scale.set(1, 1, 1);
-          
+          // 개별 메쉬의 고유 구조와 트랜스폼 오프셋(입체 레이어 간격)을 그대로 인정하고 보존합니다.
           child.castShadow = false;
           child.receiveShadow = false;
         }
       });
 
-      // 💡 [안전 스케일링] 캔버스 상하단 경계선을 뚫고 나가지 않도록 크기 배율 최적화 (2.6 -> 2.1)
-      const IDEAL_LAYOUT_BOUNDS = 2.1; 
+      // 💡 [안전 마진 스케일] 위아래가 칼로 썰리듯 잘려 나가지 않도록 웅장하면서도 안전한 바운딩 크기로 안착시킵니다.
+      const IDEAL_LAYOUT_BOUNDS = 2.3; 
       const box = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
@@ -239,10 +244,8 @@ const initThree = () => {
       window.modelAnchor = new THREE.Group();
       window.modelAnchor.add(model);
       
-      // 💡 [꼿꼿한 정면 스탠딩 각도 강제 제어]
-      // 눕방을 찍던 축(X축)을 -90도(또는 필요에 맞게 90도) 강제로 세워 정면을 주시하게 만듭니다.
-      // 만약 정방향이 뒤집히면 아래 수치를 조정하시면 됩니다.
-      window.modelAnchor.rotation.set(Math.PI / 2, 0, 0); 
+      // 💡 앵커 그룹 자체는 정렬하되 내부 애니메이션 루프에서 비스듬한 연산을 부드럽게 이어받습니다.
+      window.modelAnchor.rotation.set(0, 0, 0); 
       window.threeScene.add(window.modelAnchor);
 
       eliminateFakeModels(); 
@@ -292,19 +295,19 @@ const animate = () => {
   if (window.threeRenderer && window.threeScene && window.threeCamera) {
     if (window.modelAnchor) {
       if (!rotationState.isDragging) {
-        modelAutoRotY += 0.003;
-        rotationState.targetY += 0.003;
+        modelAutoRotY += 0.002;
+        rotationState.targetY += 0.002;
       }
 
       rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
       rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
 
-      // 💡 세워진 기본 각도(Math.PI / 2) 상태에서 오직 정방향 Y축(좌우)과 X축(위아래) 회전만 더해지도록 격리 연산
-      window.modelAnchor.rotation.x = (Math.PI / 2) + rotationState.currentX;
+      // 💡 예린님이 의도하신 비스듬하게 누운 고유 각도 상태 기반 위에 마우스 인터랙션을 결합합니다.
+      window.modelAnchor.rotation.x = rotationState.currentX;
       window.modelAnchor.rotation.y = rotationState.currentY;
 
-      // 미세한 부유 이펙트
-      window.modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.01;
+      // 고급스러운 공중 부유 효과 추가
+      window.modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.012;
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
   }
@@ -331,8 +334,9 @@ const setupDragEvents = () => {
     const deltaX = e.clientX - rotationState.previousMouseX;
     const deltaY = e.clientY - rotationState.previousMouseY;
 
-    rotationState.targetY += deltaX * 0.008;
-    rotationState.targetX += deltaY * 0.008;
+    // 드래그 방향에 맞춰 직관적으로 돌아가도록 동기화 조정
+    rotationState.targetY += deltaX * 0.007;
+    rotationState.targetX += deltaY * 0.007;
 
     rotationState.previousMouseX = e.clientX;
     rotationState.previousMouseY = e.clientY;
