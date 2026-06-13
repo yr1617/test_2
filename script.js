@@ -355,15 +355,19 @@ const animate = () => {
 };
 
 /* ════════════════════════════════════════
-    HOVER & POINTER EVENTS
+    HOVER & POINTER EVENTS (마우스 레이더 복원 완료)
 ════════════════════════════════════════ */
 const setupHoverEvents = () => {
-  window.addEventListener('pointermove', (e) => {
+  // 브라우저 기본 포인터를 완벽하게 추적하며 3D 연산이 방해하지 않게 선언
+  window.addEventListener('mousemove', (e) => {
     pointer.tx = e.clientX;
     pointer.ty = e.clientY;
-    mouse.x = (e.clientX / window.innerWidth)  * 2 - 1;
-    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-  });
+    
+    const winW = window.innerWidth || 1;
+    const winH = window.innerHeight || 1;
+    mouse.x = (e.clientX / winW) * 2 - 1;
+    mouse.y = -(e.clientY / winH) * 2 + 1;
+  }, { passive: true });
 
   const displayShell = document.querySelector('.landing-display-shell');
   if (displayShell) {
