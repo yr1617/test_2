@@ -63,8 +63,11 @@ const setupLandingCanvas = () => {
     state.width = rect.width;
     state.height = rect.height;
     state.dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    
+    // 💡 [오타 수정 완료] landingCanvasCanvas -> landingCanvas로 정상 수정했습니다!
     landingCanvas.width = Math.max(1, Math.floor(rect.width * state.dpr));
-    landingCanvasCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
+    landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
+    
     landingCanvas.style.width = `${rect.width}px`;
     landingCanvas.style.height = `${rect.height}px`;
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
@@ -176,7 +179,6 @@ const initThree = () => {
       }
       if(window.modelAnchor) window.threeScene.remove(window.modelAnchor);
 
-      // 🧼 극상의 투명함과 깔끔함을 낼 크리스탈 유리 재질
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
@@ -185,7 +187,7 @@ const initThree = () => {
         opacity: 0.45,               
         transmission: 0.95,          
         ior: 1.5,                  
-        side: THREE.FrontSide, // 뒷면 투과 잔상까지 완벽히 배제
+        side: THREE.FrontSide, 
         depthWrite: true,      
         depthTest: true,
         iridescence: 0.8,           
@@ -195,11 +197,10 @@ const initThree = () => {
         clearcoatRoughness: 0.0
       });
 
-      // 🔍 [특수 공정] 하위 트리 다 쌩까고 오직 '진짜 Geometry 데이터를 가진 순수 메쉬 딱 1개'만 추출합니다.
+      // 복잡한 하위 트리 무시하고 단 하나의 순수 Geometry 알맹이만 선점
       let pureGeometry = null;
       gltf.scene.traverse((child) => {
         if (child.isMesh && child.geometry && !pureGeometry) {
-          // 정점(Vertex) 데이터가 정상적으로 존재하는 첫 번째 정품 알맹이만 선점
           if (child.geometry.attributes.position.count > 0) {
             pureGeometry = child.geometry;
           }
@@ -212,7 +213,7 @@ const initThree = () => {
         return;
       }
 
-      // 🛠️ 파일 속의 꼬여있던 그룹 계층을 완전히 무시하고, '단 하나의 깨끗한 새 메쉬'를 직접 새로 만듭니다.
+      // 겹침의 소지가 전혀 없는 순정 메쉬 1개 새로 생성
       const singleCleanMesh = new THREE.Mesh(pureGeometry, crystalMaterial);
 
       const IDEAL_LAYOUT_BOUNDS = 2.4; 
@@ -231,7 +232,6 @@ const initThree = () => {
       window.modelAnchor = new THREE.Group();
       window.modelAnchor.add(singleCleanMesh);
       
-      // 사방 다리가 모두 균형 있게 뻗어 보이도록 잡은 정면 황금 각도
       window.modelAnchor.rotation.set(Math.PI / 5, Math.PI / 4, 0); 
       window.threeScene.add(window.modelAnchor);
 
