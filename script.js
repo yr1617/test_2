@@ -51,7 +51,6 @@ const pointer = {
 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
-// [원상복구] 원래 사용하시던 비스듬하게 이쁜 고유 기울기 각도값
 const baseRotation = { x: 0.3, y: -0.5 }; 
 const rotState     = { x: 0.3, y: -0.5 };
 
@@ -110,7 +109,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    [재질 교정] 맑고 선명한 크롬 메탈 반사를 위한 가상 돔 조명 생성
+    가상 돔 조명 생성
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
@@ -338,6 +337,8 @@ const animate = () => {
   if (follower) {
     follower.style.left = `${pointer.x}px`;
     follower.style.top  = `${pointer.y}px`;
+    // 모달창 오픈 유무에 따라 포인터 이벤트를 동적으로 투과시켜 먹통 현상 원천 차단
+    follower.style.pointerEvents = isModalOpen ? 'none' : 'none'; 
   }
 
   updateLandingVars();
@@ -379,7 +380,7 @@ const setupHoverEvents = () => {
 };
 
 /* ════════════════════════════════════════
-    폴더 GUI 인터랙션
+    폴더 GUI 데이터 및 인터랙션
 ════════════════════════════════════════ */
 const FOLDER_DATA = {
   academic: {
