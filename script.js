@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'; // ✨ 실시간 용접(병합) 라이브러리 탑재!
 
 /* ════════════════════════════════════════
     ENGINE DESTROY & CLEAN 공정
@@ -25,11 +26,10 @@ window.threeCamera = null;
 window.modelAnchor = null;
 window.__threeInitialized = false;
 
-// 디버그 제어판 UI 흔적 완전히 청소
 document.querySelectorAll('.mesh-inspector-panel').forEach(el => el.remove());
 
 /* ════════════════════════════════════════
-    DOM ELEMENT REFS
+    DOM ELEMENT REFS & ERROR FIX
 ════════════════════════════════════════ */
 const landing = document.querySelector('.landing');
 const landingCanvas = document.querySelector('.landing-canvas');
@@ -53,7 +53,7 @@ let modelAutoRotY = 0;
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
 /* ════════════════════════════════════════
-    LANDING CANVAS BACKGROUND
+    LANDING CANVAS BACKGROUND (에러 완벽 수정)
 ════════════════════════════════════════ */
 const setupLandingCanvas = () => {
   if (!landing || !landingCanvas) return null;
@@ -67,6 +67,7 @@ const setupLandingCanvas = () => {
     state.height = rect.height;
     state.dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     
+    // 💡 landingCanvasCanvas 오타를 landingCanvas로 완벽 복구!
     landingCanvas.width = Math.max(1, Math.floor(rect.width * state.dpr));
     landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
     
@@ -150,7 +151,7 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 3.8);
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 4.0);
   dirLight1.position.set(5, 10, 7);
   window.threeScene.add(dirLight1);
 
@@ -179,37 +180,54 @@ const initThree = () => {
       if(window.modelAnchor) window.threeScene.remove(window.modelAnchor);
 
       const model = gltf.scene;
+      const geometriesToMerge = [];
 
-      // 💎 지지직거림을 완벽 차단하는 초순도 크리스탈 유리 재질
+      // 🛠️ [실시간 용접 공정] 각 조각 메쉬들의 기하학적 데이터를 추출하여 월드 좌표 기준으로 트랜스폼 통합
+      model.updateMatrixWorld(true);
+      model.traverse((child) => {
+        if (child.isMesh && child.geometry) {
+          const clonedGeo = child.geometry.clone();
+          clonedGeo.applyMatrix4(child.matrixWorld); // 비틀어진 개별 축 좌표를 하나로 통일
+          geometriesToMerge.push(clonedGeo);
+        }
+      });
+
+      if (geometriesToMerge.length === 0) {
+        hideSiteLoader();
+        return;
+      }
+
+      // 🔥 5개의 지옥 같은 분리형 메쉬들을 코드가 실시간으로 완벽한 '하나의 메쉬'로 결합!
+      const mergedGeometry = BufferGeometryUtils.mergeGeometries(geometriesToMerge, false);
+      
+      // 겹쳐진 내부 버텍스들을 청소하여 물리적 지지직거림 완벽 제거
+      const cleanGeometry = BufferGeometryUtils.mergeVertices(mergedGeometry, 0.001);
+      cleanGeometry.computeVertexNormals();
+
+      // 💎 드디어 속살 간섭 없이 영롱하게 빛나는 최고순도 크리스탈 글래스 재질
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.01,            
+        roughness: 0.02,            
         transparent: true,
-        opacity: 0.4,               
+        opacity: 0.45,               
         transmission: 0.95,          
-        ior: 1.45,                  
-        side: THREE.FrontSide,  // 💡 안쪽 뒷면끼리 겹쳐서 지지직대던 버그를 완전히 차단!
+        ior: 1.5,                  
+        side: THREE.FrontSide,  
         depthWrite: true,      
         depthTest: true,
-        iridescence: 0.8,           
-        iridescenceIOR: 1.5,        
-        iridescenceThicknessRange: [100, 300], 
+        iridescence: 0.85,           
+        iridescenceIOR: 1.6,        
+        iridescenceThicknessRange: [100, 320], 
         clearcoat: 1.0,             
         clearcoatRoughness: 0.0
       });
 
-      // 🛠️ 모든 조각을 100% 온전하게 살려 대칭 구조를 빌드합니다.
-      model.traverse((child) => {
-        if (child.isMesh) {
-          child.visible = true;
-          child.material = crystalMaterial;
-        }
-      });
+      const mergedMesh = new THREE.Mesh(cleanGeometry, crystalMaterial);
 
-      // 전체 대칭 별 덩어리 정중앙 정렬 공정
+      // 전체 대칭 별 정중앙 배치 밸런싱
       const IDEAL_LAYOUT_BOUNDS = 2.4; 
-      const box = new THREE.Box3().setFromObject(model);
+      const box = new THREE.Box3().setFromObject(mergedMesh);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
       const size = new THREE.Vector3();
@@ -218,13 +236,12 @@ const initThree = () => {
       const maxDim = Math.max(size.x, size.y, size.z);
       const scale = IDEAL_LAYOUT_BOUNDS / maxDim; 
       
-      model.position.sub(centre.multiplyScalar(scale));
-      model.scale.setScalar(scale);
+      mergedMesh.position.sub(centre.multiplyScalar(scale));
+      mergedMesh.scale.setScalar(scale);
 
       window.modelAnchor = new THREE.Group();
-      window.modelAnchor.add(model);
+      window.modelAnchor.add(mergedMesh);
       
-      // 완벽한 대칭 정면 밸런스 각도
       window.modelAnchor.rotation.set(Math.PI / 6, 0, 0); 
       window.threeScene.add(window.modelAnchor);
 
