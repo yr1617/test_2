@@ -1124,3 +1124,70 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   z-index: 999999 !important;
   pointer-events: none !important; /* 가상 커서 뒤에 있는 버튼이 눌려야 하므로 필수 */
 }
+/* ═════════════════════════════════════════════════════════
+   🔥 마우스 먹통 현상 및 인터랙션 전면 해제 최종 해결본
+═════════════════════════════════════════════════════════ */
+
+/* 1. 전체 선택자(*)의 마우스 센서 차단 강제 복구 및 수정 */
+html, body {
+  cursor: none !important;
+}
+/* 3D 캔버스, 가상 커서, 스포트라이트를 제외한 모든 일반 UI의 마우스 포인터 권한 복구 */
+*, a, button, .folder-item, .reveal-card, .topnav a, .project-card, .contact-card {
+  pointer-events: auto !important; 
+}
+
+/* 2. 화면을 거대하게 가로막고 있던 스포트라이트 막 투과 처리 */
+.page-spotlight {
+  position: absolute !important;
+  pointer-events: none !important; /* 마우스가 이 레이어를 완벽히 관통하도록 수정 */
+  z-index: 1 !important; /* 등급을 최하위로 유배 */
+}
+
+/* 3. 3D 모델 및 관련 캔버스 유배 (배경 레이어로 완전 강등) */
+#model-canvas, 
+.model-canvas,
+.landing-canvas, 
+.landing-display-shell, 
+#landing-display,
+.display-frame,
+.landing-field {
+  position: absolute !important;
+  z-index: 1 !important;
+  pointer-events: none !important; /* 마우스 클릭이 얘를 무조건 뚫고 지나가야 함 */
+}
+
+/* 4. 바탕화면 폴더 그리드, 내비바, 카드, 글자들 서열 최상위 배치 */
+.topbar,
+.topbar-inner,
+.topnav,
+.topnav a,
+#desktop-grid, 
+.landing-content, 
+.landing-copy,
+.landing-foot,
+.hero-text-wrap,
+.content-shell,
+.section,
+.reveal-card,
+.project-grid,
+.hero,
+.hero-copy {
+  position: relative !important;
+  z-index: 9999 !important; /* 3D 모델과 배경을 디디고 맨 위로 올라오도록 설정 */
+  pointer-events: auto !important; /* 브라우저 클릭 및 호버 정상 접수 */
+}
+
+/* 5. 개별 폴더 아이콘 최종 잠금 해제 */
+.folder-item {
+  position: relative !important;
+  z-index: 10000 !important;
+  pointer-events: auto !important;
+}
+
+/* 6. 초록색 연두색 가상 커서 보안관 배치 */
+.cursor-follower {
+  position: fixed !important;
+  z-index: 99999999 !important; /* 세상 그 어떤 것보다 최상위 */
+  pointer-events: none !important; /* 커서 이미지 자체가 클릭을 막는 버그 방지 */
+}
