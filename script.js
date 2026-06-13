@@ -196,22 +196,23 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // ⚡ [재질 변경] 어두운 투명 캔버스 뒤에서도 스스로 화사한 은빛 서리를 머금는 리얼 실버 메탈릭 설정
-      const chromeSilverMat = new THREE.MeshStandardMaterial({
-        color: 0xdddddd,          // 순수 실버 메인 톤
-        metalness: 0.95,          // 완벽한 리얼 금속 성질 부여
-        roughness: 0.15,          // 표면 반사광을 고급스럽게 살짝 깨뜨림
-        emissive: 0x444444,       // ★ 핵심: 주변이 암흑이어도 스스로 은은한 은빛을 내뿜어 까맣게 죽는 현상 방지
-        side: THREE.DoubleSide
-      });
+const silverMetalMat = new THREE.MeshPhysicalMaterial({
+  color: 0xe5e5e5,
+  metalness: 1.0,
+  roughness: 0.08,
+  envMapIntensity: 2.5,
+  clearcoat: 0.25,
+  clearcoatRoughness: 0.05,
+  side: THREE.DoubleSide
+});
 
-      model.traverse((child) => {
-        if (child.isMesh) {
-          child.material    = chromeSilverMat;
-          child.castShadow    = false;
-          child.receiveShadow = false;
-        }
-      });
+model.traverse((child) => {
+  if (child.isMesh) {
+    child.material = silverMetalMat;
+    child.castShadow = false;
+    child.receiveShadow = false;
+  }
+});
 
       const BOUNDS = 2.0;
       const box    = new THREE.Box3().setFromObject(model);
