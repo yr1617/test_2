@@ -46,7 +46,6 @@ const pointer = {
 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
-// 모션 상태 각도 제어 변수
 const baseRotation = { x: 0, y: 0 }; 
 const rotState     = { x: 0, y: 0 };
 
@@ -172,7 +171,6 @@ const initThree = () => {
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
   window.threeRenderer.toneMappingExposure = 2.4; 
 
-  // 세워진 정면을 입체적으로 강조할 스튜디오 광원 추가 배치
   const dirLight1 = new THREE.DirectionalLight(0xffffff, 9.0);
   dirLight1.position.set(0, 15, 20); 
   window.threeScene.add(dirLight1);
@@ -196,7 +194,9 @@ const initThree = () => {
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+  
+  // ⚡ [네트워크 에러 해결] 기존 gstatic 주소가 깨지던 버그를 CDNjs 공식 검증 배포 주소로 변경하여 원천 차단합니다.
+  draco.setDecoderPath('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/libs/draco/');
   loader.setDRACOLoader(draco);
 
   loader.load(
@@ -211,7 +211,7 @@ const initThree = () => {
       const chromeSilverMat = new THREE.MeshStandardMaterial({
         color: 0xffffff,          
         metalness: 1.0,           
-        roughness: 0.05,          // 거칠기를 극도로 낮춰 거울처럼 광택이 나게 빌드
+        roughness: 0.05,          
         emissive: 0x222222,       
         side: THREE.DoubleSide
       });
@@ -355,28 +355,24 @@ const animate = () => {
   if (landingCanvasCtrl) landingCanvasCtrl.draw();
 
   if (window.threeRenderer && window.threeScene && window.threeCamera) {
-    // ⚡ [Null 에러 방지 안전장치] window.modelAnchor가 확실히 로드 완료되었을 때만 로직을 실행하도록 수정
-    if (window.modelAnchor) {
+    // ⚡ [안전장치 강화] 로딩이 끝나 앵커가 완전히 주입되었을 때만 회전 연산을 시작
+    if (window.modelAnchor && window.modelAnchor.rotation) {
       let targetX = 0;
       let targetY = 0;
 
       if (isHoveringModel) {
-        // 1. 마우스가 박스 내부에 들어왔을 때 마우스 반응 모션 활성화
         targetX = 0 + (-mouse.y * 0.25);
         targetY = 0 + (mouse.x * 0.45);
         
         rotState.x += (targetX - rotState.x) * 0.06;
         rotState.y += (targetY - rotState.y) * 0.06;
       } else {
-        // 2. 마우스가 영역을 벗어났을 때 스스로 세련되게 무한 자전 회전
         rotState.x += (0 - rotState.x) * 0.03; 
         rotState.y += 0.005; 
       }
 
       window.modelAnchor.rotation.x = rotState.x;
       window.modelAnchor.rotation.y = rotState.y;
-      
-      // 우아하게 떠 있는 공중 부양 모드
       window.modelAnchor.position.y = Math.sin(clock * 0.6) * 0.02; 
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
