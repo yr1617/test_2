@@ -42,7 +42,7 @@ const eliminateFakeModels = () => {
 };
 
 /* ════════════════════════════════════════
-    마우스 트래킹 & 전역 상태
+    마우스 트래킹 & 전역 상태 변수
 ════════════════════════════════════════ */
 const mouse = { x: 0, y: 0 };
 const pointer = {
@@ -51,13 +51,13 @@ const pointer = {
 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
-// [교정] 모델링이 누워있지 않고 정면을 바라보게 만드는 각도 오프셋
-const baseRotation = { x: 0.25, y: 0.55 }; 
-const rotState     = { x: 0.25, y: 0.55 };
+// [대수술] 모델링이 누워있지 않고 똑바로 정면을 응시하도록 90도 회전축 교정값 주입
+const baseRotation = { x: Math.PI * 0.5, y: 0.0 }; 
+const rotState     = { x: Math.PI * 0.5, y: 0.0 };
 
-let autoRotY = 0.55;
+let autoRotY = 0.0;
 let isHoveringModel = false;
-let isModalOpen = false; // 모달 오픈 상태 체크 변수
+let isModalOpen = false; 
 
 /* ════════════════════════════════════════
     LANDING CANVAS BACKGROUND
@@ -111,40 +111,39 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    [교정] 실버 메탈의 광택 극대화를 위한 초고대비 하이라이트 인바이런먼트 맵 형성
+    [교정] 컴퓨터 본체 재질을 날려버릴 실버 메탈 반사용 룸 스튜디오 환경
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
-  // 메탈 엣지를 강하게 때릴 상단 거대 광원판
+  // 메탈릭 엣지를 눈부시게 세워줄 백색 면광원들 배치
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(40, 1, 40),
+    new THREE.BoxGeometry(50, 1, 50),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
   topLight.position.set(0, 15, 0);
   scene.add(topLight);
 
-  // 실버 반사 하이라이트용 좌/우/정면 백색 반사판 배치
   const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(0.5, 30, 30),
+    new THREE.BoxGeometry(1, 35, 35),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  leftPanel.position.set(-12, 5, 0);
+  leftPanel.position.set(-15, 5, 0);
   scene.add(leftPanel);
 
   const rightPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(0.5, 30, 30),
+    new THREE.BoxGeometry(1, 35, 35),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  rightPanel.position.set(12, 5, 0);
+  rightPanel.position.set(15, 5, 0);
   scene.add(rightPanel);
 
   const frontPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(30, 30, 0.5),
+    new THREE.BoxGeometry(35, 35, 1),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  frontPanel.position.set(0, 5, 12);
+  frontPanel.position.set(0, 5, 15);
   scene.add(frontPanel);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -156,7 +155,7 @@ const generatePureEnvironment = (renderer) => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE MAIN (조명 세기 및 하이라이트 전면 재조정)
+    THREE.JS ENGINE MAIN
 ════════════════════════════════════════ */
 const initThree = () => {
   if (!modelCanvas || window.__threeInitialized) return;
@@ -178,22 +177,26 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  window.threeRenderer.toneMappingExposure = 1.6; // 까맣게 죽는 현상을 방지하기 위해 톤맵 노출값 대폭 상향
+  window.threeRenderer.toneMappingExposure = 2.2; // 까만 현상을 강제로 밀어내기 위해 노출을 극한으로 상향
 
-  // 까만 찰흙 현상을 원천 차단하는 다이렉트 고광량 화이트 라이트 세팅
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 6.0);
-  dirLight1.position.set(6, 12, 8);
+  // 사방에서 오브젝트를 강하게 때려 어둠을 완전히 지워주는 다이렉트 3점 조명 세팅
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 8.0);
+  dirLight1.position.set(8, 14, 10);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 3.5);
-  dirLight2.position.set(-6, -4, 6);
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 5.0);
+  dirLight2.position.set(-8, -4, 8);
   window.threeScene.add(dirLight2);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); // 전체 음영 베이스를 밝혀 본체 같은 어두움 제거
+  const dirLight3 = new THREE.DirectionalLight(0xffffff, 4.0);
+  dirLight3.position.set(0, 2, -10);
+  window.threeScene.add(dirLight3);
+
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
   window.threeScene.add(ambientLight);
 
-  window.threeCamera = new THREE.PerspectiveCamera(24, W / H, 0.1, 100);
-  window.threeCamera.position.set(0, 0, 5.8);
+  window.threeCamera = new THREE.PerspectiveCamera(23, W / H, 0.1, 100);
+  window.threeCamera.position.set(0, 0, 6.0);
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
@@ -211,17 +214,17 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      /* ── [교정] 진짜 눈부시게 빛나는 액체 은금속(Silver Chrome Material) 질감 정의 ── */
-      const realSilverMetallicMat = new THREE.MeshStandardMaterial({
-        color: 0xdddddd,        // 약간의 백색 광을 머금은 실버 기본 베이스 색상
-        metalness: 1.0,         // 완벽한 금속 거울 반사율 100%
-        roughness: 0.04,        // 거칠기를 매우 정밀하게 깎아 반사선이 엄청 맑고 쨍하게 흐르도록 설정
+      /* ── [교정] 칙칙한 회색 플라스틱을 거울처럼 매끄러운 크롬 실버 메탈릭으로 변경 ── */
+      const chromeSilverMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,       // 베이스를 완전한 백색으로 잡아야 어두운 타는 색상이 안 나옵니다.
+        metalness: 1.0,        // 거울 반사율 100% 매핑
+        roughness: 0.02,       // 거칠기를 완전 제로에 가깝게 깎아 주변 반사광을 쨍하게 먹임
         side: THREE.DoubleSide
       });
 
       model.traverse((child) => {
         if (child.isMesh) {
-          child.material    = realSilverMetallicMat;
+          child.material    = chromeSilverMat;
           child.castShadow    = false;
           child.receiveShadow = false;
         }
@@ -243,7 +246,7 @@ const initThree = () => {
       window.modelAnchor.add(model);
       window.threeScene.add(window.modelAnchor);
 
-      // 모델링이 뒤나 위로 누워 보이지 않고 딱 정면 대각을 비추도록 회전축 강제 주입
+      // [교정] 모델링 내부 피벗 왜곡을 상쇄하여 정수리가 아닌 정면이 보이도록 강제 고정
       window.modelAnchor.rotation.x = baseRotation.x;
       window.modelAnchor.rotation.y = baseRotation.y;
 
@@ -274,7 +277,7 @@ const resizeThree = () => {
 };
 
 /* ════════════════════════════════════════
-    [교정] SCROLL INDICATOR (각 메뉴 아래 프로그레스 바가 끝까지 차오르도록 연산 전면 교정)
+    SCROLL INDICATOR
 ════════════════════════════════════════ */
 const buildSectionMap = () => {
   navLinks.forEach(link => {
@@ -293,7 +296,6 @@ const updateNavProgress = () => {
   let activeIdx = -1;
   let maxCoverage = -1;
 
-  // 1단계: 현재 화면을 가장 많이 차지하고 있는 섹션을 우선 활성화 섹션으로 추적
   sections.forEach((sec, i) => {
     const rect  = sec.el.getBoundingClientRect();
     const top   = rect.top + scrollY - headerH;
@@ -312,7 +314,6 @@ const updateNavProgress = () => {
 
   const isAtBottom = (scrollY + winH >= docH - 8);
 
-  // 2단계: 활성화된 섹션의 프로그레스 바를 화면 돌파율 기준으로 정밀 연산
   sections.forEach((sec, i) => {
     if (i !== activeIdx) {
       sec.progress.style.setProperty('--nav-p', '0');
@@ -326,14 +327,10 @@ const updateNavProgress = () => {
     const secTop   = rect.top + scrollY - headerH;
     const secH     = rect.height;
 
-    // 해당 섹션 영역 안에서 스크롤이 얼마나 흘러갔는지 비율 도출
     const scrolledInSection = scrollY - secTop;
-    
-    // [보정 포인트] 섹션이 끝나갈 때 무조건 100%(끝까지) 채워지도록 가중값 및 도달율 매핑 처리
     const totalScrollableRange = secH - (i === sections.length - 1 ? winH - headerH : 100);
     let raw = totalScrollableRange > 0 ? scrolledInSection / totalScrollableRange : 0;
     
-    // 섹션 하단 바운더리에 도달하거나 다음 섹션으로 넘어가기 직전에는 무조건 1.0(완전 충전)으로 수렴
     if (scrolledInSection + winH >= secH + 80) raw = 1.0;
     if (isAtBottom && i === sections.length - 1) raw = 1.0;
 
@@ -342,7 +339,7 @@ const updateNavProgress = () => {
 };
 
 /* ════════════════════════════════════════
-    MAIN ANIMATION LOOP
+    MAIN ANIMATION LOOP (회전 감속 교정)
 ════════════════════════════════════════ */
 let clock = 0;
 
@@ -364,24 +361,24 @@ const animate = () => {
     if (window.modelAnchor) {
 
       if (isHoveringModel && !isModalOpen) {
-        const targetX = baseRotation.x + (-mouse.y * 0.15);
-        const targetY = autoRotY      + ( mouse.x * 0.45);
+        const targetX = baseRotation.x + (-mouse.y * 0.12);
+        const targetY = autoRotY      + ( mouse.x * 0.35);
 
         rotState.x += (targetX - rotState.x) * 0.05;
         rotState.y += (targetY - rotState.y) * 0.05;
       } else {
-        autoRotY += 0.005;
-        // 평상시 위아래로 숨쉬듯 움직이는 바운딩 폭을 매우 좁혀 정면 각도 유지력 강화
-        const targetX = baseRotation.x + Math.sin(clock * 0.3) * 0.02;
+        // [교정] 미친 듯이 빨리 돌던 자동 회전 속도를 기존의 1/4배 수준(0.0012)으로 대폭 감속 정돈
+        autoRotY += 0.0012;
+        const targetX = baseRotation.x + Math.sin(clock * 0.2) * 0.015;
         const targetY = autoRotY;
 
-        rotState.x += (targetX - rotState.x) * 0.025;
-        rotState.y += (targetY - rotState.y) * 0.025;
+        rotState.x += (targetX - rotState.x) * 0.02;
+        rotState.y += (targetY - rotState.y) * 0.02;
       }
 
       window.modelAnchor.rotation.x = rotState.x;
       window.modelAnchor.rotation.y = rotState.y;
-      window.modelAnchor.position.y = Math.sin(clock * 0.8) * 0.015;
+      window.modelAnchor.position.y = Math.sin(clock * 0.5) * 0.01; // 흔들림도 우아하고 잔잔하게 보정
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
   }
@@ -409,7 +406,7 @@ const setupHoverEvents = () => {
 };
 
 /* ════════════════════════════════════════
-    폴더 GUI 인터랙션 (모달 오픈 시 마우스 먹통 현상 완전 차단 수리)
+    폴더 GUI 인터랙션 (원본 유지)
 ════════════════════════════════════════ */
 const FOLDER_DATA = {
   academic: {
@@ -528,13 +525,13 @@ const setupFolderGUI = () => {
 
     modal.classList.add('is-open');
     document.body.style.overflow = 'hidden';
-    isModalOpen = true; // [보정] 모달 플래그 활성화로 커서 해킹 방지
+    isModalOpen = true; 
   };
 
   const closeModal = () => {
     modal.classList.remove('is-open');
     document.body.style.overflow = '';
-    isModalOpen = false; // [보정] 모달 플래그 해제
+    isModalOpen = false; 
   };
 
   grid.addEventListener('click', (e) => {
