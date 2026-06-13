@@ -614,27 +614,6 @@ window.addEventListener('resize', () => {
   resizeThree();
   updateNavProgress();
 });
-/* ════════════════════════════════════════
-    [진짜 원인 저격] 모달 오픈 시 가상 커서 좌표 마비 해결
-════════════════════════════════════════ */
 
-// 모달창(#folder-modal) 내부에서 마우스가 움직일 때, 윈도우 좌표계를 강제로 가상 커서에 주입
-document.getElementById('folder-modal')?.addEventListener('pointermove', (e) => {
-  // 이벤트가 상위 캔버스로 올라가서 루프 터지는 걸 원천 차단
-  e.stopPropagation(); 
-  
-  // 가상 커서 변수명이 pointer 또는 cursorFollower 일 텐데, 브라우저가 직접 요소를 강제 매칭하게 만듦
-  const follower = document.querySelector('.cursor-follower');
-  if (follower) {
-    // 모달창 위에서도 끊기지 않고 마우스 포인터 정중앙에 연두색 커서 강제 픽스
-    follower.style.left = `${e.clientX}px`;
-    follower.style.top = `${e.clientY}px`;
-  }
-}, { passive: true });
-
-// 모달 내부에서 클릭할 때 마우스가 일시정지(Freeze)되는 현상 방지
-document.getElementById('folder-modal')?.addEventListener('pointerdown', (e) => {
-  e.stopPropagation();
-}, { passive: true });
   }
 }, { capture: true, passive: false });
