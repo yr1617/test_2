@@ -63,7 +63,6 @@ const setupLandingCanvas = () => {
     state.height = rect.height;
     state.dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     
-    // ✨ [오타 박멸] 스크립트를 폭파시키던 원흉인 landingCanvasCanvas 오타를 완벽히 청소했습니다.
     landingCanvas.width = Math.max(1, Math.floor(rect.width * state.dpr));
     landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
     
@@ -166,9 +165,8 @@ const initThree = () => {
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
   loader.setDRACOLoader(draco);
 
-  // 캐시 고집을 부수기 위해 고유 랜덤 스트링을 빌려 원본 파일을 호출합니다.
   loader.load(
-    `./modeling.glb?cache-entry=${Math.random()}`,
+    `./modeling.glb?cache-union=${Math.random()}`,
     (gltf) => {
       if(!gltf || !gltf.scene) {
         hideSiteLoader();
@@ -179,7 +177,6 @@ const initThree = () => {
       const model = gltf.scene;
       let rawPositions = [];
 
-      // 🔨 [강제 압축 용접 연산] 분리된 6개의 파편 데이터를 메모리 안에서 철저히 단일 배열로 합칩니다.
       model.updateMatrixWorld(true);
       model.traverse((child) => {
         if (child.isMesh && child.geometry) {
@@ -199,12 +196,10 @@ const initThree = () => {
         return;
       }
 
-      // 완벽히 결합된 통짜 지오메트리 껍데기 선언
       const mergedGeometry = new THREE.BufferGeometry();
       mergedGeometry.setAttribute('position', new THREE.Float32BufferAttribute(rawPositions, 3));
       mergedGeometry.computeVertexNormals(); 
 
-      // 💎 지지직대는 가섭이 100% 원천 봉쇄된 정갈한 투명 크리스탈 글래스 재질
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
@@ -213,7 +208,7 @@ const initThree = () => {
         opacity: 0.45,               
         transmission: 0.95,          
         ior: 1.5,                  
-        side: THREE.FrontSide, // 바깥 표면 외 내부 겹침 면의 렌더링을 차단하여 노이즈 원천 제거
+        side: THREE.FrontSide, 
         depthWrite: true,      
         depthTest: true,
         iridescence: 0.85,           
@@ -225,7 +220,6 @@ const initThree = () => {
 
       const mergedMesh = new THREE.Mesh(mergedGeometry, crystalMaterial);
 
-      // 대칭 별 오브젝트 정중앙 위치 보정 및 배율 안정화
       const IDEAL_LAYOUT_BOUNDS = 2.4; 
       const box = new THREE.Box3().setFromObject(mergedMesh);
       const centre = new THREE.Vector3();
