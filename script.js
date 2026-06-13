@@ -209,9 +209,12 @@ const initThree = () => {
       const model = gltf.scene;
 
 const silverMetalMat = new THREE.MeshStandardMaterial({
-  color: 0xd0d0d0,
-  metalness: 1.0,
-  roughness: 0.15,
+  color: 0xd8d8d8,
+  metalness: 0.65,
+  roughness: 0.22,
+
+  emissive: 0x222222,
+
   side: THREE.DoubleSide
 });
 model.traverse((child) => {
