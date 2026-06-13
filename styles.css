@@ -53,6 +53,10 @@
 html, body {
   cursor: none !important;
 }
+/* 링크나 버튼 위에 올라갔을 때도 기본 마우스가 안 튀어나오게 안전하게 제한 */
+a, button, .folder-item, .reveal-card {
+  cursor: none !important;
+}
 
 html {
   scroll-behavior: smooth;
