@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    ENGINE DESTROY & CLEAN
+    ENGINE RE-INIT PROTECTION (안전한 초기화)
 ════════════════════════════════════════ */
 if (window.animFrameId) {
   cancelAnimationFrame(window.animFrameId);
@@ -11,11 +11,6 @@ if (window.animFrameId) {
 }
 if (window.threeRenderer) {
   window.threeRenderer.dispose();
-  const domCanvas = document.querySelector('#model-canvas');
-  if (domCanvas) {
-    const gl = domCanvas.getContext('webgl2') || domCanvas.getContext('webgl');
-    if (gl) gl.getExtension('WEBGL_lose_context')?.loseContext();
-  }
   window.threeRenderer = null;
 }
 window.threeScene    = null;
