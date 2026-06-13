@@ -53,11 +53,11 @@ const pointer = {
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
 /* ════════════════════════════════════════
-    요구사항 2: 기본 시작 각도 — 비스듬히 서 있는 형태
+    수정사항 2: 기본 시작 각도 — 서 있는 정면 기반 비스듬한 형태
 ════════════════════════════════════════ */
-// X: 위에서 내려다보는 각도, Y: 비스듬히 돌아간 각도
-const baseRotation = { x: 0.28, y: 0.55 };
-const rotState     = { x: 0.28, y: 0.55 };
+// X 각도를 0.28에서 0.05로 수정하여 모델링이 앞으로 누워있지 않고 똑바로 서 있도록 만듭니다.
+const baseRotation = { x: 0.05, y: 0.55 };
+const rotState     = { x: 0.05, y: 0.55 };
 
 // 자동 자전을 위한 독립 각도 누적
 let autoRotY = 0.55;
@@ -180,7 +180,7 @@ const generatePureEnvironment = (renderer) => {
 
 /* ════════════════════════════════════════
     요구사항 1: THREE.JS RENDER PIPELINE
-    — 내부 교차선 완전 마스킹 + 오로라 극대화
+    — 수정사항 1: 투명 크리스탈에서 실버 메탈릭 재질로 변경
 ════════════════════════════════════════ */
 const initThree = () => {
   if (!modelCanvas || window.__threeInitialized) return;
@@ -197,18 +197,16 @@ const initThree = () => {
     alpha: true,
     antialias: true,
     powerPreference: 'high-performance',
-    // 투명도 정렬을 위해 sortObjects 활성
     logarithmicDepthBuffer: false,
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  window.threeRenderer.toneMappingExposure = 2.6;
-  // 투명 오브젝트 렌더 순서 자동 정렬
+  window.threeRenderer.toneMappingExposure = 2.4;
   window.threeRenderer.sortObjects = true;
 
-  // 조명
+  // 메탈 반사 극대화를 위한 광량 보정 조명 설정
   const dirLight1 = new THREE.DirectionalLight(0xffffff, 9.0);
   dirLight1.position.set(7, 16, 10);
   window.threeScene.add(dirLight1);
@@ -221,7 +219,7 @@ const initThree = () => {
   dirLight3.position.set(4, -8, -4);
   window.threeScene.add(dirLight3);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
   window.threeScene.add(ambientLight);
 
   window.threeCamera = new THREE.PerspectiveCamera(24, W / H, 0.1, 100);
@@ -243,45 +241,34 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      /* ── 요구사항 1 핵심: 내부 교차선 완전 마스킹 + 프리즘 오로라 극대화 ──
-         복잡하게 얽힌 메쉬 구조에서 내부 교차면을 완전히 차단하는 공식:
-         - side: FrontSide  → 겉면만 렌더링, 내부 관통면 제거
-         - depthWrite: false → 투명체 간 Z-fighting/얼룩 완전 방지
-         - depthTest: true   → 다른 오브젝트와의 뎁스 관계는 유지
-         - renderOrder: 1    → 투명 오브젝트 렌더 순서 명시
-      */
-      const crystalMat = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        metalness:  0.0,
-        roughness:  0.0,
-
-        // 물리 유리 투과
-        transparent: true,
-        transmission: 1.0,
+      /* ── 수정사항 1 핵심: 실버 메탈릭 재질 공식 ── */
+      const silverMetallicMat = new THREE.MeshPhysicalMaterial({
+        color: 0xdddddd,            // 정갈하고 정제된 실버 베이스 톤
+        metalness: 0.95,            // 실버 금속 표면 구현
+        roughness: 0.12,            // 세련된 반사광 왜곡을 위한 약간의 표면 거칠기
+        
+        transparent: false,         // 불투명 메탈릭 처리
         opacity: 1.0,
-        ior: 1.08,              // 낮은 IOR → 내부 굴절 꼬임 버그 차단
-        thickness: 0.6,
-
-        // 교차선 마스킹 핵심
-        side: THREE.FrontSide,
-        depthWrite: false,
+        
+        side: THREE.DoubleSide,     // 내외부 면이 모두 매끄럽게 처리되도록 양면 세팅
+        depthWrite: true,
         depthTest: true,
 
-        // 오로라 프리즘광 극대화
-        iridescence: 1.0,
-        iridescenceIOR: 2.6,
-        iridescenceThicknessRange: [120, 400],
+        // 환경광을 다채로운 은빛으로 분산시키기 위한 오로라 펄 레이어 유지
+        iridescence: 0.35,
+        iridescenceIOR: 1.9,
+        iridescenceThicknessRange: [100, 300],
 
-        // 고광택 코팅
+        // 실버 바디 위를 감싸는 고광택 유리 코팅막
         clearcoat: 1.0,
-        clearcoatRoughness: 0.0,
-        specularIntensity: 3.5,
+        clearcoatRoughness: 0.05,
+        specularIntensity: 2.5,
         specularColor: new THREE.Color(0xffffff),
       });
 
       model.traverse((child) => {
         if (child.isMesh) {
-          child.material    = crystalMat;
+          child.material    = silverMetallicMat;
           child.renderOrder = 1;
           child.castShadow    = false;
           child.receiveShadow = false;
@@ -335,7 +322,7 @@ const resizeThree = () => {
 };
 
 /* ════════════════════════════════════════
-    요구사항 3: 스크롤 인디케이터 (정밀 계산)
+    수정사항 3: 스크롤 인디케이터 (정밀 끝까지 차도록 계산 보정)
 ════════════════════════════════════════ */
 const buildSectionMap = () => {
   navLinks.forEach(link => {
@@ -359,7 +346,6 @@ const updateNavProgress = () => {
     const top   = rect.top + scrollY - headerH;
     const bot   = top + rect.height;
 
-    // 현재 뷰포트와 섹션이 얼마나 겹치는지 계산
     const visTop  = Math.max(scrollY, top);
     const visBot  = Math.min(scrollY + winH, bot);
     const overlap = Math.max(0, visBot - visTop);
@@ -371,9 +357,11 @@ const updateNavProgress = () => {
     }
   });
 
+  // 문서 전체 스크롤의 마지막 끝 지점에 다다랐을 때 예외 안전 보정
+  const isAtBottom = (scrollY + winH >= docH - 5);
+
   sections.forEach((sec, i) => {
     if (i !== activeIdx) {
-      // 비활성: 진행률 0
       sec.progress.style.setProperty('--nav-p', '0');
       sec.link.classList.remove('is-active');
       return;
@@ -383,23 +371,21 @@ const updateNavProgress = () => {
 
     const rect     = sec.el.getBoundingClientRect();
     const secTop   = rect.top + scrollY - headerH;
-    const secBot   = secTop + rect.height;
     const secH     = rect.height;
 
-    // 뷰포트 내에서 섹션이 얼마나 스크롤됐는지 (0 ~ 1)
-    // 섹션 상단이 화면 상단에 닿을 때 0, 섹션 하단이 화면 하단에서 벗어날 때 1
-    const entered  = scrollY - secTop + winH; // 섹션이 뷰포트에 처음 진입한 시점부터의 스크롤 거리
-    const total    = secH + winH;
-    const raw      = clamp01(entered / total);
+    // 프로그레스 바가 각 단락 끝 및 페이지 마지막에서 완벽히 1에 수렴하도록 매핑 기준 거리 수정
+    const entered  = scrollY - secTop;
+    const total    = secH - (i === sections.length - 1 ? winH - headerH : 0);
+    
+    let raw = total > 0 ? clamp01(entered / total) : 0;
+    if (isAtBottom && i === sections.length - 1) raw = 1.0;
 
-    // 첫 섹션(home)은 페이지 최상단일 때 0, 스크롤 시작하면 채움
     sec.progress.style.setProperty('--nav-p', raw.toFixed(4));
   });
 };
 
 /* ════════════════════════════════════════
     요구사항 2: MAIN ANIMATION LOOP
-    — 자동 자전 + 마우스 반응 인터랙션
 ════════════════════════════════════════ */
 let clock = 0;
 
@@ -407,7 +393,6 @@ const animate = () => {
   window.animFrameId = requestAnimationFrame(animate);
   clock = Date.now() * 0.001;
 
-  // 커서 스무딩
   pointer.x += (pointer.tx - pointer.x) * 0.08;
   pointer.y += (pointer.ty - pointer.y) * 0.08;
 
@@ -422,16 +407,13 @@ const animate = () => {
     if (window.modelAnchor) {
 
       if (isHoveringModel) {
-        /* ── 마우스 호버 시: 마우스 방향 추적 (여유로운 Lerp) ── */
-        // 마우스 -1~1 값을 각도 범위에 매핑 (±0.6 rad 여유)
         const targetX = baseRotation.x + (-mouse.y * 0.6);
         const targetY = autoRotY      + ( mouse.x * 0.7);
 
         rotState.x += (targetX - rotState.x) * 0.05;
         rotState.y += (targetY - rotState.y) * 0.05;
       } else {
-        /* ── 평소: 느릿한 자동 자전 ── */
-        autoRotY += 0.004; // 자전 속도 (낮을수록 느림)
+        autoRotY += 0.004;
         const targetX = baseRotation.x + Math.sin(clock * 0.35) * 0.08;
         const targetY = autoRotY;
 
@@ -441,8 +423,6 @@ const animate = () => {
 
       window.modelAnchor.rotation.x = rotState.x;
       window.modelAnchor.rotation.y = rotState.y;
-
-      // 부드러운 유영 효과
       window.modelAnchor.position.y = Math.sin(clock * 0.9) * 0.022;
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
@@ -460,13 +440,11 @@ const setupHoverEvents = () => {
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
   });
 
-  // 모델 캔버스 영역 호버 감지 (요구사항 2)
   const displayShell = document.querySelector('.landing-display-shell');
   if (displayShell) {
     displayShell.addEventListener('pointerenter', () => { isHoveringModel = true; });
     displayShell.addEventListener('pointerleave', () => {
       isHoveringModel = false;
-      // 호버 해제 시 현재 autoRotY를 현재 rotState.y에 동기화해 튀는 현상 방지
       autoRotY = rotState.y;
     });
   }
@@ -555,7 +533,6 @@ const setupFolderGUI = () => {
   if (!grid || !modal) return;
 
   let selectedItem = null;
-  let clickTimer   = null;
 
   const openModal = (folderKey) => {
     const data = FOLDER_DATA[folderKey];
@@ -564,7 +541,6 @@ const setupFolderGUI = () => {
     modalTitle.textContent = data.title;
     modalPath.textContent  = data.path;
 
-    // 모달 바디 렌더링
     const sectionLabel = document.createElement('p');
     sectionLabel.className   = 'modal-section-title';
     sectionLabel.textContent = 'FILES';
@@ -601,11 +577,11 @@ const setupFolderGUI = () => {
     document.body.style.overflow = '';
   };
 
-  // 폴더 클릭 이벤트 (단일 / 더블)
+  /* ── 수정사항 4 핵심: 레이싱 컨디션 원인인 타이머를 지우고 단일클릭(선택)/더블클릭(오픈) 분리 ── */
+  // 1. 단일 클릭 이벤트: 즉각적인 아이콘 하이라이트 선택 및 해제 전담
   grid.addEventListener('click', (e) => {
     const item = e.target.closest('.folder-item');
     if (!item) {
-      // 바탕화면 빈 곳 클릭 → 선택 해제
       if (selectedItem) {
         selectedItem.classList.remove('is-selected');
         selectedItem = null;
@@ -613,33 +589,24 @@ const setupFolderGUI = () => {
       return;
     }
 
-    if (clickTimer) {
-      // 더블클릭
-      clearTimeout(clickTimer);
-      clickTimer = null;
-      item.classList.add('is-opening');
-      setTimeout(() => item.classList.remove('is-opening'), 200);
-      openModal(item.dataset.folder);
-    } else {
-      // 단일클릭 (150ms 후 확정)
-      clickTimer = setTimeout(() => {
-        clickTimer = null;
-        // 선택 상태 토글
-        if (selectedItem && selectedItem !== item) {
-          selectedItem.classList.remove('is-selected');
-        }
-        if (selectedItem === item) {
-          item.classList.remove('is-selected');
-          selectedItem = null;
-        } else {
-          item.classList.add('is-selected');
-          selectedItem = item;
-        }
-      }, 150);
+    if (selectedItem && selectedItem !== item) {
+      selectedItem.classList.remove('is-selected');
     }
+    
+    item.classList.add('is-selected');
+    selectedItem = item;
   });
 
-  // 키보드 접근성 (Enter = 더블클릭, Space = 단일클릭)
+  // 2. 더블 클릭 이벤트: 브라우저 고유 네이티브 'dblclick'을 이용해 즉시 정확하게 폴더 열기 실행
+  grid.addEventListener('dblclick', (e) => {
+    const item = e.target.closest('.folder-item');
+    if (!item) return;
+    
+    item.classList.add('is-opening');
+    setTimeout(() => item.classList.remove('is-opening'), 200);
+    openModal(item.dataset.folder);
+  });
+
   grid.addEventListener('keydown', (e) => {
     const item = e.target.closest('.folder-item');
     if (!item) return;
@@ -647,7 +614,6 @@ const setupFolderGUI = () => {
     if (e.key === ' ')     item.classList.toggle('is-selected');
   });
 
-  // 모달 닫기
   modalClose.addEventListener('click', closeModal);
   modalBack.addEventListener('click',  closeModal);
   document.addEventListener('keydown', (e) => {
@@ -689,11 +655,9 @@ const initAll = () => {
   initThree();
   animate();
 
-  // 스크롤 이벤트: 인디케이터 + spotlight
   window.addEventListener('scroll', () => {
     updateNavProgress();
 
-    // page-spotlight 위치 업데이트
     const spotlight = document.querySelector('.page-spotlight');
     if (spotlight) {
       const px = (pointer.x / window.innerWidth)  * 100;
@@ -703,7 +667,6 @@ const initAll = () => {
     }
   }, { passive: true });
 
-  // 초기 실행
   updateNavProgress();
 };
 
