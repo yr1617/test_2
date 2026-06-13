@@ -118,18 +118,17 @@ const initThree = () => {
   const W = shell.offsetWidth;
   const H = shell.offsetHeight;
 
-  // 1. [배경 차단 해제] alpha: true 로 완전히 투명하게 리셋
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
-    alpha:       true, 
+    alpha:       true, // 배경 투명하게 뚫기 보장
     antialias:   true
   });
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   threeRenderer.setSize(W, H);
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  // 2. [위아래 잘림 완벽 차단] FOV 시야각을 넓히고 공간 마진을 확보하여 절대 잘리지 않게 설정
-  threeCamera = new THREE.PerspectiveCamera(38, W / H, 0.1, 100);
+  // 영역 잘림 방지를 위해 FOV 각도 시원하게 확보
+  threeCamera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 5.2); 
 
   const ambient = new THREE.AmbientLight(0xffffff, 1.0);
@@ -152,40 +151,44 @@ const initThree = () => {
       box.getSize(size);
       
       const maxDim = Math.max(size.x, size.y, size.z);
-      // 잘림을 원천 봉쇄하기 위해 스케일 팩터를 아주 안정적인 크기(1.65)로 축소 조정
-      const scale   = 1.65 / maxDim; 
+      // 사방 회전 마진을 위해 스케일을 안전 자리에 고정 (절대 안 잘림)
+      const scale   = 1.55 / maxDim; 
       
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
       
       model.rotation.set(Math.PI / 2.3, 0, 0); 
 
+      // 🛠️ [긴급 처방: 꼬인 내부 메쉬 계층 구조 강제 무력화 순회]
       model.traverse((child) => {
-        if (!child.isMesh) return;
+        // child가 Mesh이거나, 자식 노드가 존재하는 객체라면 무조건 하위 메쉬를 강제로 추적
+        if (child.isMesh || (child.children && child.children.length > 0)) {
+          
+          if (child.isMesh) {
+            // 1. 기존 파일에 박혀있던 완고한 회색 재질 완전히 폐기
+            if (child.material) {
+              if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+              else child.material.dispose();
+            }
 
-        if (child.material) {
-          if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
-          else child.material.dispose();
+            // 2. 챗지피티가 피드백한 홀로그래픽 프리즘 뷰 재질 강제 강제 주입
+            child.material = new THREE.MeshNormalMaterial({
+              side: THREE.DoubleSide,
+              blending: THREE.NormalBlending
+            });
+
+            // 3. 디지털 아트워크 엣지 라인 생성
+            const wireframeGeom = new THREE.WireframeGeometry(child.geometry);
+            const wireframeMat = new THREE.LineBasicMaterial({
+              color: 0xffffff,
+              transparent: true,
+              opacity: 0.6,
+              blending: THREE.AdditiveBlending
+            });
+            const wireframe = new THREE.LineSegments(wireframeGeom, wireframeMat);
+            child.add(wireframe);
+          }
         }
-
-        // 💿 [요구사항 반영: Holographic Chrome 표면 주입]
-        // 일반 실버 크롬을 찢고 나오는 강력한 RGB 스펙트럼 굴절과 엣지 분산 룩 구현
-        child.material = new THREE.MeshNormalMaterial({
-          side: THREE.DoubleSide,
-          blending: THREE.NormalBlending
-        });
-
-        // ✨ [Futuristic Glitch & Bloom 하이라이트 레이어 오버레이]
-        // 각진 모서리에 정밀한 크롬 광택과 네온 프리즘 선이 공존하도록 와이어프레임 겹치기
-        const wireframeGeom = new THREE.WireframeGeometry(child.geometry);
-        const wireframeMat = new THREE.LineBasicMaterial({
-          color: 0xffffff,
-          transparent: true,
-          opacity: 0.7,                  // 쨍하고 날카로운 사이버 엣지 선 생성
-          blending: THREE.AdditiveBlending
-        });
-        const wireframe = new THREE.LineSegments(wireframeGeom, wireframeMat);
-        child.add(wireframe);
       });
 
       modelAnchor = new THREE.Group();
@@ -249,8 +252,7 @@ const animate = () => {
       modelAnchor.rotation.x = rotationState.currentX;
       modelAnchor.rotation.y = rotationState.currentY;
 
-      // 미래지향적 부유 효과
-      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.008;
+      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.006;
     }
     threeRenderer.render(threeScene, threeCamera);
   }
