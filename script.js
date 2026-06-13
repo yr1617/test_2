@@ -198,13 +198,8 @@ const initThree = () => {
 
 const silverMetalMat = new THREE.MeshStandardMaterial({
   color: 0xe0e0e0,
-  metalness: 1.0,
-  roughness: 0.08,
-
-  emissive: 0x222222,
-
-  envMapIntensity: 3.0,
-
+  metalness: 0.0,
+  roughness: 0.5,
   side: THREE.DoubleSide
 });
 model.traverse((child) => {
