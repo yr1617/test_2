@@ -180,11 +180,11 @@ const initThree = () => {
         metalness: 0.0,
         roughness: 0.0,             // 0.0 고정으로 표면의 자글자글한 점 가루 노이즈를 완전히 소멸
         transparent: true,
-transmission: 1.0
+transmission: 1.0,
         ior: 1.52,                   // 실제 유리의 물리 굴절률 설정
         thickness: 0.8,              
         envMap: envTexture,
-envMapIntensity: 1.2
+envMapIntensity: 1.2,
 side: THREE.FrontSide,
 depthWrite: true
       });
