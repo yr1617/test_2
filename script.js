@@ -91,7 +91,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (TRUE HOLOGRAPHIC CHROME)
+    THREE.JS ENGINE (PREMIUM PRISM GLASS)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -99,19 +99,18 @@ let threeCamera   = null;
 let modelAnchor   = null; 
 let animFrameId   = null;
 
-// 외부 HDRI 파일 없이 가상 공간의 반사광을 만들어내는 빌트인 PMREM 생성기
+// 유리의 투명한 투과광과 무지갯빛 왜곡을 표현하기 위한 실시간 환경 반사판 생성
 const generateFakeEnvironment = (renderer) => {
   const scene = new THREE.Scene();
-  const geo = new THREE.BoxGeometry(2, 2, 2);
+  const geo = new THREE.BoxGeometry(3, 3, 3);
   
-  // 가상의 사방에 초고대비 네온 빛 반사판 배치
   const mats = [
-    new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.BackSide }), // Neon Pink
+    new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.BackSide }), // Hot Pink
     new THREE.MeshBasicMaterial({ color: 0x00ffff, side: THREE.BackSide }), // Cyan
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // White Highlight
-    new THREE.MeshBasicMaterial({ color: 0x111115, side: THREE.BackSide }), // Dark
-    new THREE.MeshBasicMaterial({ color: 0x5500ff, side: THREE.BackSide }), // Purple
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide })  // White Highlight
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // White Light
+    new THREE.MeshBasicMaterial({ color: 0x101015, side: THREE.BackSide }), // Dark Void
+    new THREE.MeshBasicMaterial({ color: 0x7700ff, side: THREE.BackSide }), // Deep Purple
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide })  // White Light
   ];
   const box = new THREE.Mesh(geo, mats);
   scene.add(box);
@@ -145,44 +144,37 @@ const initThree = () => {
 
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
-    alpha:       true, // 배경 투명 처리 보장
+    alpha:       true, 
     antialias:   true
   });
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   threeRenderer.setSize(W, H);
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  // 잘림 없는 편안한 뷰포트 카메라 확보
   threeCamera = new THREE.PerspectiveCamera(38, W / H, 0.1, 100);
-  threeCamera.position.set(0, 0, 5.0); 
+  threeCamera.position.set(0, 0, 4.8); // 스케일 키우고 시야 확보를 위해 카메라 살짝 전진
 
-  // 크롬 질감의 핵심인 환경맵 생성 및 씬 주입
   const envTexture = generateFakeEnvironment(threeRenderer);
   threeScene.environment = envTexture;
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.8);
   threeScene.add(ambient);
 
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.5);
-  dirLight1.position.set(5, 10, 7);
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 2.0);
+  dirLight1.position.set(5, 8, 5);
   threeScene.add(dirLight1);
-
-  const dirLight2 = new THREE.DirectionalLight(0x00ffff, 1.0);
-  dirLight2.position.set(-5, -5, 5);
-  threeScene.add(dirLight2);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
   loader.setDRACOLoader(draco);
 
-  // 캐시 무력화 쿼리 포함 로드
   loader.load(
     `./modeling.glb?v=${Date.now()}`,
     (gltf) => {
       const model = gltf.scene;
 
-      // ⚠️ 파트 분해 방지: 모델 고유의 내부 트랜스폼 구조를 절대로 건드리지 않고, 전체 바운딩 박스로 스케일만 잡습니다.
+      // ⚠️ 면 분리 원천 차단: 내부 트랜스폼 매트릭스를 절대 리셋하거나 쪼개지 않습니다.
       const box    = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
@@ -190,33 +182,37 @@ const initThree = () => {
       box.getSize(size);
       
       const maxDim = Math.max(size.x, size.y, size.z);
-      // 화면에 꽉 차고 시원하게 보이도록 스케일 비율 조정 (잘리지 않는 최적의 크기)
-      const scale  = 2.3 / maxDim; 
+      // 🌟 화면에 아주 큼직하고 시원하게 꽉 차도록 스케일 팩터를 2.5로 상향 조정
+      const scale  = 2.5 / maxDim; 
       
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
 
-      // 피드백 반영: 레퍼런스 이미지와 완벽히 매칭되는 프리즘 물리 기반 크롬 재질 정의
-      const chromeMaterial = new THREE.MeshPhysicalMaterial({
+      // ❌ 지 자리에 누워버리게 만들던 강제 회전 코드값(Math.PI / 2.3) 완전 삭제!
+      // 모델링 원래 본연의 각도 상태를 그대로 유지합니다.
+
+      // ✨ 레퍼런스를 완벽 재현하는 하이엔드 프리즘 유리(Glass) 재질 정의
+      const prismGlassMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
-        metalness: 1.0,               // 완전한 거울 금속성
-        roughness: 0.01,              // 극도로 매끄러운 표면
+        metalness: 0.0,               // 유리이므로 메탈성 제로
+        roughness: 0.05,              // 매끄러운 유리 표면
+        transparent: true,
+        opacity: 1.0,
+        transmission: 0.95,           // 95% 빛이 투과하는 진짜 투명 유리 효과
+        ior: 1.52,                    // 일반 유리의 실감나는 굴절률 설정
         envMap: envTexture,
-        envMapIntensity: 2.5,         // 반사광 강도 최대화
-        iridescence: 1.0,             // 무지갯빛 오로라 광학 효과 강제 활성화
-        iridescenceIOR: 1.9,          // 프리즘 굴절률
-        iridescenceThicknessRange: [100, 400],
-        clearcoat: 1.0,               // 표면 코팅 추가 광택
-        clearcoatRoughness: 0.01
+        envMapIntensity: 3.0,         // 투과되는 네온 반사광 극대화
+        iridescence: 1.0,             // 유리에 흐르는 영롱한 오로라/무지갯빛 필름 코팅
+        iridescenceIOR: 1.7,
+        iridescenceThicknessRange: [150, 400],
+        clearcoat: 1.0,               // 유리 겉면의 맑은 코팅 광택 추가
+        clearcoatRoughness: 0.02
       });
 
-      // 구조 파괴 없는 정석 안전 순회
+      // 찢어짐 없는 정석 구조 순회로 안전하게 유리 재질만 스왑
       model.traverse((child) => {
         if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-          // 기존 깨지던 이상한 하이라이트/와이어프레임 찌꺼기 싹 지우고 단일 물리 크롬 재질로 통일
-          child.material = chromeMaterial;
+          child.material = prismGlassMaterial;
         }
       });
 
@@ -281,7 +277,6 @@ const animate = () => {
       modelAnchor.rotation.x = rotationState.currentX;
       modelAnchor.rotation.y = rotationState.currentY;
 
-      // 부드러운 부유 루프
       modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.01;
     }
     threeRenderer.render(threeScene, threeCamera);
