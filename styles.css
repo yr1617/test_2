@@ -1046,3 +1046,37 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   z-index: 100000000 !important; /* 모달창보다 위에 뜨게 설정 */
   pointer-events: none !important; /* 가상 커서가 클릭을 가로막지 않고 완전 패스 */
 }
+/* ⚡ 1. 3D 캔버스와 껍데기 박스는 배경 수준(z-index: 1)으로 완전히 유배 보냅니다. */
+#model-canvas, 
+.landing-canvas, 
+.landing-display-shell, 
+#landing-display {
+  z-index: 1 !important;
+  /* 캔버스가 마우스 클릭을 가로채서 본인 혼자 처먹지 못하게 원천 차단 */
+  pointer-events: none !important; 
+}
+
+/* ⚡ 2. 바탕화면 폴더 그리드와 텍스트 본문들을 3D 캔버스 위(z-index: 10)로 강제 차출합니다. */
+#desktop-grid, 
+.landing-content, 
+.topnav, 
+.hero-text-wrap {
+  position: relative !important;
+  z-index: 10 !important;
+  /* 일반 버튼, 카드, 폴더들이 정상적으로 클릭을 받도록 설정 */
+  pointer-events: auto !important; 
+}
+
+/* ⚡ 3. 폴더 아이콘 각각에도 안전장치 부여 */
+.folder-item {
+  position: relative !important;
+  z-index: 11 !important;
+  pointer-events: auto !important;
+}
+
+/* ⚡ 4. 연두색 가상 커서는 이 모든 난장판 위에 군림하도록 왕좌에 배치 */
+.cursor-follower {
+  position: fixed !important;
+  z-index: 99999999 !important;
+  pointer-events: none !important; /* 커서 이미지 자체가 클릭을 막지 않게 투과 */
+}
