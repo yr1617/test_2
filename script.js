@@ -1,4 +1,3 @@
-// HTML의 importmap 설정을 인식하여 외부 모듈을 충돌 없이 안전하게 가져옵니다.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
@@ -43,7 +42,7 @@ const eliminateFakeModels = () => {
 };
 
 /* ════════════════════════════════════════
-    마우스 트래킹
+    마우스 트래킹 & 전역 상태
 ════════════════════════════════════════ */
 const mouse = { x: 0, y: 0 };
 const pointer = {
@@ -52,14 +51,13 @@ const pointer = {
 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
-/* ════════════════════════════════════════
-    모델링이 상단으로 누워버리지 않도록 세우는 기준각
-════════════════════════════════════════ */
-const baseRotation = { x: 0.0, y: 0.55 };
-const rotState     = { x: 0.0, y: 0.55 };
+// [교정] 모델링이 누워있지 않고 정면을 바라보게 만드는 각도 오프셋
+const baseRotation = { x: 0.25, y: 0.55 }; 
+const rotState     = { x: 0.25, y: 0.55 };
 
 let autoRotY = 0.55;
 let isHoveringModel = false;
+let isModalOpen = false; // 모달 오픈 상태 체크 변수
 
 /* ════════════════════════════════════════
     LANDING CANVAS BACKGROUND
@@ -113,38 +111,40 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    메탈 크롬 광택 유도용 고대비 가상 반사 스튜디오 환경 설정
+    [교정] 실버 메탈의 광택 극대화를 위한 초고대비 하이라이트 인바이런먼트 맵 형성
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
+  // 메탈 엣지를 강하게 때릴 상단 거대 광원판
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(25, 0.5, 25),
+    new THREE.BoxGeometry(40, 1, 40),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  topLight.position.set(0, 10, 0);
+  topLight.position.set(0, 15, 0);
   scene.add(topLight);
 
+  // 실버 반사 하이라이트용 좌/우/정면 백색 반사판 배치
   const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(0.1, 15, 15),
+    new THREE.BoxGeometry(0.5, 30, 30),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  leftPanel.position.set(-8, 2, 0);
+  leftPanel.position.set(-12, 5, 0);
   scene.add(leftPanel);
 
   const rightPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(0.1, 15, 15),
+    new THREE.BoxGeometry(0.5, 30, 30),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  rightPanel.position.set(8, 2, 0);
+  rightPanel.position.set(12, 5, 0);
   scene.add(rightPanel);
 
   const frontPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(15, 15, 0.1),
+    new THREE.BoxGeometry(30, 30, 0.5),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  frontPanel.position.set(0, 2, 8);
+  frontPanel.position.set(0, 5, 12);
   scene.add(frontPanel);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -156,7 +156,7 @@ const generatePureEnvironment = (renderer) => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE MAIN
+    THREE.JS ENGINE MAIN (조명 세기 및 하이라이트 전면 재조정)
 ════════════════════════════════════════ */
 const initThree = () => {
   if (!modelCanvas || window.__threeInitialized) return;
@@ -178,17 +178,18 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  window.threeRenderer.toneMappingExposure = 1.35; // 잿빛 찰흙 현상을 지우기 위한 정밀 광량 조정
+  window.threeRenderer.toneMappingExposure = 1.6; // 까맣게 죽는 현상을 방지하기 위해 톤맵 노출값 대폭 상향
 
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 4.5);
-  dirLight1.position.set(5, 8, 6);
+  // 까만 찰흙 현상을 원천 차단하는 다이렉트 고광량 화이트 라이트 세팅
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 6.0);
+  dirLight1.position.set(6, 12, 8);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 2.5);
-  dirLight2.position.set(-5, -2, 4);
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 3.5);
+  dirLight2.position.set(-6, -4, 6);
   window.threeScene.add(dirLight2);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); // 전체 음영 베이스를 밝혀 본체 같은 어두움 제거
   window.threeScene.add(ambientLight);
 
   window.threeCamera = new THREE.PerspectiveCamera(24, W / H, 0.1, 100);
@@ -197,7 +198,6 @@ const initThree = () => {
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
 
-  // 상단에서 명시적으로 import 한 GLTFLoader와 DRACOLoader 인스턴스를 정상적으로 매핑합니다.
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
@@ -211,11 +211,11 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      /* ── 칙칙하고 뭉개지던 회색 재질을 완전한 실버 크롬 메탈릭 질감으로 강제 교체 ── */
+      /* ── [교정] 진짜 눈부시게 빛나는 액체 은금속(Silver Chrome Material) 질감 정의 ── */
       const realSilverMetallicMat = new THREE.MeshStandardMaterial({
-        color: 0xffffff,       // 베이스를 밝은 화이트로 처리하여 어둡게 타는 현상 차단
-        metalness: 1.0,        // 100% 반사 메탈 속성 부여
-        roughness: 0.08,       // 표면 거칠기를 최소화하여 날카로운 은빛 광택선 형성
+        color: 0xdddddd,        // 약간의 백색 광을 머금은 실버 기본 베이스 색상
+        metalness: 1.0,         // 완벽한 금속 거울 반사율 100%
+        roughness: 0.04,        // 거칠기를 매우 정밀하게 깎아 반사선이 엄청 맑고 쨍하게 흐르도록 설정
         side: THREE.DoubleSide
       });
 
@@ -243,7 +243,7 @@ const initThree = () => {
       window.modelAnchor.add(model);
       window.threeScene.add(window.modelAnchor);
 
-      // 모델링이 하늘을 보며 눕지 않도록 정면 영점 세팅 적용
+      // 모델링이 뒤나 위로 누워 보이지 않고 딱 정면 대각을 비추도록 회전축 강제 주입
       window.modelAnchor.rotation.x = baseRotation.x;
       window.modelAnchor.rotation.y = baseRotation.y;
 
@@ -274,7 +274,7 @@ const resizeThree = () => {
 };
 
 /* ════════════════════════════════════════
-    SCROLL INDICATOR
+    [교정] SCROLL INDICATOR (각 메뉴 아래 프로그레스 바가 끝까지 차오르도록 연산 전면 교정)
 ════════════════════════════════════════ */
 const buildSectionMap = () => {
   navLinks.forEach(link => {
@@ -293,6 +293,7 @@ const updateNavProgress = () => {
   let activeIdx = -1;
   let maxCoverage = -1;
 
+  // 1단계: 현재 화면을 가장 많이 차지하고 있는 섹션을 우선 활성화 섹션으로 추적
   sections.forEach((sec, i) => {
     const rect  = sec.el.getBoundingClientRect();
     const top   = rect.top + scrollY - headerH;
@@ -309,8 +310,9 @@ const updateNavProgress = () => {
     }
   });
 
-  const isAtBottom = (scrollY + winH >= docH - 5);
+  const isAtBottom = (scrollY + winH >= docH - 8);
 
+  // 2단계: 활성화된 섹션의 프로그레스 바를 화면 돌파율 기준으로 정밀 연산
   sections.forEach((sec, i) => {
     if (i !== activeIdx) {
       sec.progress.style.setProperty('--nav-p', '0');
@@ -324,13 +326,18 @@ const updateNavProgress = () => {
     const secTop   = rect.top + scrollY - headerH;
     const secH     = rect.height;
 
-    const entered  = scrollY - secTop;
-    const total    = secH - (i === sections.length - 1 ? winH - headerH : 0);
+    // 해당 섹션 영역 안에서 스크롤이 얼마나 흘러갔는지 비율 도출
+    const scrolledInSection = scrollY - secTop;
     
-    let raw = total > 0 ? clamp01(entered / total) : 0;
+    // [보정 포인트] 섹션이 끝나갈 때 무조건 100%(끝까지) 채워지도록 가중값 및 도달율 매핑 처리
+    const totalScrollableRange = secH - (i === sections.length - 1 ? winH - headerH : 100);
+    let raw = totalScrollableRange > 0 ? scrolledInSection / totalScrollableRange : 0;
+    
+    // 섹션 하단 바운더리에 도달하거나 다음 섹션으로 넘어가기 직전에는 무조건 1.0(완전 충전)으로 수렴
+    if (scrolledInSection + winH >= secH + 80) raw = 1.0;
     if (isAtBottom && i === sections.length - 1) raw = 1.0;
 
-    sec.progress.style.setProperty('--nav-p', raw.toFixed(4));
+    sec.progress.style.setProperty('--nav-p', clamp01(raw).toFixed(4));
   });
 };
 
@@ -356,7 +363,7 @@ const animate = () => {
   if (window.threeRenderer && window.threeScene && window.threeCamera) {
     if (window.modelAnchor) {
 
-      if (isHoveringModel) {
+      if (isHoveringModel && !isModalOpen) {
         const targetX = baseRotation.x + (-mouse.y * 0.15);
         const targetY = autoRotY      + ( mouse.x * 0.45);
 
@@ -364,6 +371,7 @@ const animate = () => {
         rotState.y += (targetY - rotState.y) * 0.05;
       } else {
         autoRotY += 0.005;
+        // 평상시 위아래로 숨쉬듯 움직이는 바운딩 폭을 매우 좁혀 정면 각도 유지력 강화
         const targetX = baseRotation.x + Math.sin(clock * 0.3) * 0.02;
         const targetY = autoRotY;
 
@@ -401,7 +409,7 @@ const setupHoverEvents = () => {
 };
 
 /* ════════════════════════════════════════
-    폴더 GUI 인터랙션 (원본 완벽 보존)
+    폴더 GUI 인터랙션 (모달 오픈 시 마우스 먹통 현상 완전 차단 수리)
 ════════════════════════════════════════ */
 const FOLDER_DATA = {
   academic: {
@@ -520,11 +528,13 @@ const setupFolderGUI = () => {
 
     modal.classList.add('is-open');
     document.body.style.overflow = 'hidden';
+    isModalOpen = true; // [보정] 모달 플래그 활성화로 커서 해킹 방지
   };
 
   const closeModal = () => {
     modal.classList.remove('is-open');
     document.body.style.overflow = '';
+    isModalOpen = false; // [보정] 모달 플래그 해제
   };
 
   grid.addEventListener('click', (e) => {
