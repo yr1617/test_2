@@ -114,40 +114,40 @@ const initThree = () => {
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 1.4; 
+  // 💡 노출값을 낮춰서 전체적으로 쨍하고 깊이감 있게 조절합니다.
+  threeRenderer.toneMappingExposure = 1.0; 
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 💡 [유리 질감 심폐소생술] 외부 파일 없이 코드 내부에서 인공 오로라 반사판(Environment Map)을 굽습니다.
+  // 💡 [핵심] 타버림 방지용 초미세 가상 스튜디오 세팅
   const pmremGenerator = new THREE.PMREMGenerator(threeRenderer);
   pmremGenerator.compileEquirectangularShader();
 
   const envScene = new THREE.Scene();
-  const fovLight1 = new THREE.DirectionalLight(0x00ffff, 3.0); // 민트색 반사광
-  fovLight1.position.set(5, 3, 2);
+  
+  // 강도를 현실적으로 낮추고 오로라 색감 위주로 배치합니다.
+  const fovLight1 = new THREE.DirectionalLight(0x00f5ff, 1.2); // 민트 펄
+  fovLight1.position.set(3, 3, 2);
   envScene.add(fovLight1);
 
-  const fovLight2 = new THREE.DirectionalLight(0xff00ff, 3.0); // 핑크보라색 반사광
-  fovLight2.position.set(-5, -3, 2);
+  const fovLight2 = new THREE.DirectionalLight(0xff00b5, 1.2); // 핑크 오로라
+  fovLight2.position.set(-3, -2, 2);
   envScene.add(fovLight2);
 
-  const fovLight3 = new THREE.DirectionalLight(0xffffff, 2.0); // 정면 화이트 하이라이트
-  fovLight3.position.set(0, 0, 5);
+  const fovLight3 = new THREE.DirectionalLight(0xffffff, 0.5); // 아주 은은한 정면 하이라이트
+  fovLight3.position.set(0, 0, 4);
   envScene.add(fovLight3);
 
   const renderTarget = pmremGenerator.fromScene(envScene, 0.05);
-  threeScene.environment = renderTarget.texture; // 별 표면에 영롱한 반사광 강제 주입!
+  threeScene.environment = renderTarget.texture; 
 
-  // 기본 조명 밸런스 설정
-  const ambient = new THREE.AmbientLight(0xffffff, 0.8); 
+  // ⚠️ 기존에 하얗게 폭발시키던 대형 DirectionalLight들과 AmbientLight들을 과감히 삭제했습니다.
+  // 은은한 최소한의 기본 음영 밸런스만 깔아줍니다.
+  const ambient = new THREE.AmbientLight(0xffffff, 0.15); 
   threeScene.add(ambient);
-
-  const mainLight1 = new THREE.DirectionalLight(0xffffff, 1.2);
-  mainLight1.position.set(2, 4, 3);
-  threeScene.add(mainLight1);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -185,173 +185,3 @@ const initThree = () => {
             child.material.forEach(m => m.dispose());
           } else {
             child.material.dispose();
-          }
-        }
-
-        // 💎 [진짜 반짝이는 투명 크리스탈 재질 공식]
-        child.material = new THREE.MeshPhysicalMaterial({
-          color:              0xffffff,          // 유리 자체는 맑고 깨끗한 투명색으로 설정
-          metalness:          0.0,               // 메탈을 완전히 빼야 장난감처럼 안 보입니다.
-          roughness:          0.0,               // 매끄러운 유리 거울 표면
-          transparent:        true,
-          transmission:       0.95,              // 95% 투명하게 뚫어서 뒤쪽 배경이 다 투과되게 처리
-          ior:                1.5,               // 실제 유리의 광학 굴절률 설정
-          thickness:          1.0,               // 빛이 굴절될 수 있는 물리적 두께감 부여
-          side:               THREE.FrontSide,   
-          depthWrite:         true,
-
-          // 🌈 표면을 스치는 영롱한 진주펄/오로라 효과 맥스업
-          clearcoat:          1.0,
-          clearcoatRoughness: 0.0,
-          iridescence:        1.0,
-          iridescenceIOR:     2.2,
-          iridescenceThicknessRange: [200, 500]
-        });
-      });
-
-      modelAnchor = new THREE.Group();
-      modelAnchor.add(model);
-      threeScene.add(modelAnchor);
-      
-      if (crystalFallback) crystalFallback.style.display = 'none';
-
-      hideSiteLoader();
-    },
-    undefined,
-    (err) => {
-      console.warn("GLB 로드 에러", err);
-      hideSiteLoader();
-    }
-  );
-};
-
-const hideSiteLoader = () => {
-  const siteLoader = document.querySelector('#site-loader');
-  if (siteLoader) {
-    setTimeout(() => {
-      siteLoader.classList.add('is-loaded');
-    }, 500); 
-  }
-};
-
-const resizeThree = () => {
-  if (!threeRenderer || !threeCamera) return;
-  const shell = landingDisplay || { offsetWidth: window.innerWidth, offsetHeight: window.innerHeight };
-  threeRenderer.setSize(shell.offsetWidth, shell.offsetHeight);
-  threeCamera.aspect = shell.offsetWidth / shell.offsetHeight;
-  threeCamera.updateProjectionMatrix();
-};
-
-/* ════════════════════════════════════════
-    MAIN ANIMATION LOOP
-════════════════════════════════════════ */
-const animate = () => {
-  animFrameId = requestAnimationFrame(animate);
-
-  pointer.x += (pointer.tx - pointer.x) * 0.08;
-  pointer.y += (pointer.ty - pointer.y) * 0.08;
-
-  if (follower) {
-    follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
-  }
-
-  updateLandingVars();
-  if (landingCanvasCtrl) landingCanvasCtrl.draw();
-
-  if (threeRenderer && threeScene && threeCamera) {
-    if (modelAnchor) {
-      if (!rotationState.isDragging) {
-        modelAutoRotY += 0.003;
-        rotationState.targetY += 0.003;
-      }
-
-      rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
-      rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
-
-      modelAnchor.rotation.x = rotationState.currentX;
-      modelAnchor.rotation.y = rotationState.currentY;
-
-      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.005;
-    }
-    threeRenderer.render(threeScene, threeCamera);
-  }
-};
-
-/* ════════════════════════════════════════
-    DRAG EVENTS
-════════════════════════════════════════ */
-const setupDragEvents = () => {
-  if (!landingDisplay) return;
-
-  landingDisplay.addEventListener('pointerdown', (e) => {
-    rotationState.isDragging = true;
-    rotationState.previousMouseX = e.clientX;
-    rotationState.previousMouseY = e.clientY;
-  });
-
-  window.addEventListener('pointermove', (e) => {
-    pointer.tx = e.clientX;
-    pointer.ty = e.clientY;
-
-    if (!rotationState.isDragging || !modelAnchor) return;
-
-    const deltaX = e.clientX - rotationState.previousMouseX;
-    const deltaY = e.clientY - rotationState.previousMouseY;
-
-    rotationState.targetY += deltaX * 0.008;
-    rotationState.targetX += deltaY * 0.008;
-
-    rotationState.previousMouseX = e.clientX;
-    rotationState.previousMouseY = e.clientY;
-  });
-
-  window.addEventListener('pointerup', () => {
-    rotationState.isDragging = false;
-  });
-};
-
-/* ════════════════════════════════════════
-    INITIALIZE
-════════════════════════════════════════ */
-const initAll = () => {
-  if (window.__threeInitialized) return; 
-  window.__threeInitialized = true;
-
-  landingCanvasCtrl = setupLandingCanvas();
-  setupDragEvents(); 
-
-  highlightElements.forEach((el) => {
-    el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
-    el.addEventListener('mouseleave', () => el.classList.remove('is-hovered'));
-  });
-
-  const revealCards = document.querySelectorAll('.reveal-card');
-  if (revealCards.length) {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('is-visible');
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
-    );
-    revealCards.forEach(card => observer.observe(card));
-  }
-
-  initThree();
-  animate();
-};
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAll);
-} else {
-  initAll();
-}
-
-window.addEventListener('resize', () => {
-  if (landingCanvasCtrl) landingCanvasCtrl.resize();
-  resizeThree();
-});
