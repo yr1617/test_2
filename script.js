@@ -83,4 +83,34 @@ const updateLandingVars = () => {
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
-let three
+let threeCamera   = null;
+let modelAnchor   = null; 
+let animFrameId   = null;
+
+const initThree = () => {
+  if (!modelCanvas) return;
+
+  if (animFrameId) {
+    cancelAnimationFrame(animFrameId);
+    animFrameId = null;
+  }
+  if (threeRenderer) {
+    threeRenderer.dispose();
+    threeRenderer = null;
+  }
+
+  const shell = landingDisplay || { offsetWidth: window.innerWidth, offsetHeight: window.innerHeight };
+  const W = shell.offsetWidth;
+  const H = shell.offsetHeight;
+
+  threeRenderer = new THREE.WebGLRenderer({
+    canvas:      modelCanvas,
+    alpha:       true,
+    antialias:   true,
+    powerPreference: 'high-performance',
+  });
+  threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  threeRenderer.setSize(W, H);
+  
+  threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  threeRenderer.toneMapping      =
