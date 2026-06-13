@@ -64,7 +64,7 @@ const setupLandingCanvas = () => {
     state.height = rect.height;
     state.dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     landingCanvas.width = Math.max(1, Math.floor(rect.width * state.dpr));
-    landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
+    landingCanvasCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
     landingCanvas.style.width = `${rect.width}px`;
     landingCanvas.style.height = `${rect.height}px`;
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
@@ -148,11 +148,11 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 3.0);
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 3.5);
   dirLight1.position.set(5, 10, 7);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xa3e5ff, 2.0);
+  const dirLight2 = new THREE.DirectionalLight(0xa3e5ff, 2.5);
   dirLight2.position.set(-5, -5, 5);
   window.threeScene.add(dirLight2);
 
@@ -176,50 +176,47 @@ const initThree = () => {
       }
       if(window.modelAnchor) window.threeScene.remove(window.modelAnchor);
 
-      const model = gltf.scene;
-
-      // 지직거림 없이 가장 정갈하고 투명하게 떨어지는 크리스탈 유리 재질
+      // 🧼 극상의 투명함과 깔끔함을 낼 크리스탈 유리 재질
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.02,            
+        roughness: 0.01,            
         transparent: true,
-        opacity: 0.4,               
-        transmission: 0.9,          
+        opacity: 0.45,               
+        transmission: 0.95,          
         ior: 1.5,                  
-        side: THREE.FrontSide, // 자식 면끼리 겹치는 투과 노이즈를 완벽 차단하기 위해 겉면만 렌더링
+        side: THREE.FrontSide, // 뒷면 투과 잔상까지 완벽히 배제
         depthWrite: true,      
         depthTest: true,
-        iridescence: 0.7,           
+        iridescence: 0.8,           
         iridescenceIOR: 1.5,        
         iridescenceThicknessRange: [100, 300], 
         clearcoat: 1.0,             
         clearcoatRoughness: 0.0
       });
 
-      const meshes = [];
-      model.traverse((child) => {
-        if (child.isMesh) meshes.push(child);
-      });
-
-      // ⭐ [중요] 겹쳐있는 5개의 중복 별 중, 모든 다리가 온전하게 살아있는 진짜 '0번 별' 하나만 살립니다.
-      // 1, 2, 3, 4번은 겹침 유발 및 불량 메쉬이므로 완벽하게 off 처리합니다.
-      const CLEAN_VALID_INDEX = 0; 
-
-      meshes.forEach((mesh, index) => {
-        if (index === CLEAN_VALID_INDEX) {
-          mesh.visible = true;
-          mesh.material = crystalMaterial;
-          mesh.castShadow = false;
-          mesh.receiveShadow = false;
-        } else {
-          mesh.visible = false; // 나머지 껍데기 및 중복 별들 완벽 차단 및 삭제 공정
-          mesh.removeFromParent?.();
+      // 🔍 [특수 공정] 하위 트리 다 쌩까고 오직 '진짜 Geometry 데이터를 가진 순수 메쉬 딱 1개'만 추출합니다.
+      let pureGeometry = null;
+      gltf.scene.traverse((child) => {
+        if (child.isMesh && child.geometry && !pureGeometry) {
+          // 정점(Vertex) 데이터가 정상적으로 존재하는 첫 번째 정품 알맹이만 선점
+          if (child.geometry.attributes.position.count > 0) {
+            pureGeometry = child.geometry;
+          }
         }
       });
 
+      if (!pureGeometry) {
+        console.warn("유효한 메쉬를 찾지 못했습니다.");
+        hideSiteLoader();
+        return;
+      }
+
+      // 🛠️ 파일 속의 꼬여있던 그룹 계층을 완전히 무시하고, '단 하나의 깨끗한 새 메쉬'를 직접 새로 만듭니다.
+      const singleCleanMesh = new THREE.Mesh(pureGeometry, crystalMaterial);
+
       const IDEAL_LAYOUT_BOUNDS = 2.4; 
-      const box = new THREE.Box3().setFromObject(model);
+      const box = new THREE.Box3().setFromObject(singleCleanMesh);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
       const size = new THREE.Vector3();
@@ -228,14 +225,14 @@ const initThree = () => {
       const maxDim = Math.max(size.x, size.y, size.z);
       const scale = IDEAL_LAYOUT_BOUNDS / maxDim; 
       
-      model.position.sub(centre.multiplyScalar(scale));
-      model.scale.setScalar(scale);
+      singleCleanMesh.position.sub(centre.multiplyScalar(scale));
+      singleCleanMesh.scale.setScalar(scale);
 
       window.modelAnchor = new THREE.Group();
-      window.modelAnchor.add(model);
+      window.modelAnchor.add(singleCleanMesh);
       
-      // 별이 사방으로 균형 잡힌 형태로 정면을 바라보게 맞춘 최적 순정 각도
-      window.modelAnchor.rotation.set(Math.PI / 6, 0, 0); 
+      // 사방 다리가 모두 균형 있게 뻗어 보이도록 잡은 정면 황금 각도
+      window.modelAnchor.rotation.set(Math.PI / 5, Math.PI / 4, 0); 
       window.threeScene.add(window.modelAnchor);
 
       eliminateFakeModels(); 
@@ -292,8 +289,8 @@ const animate = () => {
       rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
       rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
 
-      window.modelAnchor.rotation.x = Math.PI / 6 + rotationState.currentX;
-      window.modelAnchor.rotation.y = rotationState.currentY;
+      window.modelAnchor.rotation.x = Math.PI / 5 + rotationState.currentX;
+      window.modelAnchor.rotation.y = Math.PI / 4 + rotationState.currentY;
 
       window.modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.006;
     }
