@@ -194,11 +194,11 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      const chromeSilverMat = new THREE.MeshStandardMaterial({
-        color: 0xeeeeee,
-        metalness: 1.0,          
-        roughness: 0.02,         
-        envMapIntensity: 4.0,    
+const chromeSilverMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,          // 순수한 실버 베이스 (어두운 기운 제거)
+        metalness: 1.0,           // 100% 완전한 금속 성질 리얼 메탈화
+        roughness: 0.12,          // 표면 반사광을 은은하고 쨍하게 다듬음
+        envMapIntensity: 3.5,     // 주변 환경 광원을 받아서 반사하는 강도 세팅
         side: THREE.DoubleSide
       });
 
