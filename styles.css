@@ -809,11 +809,18 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
    CUSTOM CURSOR
 ════════════════════════════════ */
 .cursor-follower {
-  /* 둥근 크기, 연두색 등 원래 적어두신 예쁜 스타일 디자인 코드는 "그대로 유지"하세요! */
+  position: fixed;
+  width: 24px;
+  height: 24px;
+  background: rgba(0, 255, 102, 0.4); /* 원래 쓰시던 연두색 반투명 */
+  border: 1.5px solid #00ff66;       /* 원래 쓰시던 쨍한 연두색 테두리 */
+  border-radius: 50%;
+  box-shadow: 0 0 12px rgba(0, 255, 102, 0.5); /* 원래의 네온 광채 효과 */
+  backdrop-filter: blur(1px);
   
-  /* ── 딱 이 두 줄만 추가되어 있는지 확인해 주세요 ── */
-  pointer-events: none !important; 
-  z-index: 10000000 !important;   /* 모달 윈도우 위로 완벽하게 떠오르게 만드는 마법의 서열 코드 */
+  /* ── [여기가 핵심 보정] 모달창이나 어떤 레이어 위에서도 마우스가 보이도록 최상위 서열 지정 ── */
+  z-index: 10000000 !important; 
+  pointer-events: none !important; /* 가짜 마우스 그래픽이 실제 클릭 버튼을 가로막지 않도록 투과 */
 }
 }
 .cursor-follower.is-link {
