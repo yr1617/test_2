@@ -196,25 +196,32 @@ const initThree = () => {
         clearcoatRoughness: 0.0
       });
 
-      // 🛠️ 파일 내부의 모든 메쉬들을 순서대로 수집합니다.
-      const meshes = [];
+      // 🛠️ 정밀 타격 알고리즘: 모든 메쉬 중 기하학적 데이터(정점 수)가 가장 큰 진짜 본체 찾기
+      let masterMesh = null;
+      let maxVertexCount = 0;
+
       model.traverse((child) => {
-        if (child.isMesh) {
-          meshes.push(child);
+        if (child.isMesh && child.geometry && child.geometry.attributes.position) {
+          const count = child.geometry.attributes.position.count;
+          if (count > maxVertexCount) {
+            maxVertexCount = count;
+            masterMesh = child;
+          }
         }
       });
 
-      // 💥 [예린님 긴급 오더 반영] 
-      // 그동안 남아있던 못생긴 녀석이 바로 0번(첫 번째) 메쉬였습니다!
-      // 0번 메쉬는 무조건 보이지 않게 끄고, 1번(두 번째 이후) 진짜 본체 별들만 완벽하게 살려냅니다.
-      meshes.forEach((mesh, index) => {
-        if (index === 0) {
-          mesh.visible = false; // 못생긴 투박한 껍데기 완전 격리 및 지우기
-        } else {
-          mesh.visible = true;  // 진짜 본체 예쁜 별만 활성화
-          mesh.material = crystalMaterial;
-          mesh.castShadow = false;
-          mesh.receiveShadow = false;
+      // 💥 [예린님 오더 반영 완결]
+      // 찾아낸 단 하나의 진짜 본체 별만 살리고, 안쪽에서 꿈틀대며 노이즈를 만들던 나머지 모든 잡다한 메쉬들은 예외 없이 전부 지워버립니다.
+      model.traverse((child) => {
+        if (child.isMesh) {
+          if (child === masterMesh) {
+            child.visible = true;
+            child.material = crystalMaterial;
+            child.castShadow = false;
+            child.receiveShadow = false;
+          } else {
+            child.visible = false; // 꿈틀거리는 내부/외부 가짜 메쉬들 남김없이 완전 제거!
+          }
         }
       });
 
