@@ -1054,27 +1054,30 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
     /* 만약 부모 패딩 때문에 밀린다면 마진으로 정중앙 보정 */
     margin: 0 auto !important; 
 }
-/* ⚡ 타이틀과 버튼을 밀어내지 않도록 3D 디스플레이 쉘을 절대 좌표로 띄웁니다 */
+/* ⚡ 구석으로 도망가지 못하도록 우측 영역에 박스를 정확하게 박아넣습니다 */
 .landing-display-shell {
-    position: absolute !important; /* 중요: 공중에 띄워서 다른 HTML 요소를 밀어내지 않음 */
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-22%, -50%) !important; /* 살짝 우측으로 치우쳐진 원래 느낌 복원 */
-    width: 650px !important;  /* 잘리지 않을 만큼 넉넉한 가로폭 고정 */
-    height: 650px !important; /* 세로폭 고정 */
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important; /* 화면 우측 끝을 기준으로 정렬 */
+    width: 50vw !important; /* 화면 가로의 딱 절반을 차지하도록 설정 */
+    height: 100% !important; /* 랜딩 섹션 높이 100% 꽉 채우기 */
+    display: flex !important;
+    align-items: center !important; /* 세로 정중앙 정렬 */
+    justify-content: center !important; /* 가로 정중앙 정렬 */
     margin: 0 !important;
     padding: 0 !important;
-    z-index: 1; /* 타이틀 글자보다 뒤로 가거나 방해하지 않도록 설정 */
+    z-index: 1; /* 글자 뒤 배경처럼 깔리도록 최적화 */
     overflow: visible !important;
-    pointer-events: auto; /* 마우스 호버는 정상 작동 */
+    pointer-events: auto;
 }
 
 #landing-display {
-    width: 100% !important;
-    height: 100% !important;
+    width: 600px !important; /* 모델이 가장 예쁘게 표현되는 크기로 고정 */
+    height: 600px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    position: relative !important;
 }
 
 #model-canvas {
@@ -1083,8 +1086,10 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
     display: block !important;
 }
 
-/* 혹시 타이틀이나 레이아웃이 깨져있다면 정렬을 유지하기 위한 랜딩 가두리 */
+/* 부모가 기준점 역할을 확실히 하도록 선언 */
 .landing {
     position: relative !important;
+    width: 100% !important;
+    min-height: 100vh;
     overflow: hidden !important;
 }
