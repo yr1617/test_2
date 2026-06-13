@@ -163,7 +163,7 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  window.threeRenderer.toneMappingExposure = 2.0; 
+  window.threeRenderer.toneMappingExposure = 1.2; 
 
   // 메탈의 덩어리감과 하이라이트를 위해 직사광 조명 강도를 실버 톤에 맞춰 상향
   const dirLight1 = new THREE.DirectionalLight(0xffffff, 7.0);
@@ -197,9 +197,13 @@ const initThree = () => {
       const model = gltf.scene;
 
 const silverMetalMat = new THREE.MeshStandardMaterial({
-  color: 0xcfcfcf,
-  metalness: 0.8,
-  roughness: 0.3,
+  color: 0xe0e0e0,
+  metalness: 1.0,
+  roughness: 0.08,
+
+  emissive: 0x222222,
+
+  envMapIntensity: 3.0,
 
   side: THREE.DoubleSide
 });
