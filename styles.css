@@ -810,14 +810,17 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
 ════════════════════════════════ */
 .cursor-follower {
   position: fixed;
-  width: 8px;                  /* 작은 원 크기 */
+  width: 8px;                  /* 꽉 찬 작은 원 크기 */
   height: 8px;
-  background: #00ff66;         /* 연두색 꽉 찬 투명도 없는 원 */
+  background: #DBFF86;         /* 요청하신 완벽한 라임 연두색 */
   border-radius: 50%;
-  pointer-events: none;
-  z-index: 10000000 !important; /* 모달창 등 최상단 레이어 위로 배치 */
-  transform: translate(-50%, -50%); /* 마우스 포인터 정중앙 정렬 */
-  transition: transform 0.1s ease-out;
+  pointer-events: none !important; /* 마우스 클릭 투과 */
+  
+  /* 마우스 포인터가 원 정중앙에 오도록 정렬 */
+  transform: translate(-50%, -50%); 
+  
+  /* 모달창이나 3D 캔버스 등 그 어떤 레이어 위에서도 무조건 최상단 노출 */
+  z-index: 10000000 !important; 
 }
 .cursor-follower.is-link {
   width: 20px; height: 20px;
