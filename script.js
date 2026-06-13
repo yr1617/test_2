@@ -99,18 +99,18 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    HIGH-END ENVIRONMENT MAP (프리즘 오로라 스펙트럼)
+    스펙트럼 환경 맵 생성
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   const geo = new THREE.BoxGeometry(16, 16, 16);
   const mats = [
     new THREE.MeshBasicMaterial({ color: 0x00f3ff, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x05050a, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0xff00ca, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x05050a, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x020204, side: THREE.BackSide })  
+    new THREE.MeshBasicMaterial({ color: 0x010103, side: THREE.BackSide })  
   ];
   const box = new THREE.Mesh(geo, mats);
   scene.add(box);
@@ -122,6 +122,91 @@ const generatePureEnvironment = (renderer) => {
   
   renderTarget.texture.mapping = THREE.CubeReflectionMapping;
   return renderTarget.texture;
+};
+
+/* ════════════════════════════════════════
+    🌈 REAL-TIME RGB CHROMATIC DISPERSION SHADER
+    (물리 기반 무지개빛 분산 레이어링 커스텀 마티리얼)
+════════════════════════════════════════ */
+const createPrismSpectrumMaterial = (envTexture) => {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      envMap: { value: envTexture },
+      iorR: { value: 1.12 }, // Red 파장 굴절률
+      iorG: { value: 1.15 }, // Green 파장 굴절률
+      iorB: { value: 1.19 }, // Blue 파장 굴절률 (파장이 짧을수록 더 많이 꺾임)
+      dispersionIntensity: { value: 2.8 },
+      fresnelBias: { value: 0.1 },
+      fresnelScale: { value: 3.5 },
+      fresnelPower: { value: 2.5 }
+    },
+    vertexShader: `
+      varying vec3 vNormal;
+      varying vec3 vViewPosition;
+      varying vec3 vWorldNormal;
+      varying vec3 vWorldPosition;
+
+      void main() {
+        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+        vWorldPosition = worldPosition.xyz;
+        vNormal = normalize(normalMatrix * normal);
+        vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+        vViewPosition = -(modelViewMatrix * vec4(position, 1.0)).xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform samplerCube envMap;
+      uniform float iorR;
+      uniform float iorG;
+      uniform float iorB;
+      uniform float dispersionIntensity;
+      uniform float fresnelBias;
+      uniform float fresnelScale;
+      uniform float fresnelPower;
+
+      varying vec3 vNormal;
+      varying vec3 vViewPosition;
+      varying vec3 vWorldNormal;
+      varying vec3 vWorldPosition;
+
+      void main() {
+        vec3 normal = normalize(vWorldNormal);
+        vec3 viewDir = normalize(vWorldPosition - cameraPosition);
+
+        // 💥 [RGB 분산 파이프라인] 각 파장별로 굴절각을 완전히 다르게 쪼개어 연산
+        vec3 refractR = refract(viewDir, normal, 1.0 / iorR);
+        vec3 refractG = refract(viewDir, normal, 1.0 / iorG);
+        vec3 refractB = refract(viewDir, normal, 1.0 / iorB);
+
+        // 환경 맵으로부터 분리된 R, G, B 스펙트럼 텍스처 추출
+        float r = textureCube(envMap, refractR).r;
+        float g = textureCube(envMap, refractG).g;
+        float b = textureCube(envMap, refractB).b;
+
+        // 반사광(하이라이트 백색광) 연산
+        vec3 reflectDir = reflect(viewDir, normal);
+        vec3 reflection = textureCube(envMap, reflectDir).rgb;
+
+        // 💥 [프레넬 효과] 정면은 투명하게 비치고, 외곽 경계선만 프리즘 띠가 폭발하도록 제어
+        float fresnel = fresnelBias + fresnelScale * pow(1.0 + dot(viewDir, normal), fresnelPower);
+        fresnel = clamp(fresnel, 0.0, 1.0);
+
+        // 99% 투명한 유리 바디 위에 쪼개진 RGB 분산 광선과 하이라이트 레이어링
+        vec3 purePrism = vec3(r, g, b) * dispersionIntensity;
+        vec3 finalColor = mix(purePrism * 0.25, purePrism + reflection * 1.5, fresnel);
+
+        // 빛이 안 닿는 정면 박스는 완벽히 투명하게 뒤가 비치도록 알파 블렌딩 처리
+        float alpha = mix(0.04, 0.95, fresnel);
+
+        gl_FragColor = vec4(finalColor, alpha);
+      }
+    `,
+    transparent: true,
+    blending: THREE.NormalBlending,
+    side: THREE.DoubleSide,
+    depthWrite: true
+  });
 };
 
 /* ════════════════════════════════════════
@@ -139,7 +224,7 @@ const initThree = () => {
 
   window.threeRenderer = new THREE.WebGLRenderer({
     canvas: modelCanvas,
-    alpha: true,              // 웹 그라데이션 및 타이포 뒷배경 투과 스위치 활성화
+    alpha: true,              // HTML 배경을 그대로 투과
     antialias: true,
     powerPreference: "high-performance"
   });
@@ -148,19 +233,14 @@ const initThree = () => {
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.shadowMap.enabled = false; 
 
-  // 🌟 카메라 화각(FOV)과 Z축 배치를 완벽히 조율하여 정해진 컨테이너 밖으로 절대 안 튀어나가게 봉인합니다.
   window.threeCamera = new THREE.PerspectiveCamera(35, W / H, 0.1, 100);
   window.threeCamera.position.set(0, 0, 5.8); 
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
 
-  const ambient = new THREE.AmbientLight(0xffffff, 1.5);
+  const ambient = new THREE.AmbientLight(0xffffff, 1.0);
   window.threeScene.add(ambient);
-
-  const dirLight = new THREE.DirectionalLight(0xffffff, 4.0);
-  dirLight.position.set(4, 8, 4);
-  window.threeScene.add(dirLight);
 
   const loader = new GLTFLoader();
   const draco = new DRACOLoader();
@@ -174,32 +254,19 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 🌟 [레퍼런스 동기화: 100% 투명 굴절 프리즘 크리스탈]
-      const crystalMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        metalness: 0.0,
-        roughness: 0.0,              // 지직거림 노이즈 완전 제거
-        transmission: 1.0,           // 99% 완벽 투명 투과 (흐리멍텅한 투명도 제거)
-        ior: 1.62,                   // 리얼한 광학 프리즘 굴절
-        thickness: 1.2,              
-        envMap: envTexture,
-        envMapIntensity: 6.5,        // 에지선에 마젠타/사이안 오로라 스펙트럼 선명히 주입
-        clearcoat: 1.0,              
-        clearcoatRoughness: 0.0,
-        side: THREE.DoubleSide,      
-        depthWrite: true
-      });
+      // 💥 [얼렁뚱땅 가짜 유리 탈피] 셰이더 기반 프리즘 재질 주입
+      const prismMaterial = createPrismSpectrumMaterial(envTexture);
 
       model.traverse((child) => {
         if (child.isMesh) {
-          child.material = crystalMaterial;
+          child.material = prismMaterial;
           child.castShadow = false;   
           child.receiveShadow = false;
           child.visible = true;
         }
       });
 
-      // 💥 [정상화된 레이아웃 스케일] 우측 디스플레이 영역을 넘지 않는 가장 컴팩트하고 알맞은 크기 고정
+      // [정밀 그리드 안착 스케일링] 우측 박스 가이드라인 철저히 준수
       const IDEAL_LAYOUT_BOUNDS = 2.1; 
       
       const box = new THREE.Box3().setFromObject(model);
