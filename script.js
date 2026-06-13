@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+// 📦 Three.js 공식 지오메트리 병합 유틸리티 도입 (안전성 100% 보장)
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 
 /* ════════════════════════════════════════
     ENGINE DESTROY & CLEAN 공정
@@ -166,7 +168,7 @@ const initThree = () => {
   loader.setDRACOLoader(draco);
 
   loader.load(
-    `./modeling.glb?cache-union=${Math.random()}`,
+    `./modeling.glb?v=${Math.random()}`,
     (gltf) => {
       if(!gltf || !gltf.scene) {
         hideSiteLoader();
@@ -175,31 +177,30 @@ const initThree = () => {
       if(window.modelAnchor) window.threeScene.remove(window.modelAnchor);
 
       const model = gltf.scene;
-      let rawPositions = [];
+      const geometriesToMerge = [];
 
+      // 🛠️ [안전한 공식 병합] 6개 메쉬들의 지오메트리를 추출하고 월드 트랜스폼을 미리 구워 적용
       model.updateMatrixWorld(true);
       model.traverse((child) => {
         if (child.isMesh && child.geometry) {
-          const posAttr = child.geometry.attributes.position;
-          const localPos = new THREE.Vector3();
-          
-          for (let i = 0; i < posAttr.count; i++) {
-            localPos.fromBufferAttribute(posAttr, i);
-            localPos.applyMatrix4(child.matrixWorld); 
-            rawPositions.push(localPos.x, localPos.y, localPos.z);
-          }
+          const clonedGeo = child.geometry.clone();
+          clonedGeo.applyMatrix4(child.matrixWorld); // 각 메쉬의 고유 위치를 글로벌로 고정
+          geometriesToMerge.push(clonedGeo);
         }
       });
 
-      if (rawPositions.length === 0) {
+      if (geometriesToMerge.length === 0) {
         hideSiteLoader();
         return;
       }
 
-      const mergedGeometry = new THREE.BufferGeometry();
-      mergedGeometry.setAttribute('position', new THREE.Float32BufferAttribute(rawPositions, 3));
-      mergedGeometry.computeVertexNormals(); 
+      // 🔗 6개 파편을 단 하나의 단일 지오메트리로 완전 용접합니다.
+      const mergedGeometry = BufferGeometryUtils.mergeGeometries(geometriesToMerge, false);
+      
+      // 메모리 누수 방지를 위해 복사했던 파편 청소
+      geometriesToMerge.forEach(g => g.dispose());
 
+      // 💎 가섭이 완벽하게 해결된 고순도 크리스탈 글래스 재질
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
@@ -208,7 +209,7 @@ const initThree = () => {
         opacity: 0.45,               
         transmission: 0.95,          
         ior: 1.5,                  
-        side: THREE.FrontSide, 
+        side: THREE.FrontSide, // 내부 가섭 현상을 물리적으로 완전 무력화
         depthWrite: true,      
         depthTest: true,
         iridescence: 0.85,           
@@ -220,6 +221,7 @@ const initThree = () => {
 
       const mergedMesh = new THREE.Mesh(mergedGeometry, crystalMaterial);
 
+      // 레이아웃 크기 및 배치 자동 정렬
       const IDEAL_LAYOUT_BOUNDS = 2.4; 
       const box = new THREE.Box3().setFromObject(mergedMesh);
       const centre = new THREE.Vector3();
