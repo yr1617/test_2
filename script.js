@@ -329,9 +329,12 @@ const animate = () => {
   pointer.x += (pointer.tx - pointer.x) * 0.12;
   pointer.y += (pointer.ty - pointer.y) * 0.12;
 
+  // ⚡ [핵심 수정] 가상 커서가 화면 위에 렌더링될 때, 마우스 이벤트를 완벽하게 차단(none) 처리하여
+  // 뒤에 있는 일반 폴더, 글씨, 내비바가 100% 정상적으로 클릭/호버되도록 관통시킵니다.
   if (follower) {
     follower.style.left = `${pointer.x}px`;
     follower.style.top  = `${pointer.y}px`;
+    follower.style.pointerEvents = 'none'; 
   }
 
   updateLandingVars();
@@ -355,10 +358,9 @@ const animate = () => {
 };
 
 /* ════════════════════════════════════════
-    HOVER & POINTER EVENTS (마우스 레이더 복원 완료)
+    HOVER & POINTER EVENTS
 ════════════════════════════════════════ */
 const setupHoverEvents = () => {
-  // 브라우저 기본 포인터를 완벽하게 추적하며 3D 연산이 방해하지 않게 선언
   window.addEventListener('mousemove', (e) => {
     pointer.tx = e.clientX;
     pointer.ty = e.clientY;
