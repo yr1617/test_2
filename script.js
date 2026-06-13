@@ -79,7 +79,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE
+    THREE.JS ENGINE (강제 텍스처 소멸 복구판)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -114,32 +114,32 @@ const initThree = () => {
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 2.4; // 오로라 광택의 대비를 한층 더 쨍하게 강조
+  threeRenderer.toneMappingExposure = 2.5; // 하이라이트 경계선의 대비를 극대화
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 공간을 하얗게 덮어씌우던 잔여 환경광 완전 봉쇄
+  // 전체를 하얗고 뿌옇게 흐리던 환경광 원천 제거
   const ambient = new THREE.AmbientLight(0xffffff, 0.0); 
   threeScene.add(ambient);
 
-  // 굴절 엣지 각도를 살려줄 입체 탑 라이트
-  const mainLight = new THREE.DirectionalLight(0xffffff, 1.8);
+  // 실루엣을 칼처럼 찢어줄 메인 탑 조명
+  const mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
   mainLight.position.set(0, 4, 2);
   threeScene.add(mainLight);
 
-  // 🌈 레퍼런스처럼 외곽 라인에 깊고 선명한 네온색이 반사되도록 스폿 광원 전력 집중
-  const laserCyan = new THREE.SpotLight(0x00f2ff, 170.0, 30, Math.PI / 4, 0.5, 0.1);
+  // 🌈 오로라 유리의 핵심인 선명한 네온 스폿 조명 배치
+  const laserCyan = new THREE.SpotLight(0x00f5ff, 180.0, 30, Math.PI / 4, 0.5, 0.1);
   laserCyan.position.set(4, 3, 2);
   threeScene.add(laserCyan);
 
-  const laserMagenta = new THREE.SpotLight(0xff00b7, 190.0, 30, Math.PI / 4, 0.5, 0.1);
+  const laserMagenta = new THREE.SpotLight(0xff00b5, 200.0, 30, Math.PI / 4, 0.5, 0.1);
   laserMagenta.position.set(-4, -2, 2);
   threeScene.add(laserMagenta);
 
-  const laserPurple = new THREE.SpotLight(0x7e00ff, 110.0, 25, Math.PI / 3, 0.6, 0.1);
+  const laserPurple = new THREE.SpotLight(0x8200ff, 120.0, 25, Math.PI / 3, 0.6, 0.1);
   laserPurple.position.set(0, 4, -2);
   threeScene.add(laserPurple);
 
@@ -171,11 +171,11 @@ const initThree = () => {
       
       model.rotation.set(Math.PI / 2.3, 0, 0); 
 
-      // 🔥 [결정적 교정] 일반 Mesh뿐만 아니라 GLB 파일 내부의 모든 스킨드 메쉬, 라인 등 
-      // 흰색 장벽을 치고 있는 모든 하위 데이터를 빠짐없이 추적하여 재질을 강제 오버라이드합니다.
       model.traverse((child) => {
-        if (child.isMesh || child.isSkinnedMesh || child.geometry) {
+        // 🔥 [초강수 방어막 해제] 메쉬나 지오메트리를 가진 모든 하위 노드를 추적합니다.
+        if (child.isMesh || child.geometry) {
           
+          // 기존에 구워져서 고정되어 있던 모든 재질 바인딩 영구 해제 및 메모리 해제
           if (child.material) {
             if (Array.isArray(child.material)) {
               child.material.forEach(m => m.dispose());
@@ -184,24 +184,34 @@ const initThree = () => {
             }
           }
           
-          // 💎 기존 하얀 껍질 데이터를 영구 파괴하고 100% 관통하는 오로라 유리막 강제 이식
-          child.material = new THREE.MeshPhysicalMaterial({
-            color:              0xffffff,          // 완전한 순백색 레이어 적용
-            metalness:          0.05,              
-            roughness:          0.01,              // 무광기를 걷어내고 맑은 유광 텍스처 복원
+          // 💎 GLB 파일 안에 잠겨있던 하얀 텍스처 맵을 강제로 삭제(null) 처리하여 장벽 폭파
+          const crystalMat = new THREE.MeshPhysicalMaterial({
+            color:              0xffffff,
+            metalness:          0.0,
+            roughness:          0.0,               // 완전 투명 유광 질감 강제 주입
             transparent:        true,
-            opacity:            0.15,              // 중첩 껍질이 몇 장이든 무조건 뒤가 투과되도록 강제 다운
-            depthWrite:         false,             // 겹쳐진 면들이 하얗게 엉키는 현상 원천 봉쇄
+            opacity:            0.15,              // 뒤가 무조건 시원하게 비치도록 투명도 강제 고정
+            depthWrite:         false,             // 면들이 겹쳐서 지직거리거나 하얗게 뜨는 버그 원천 봉쇄
             side:               THREE.DoubleSide,
             
-            // 🌈 엣지 굴절면에 반사되는 하이라이트 코팅과 네온 박막 간섭 레이어
+            // 겉면에 쨍한 오로라 반사광을 맺히게 하는 압착 프리즘 레이어
             clearcoat:          1.0,               
             clearcoatRoughness: 0.0,
             
             iridescence:        1.0,               
-            iridescenceIOR:     2.8,               // 굴절 수치를 한계까지 높여 외곽선에만 오색 컬러가 쨍하게 압착
-            iridescenceThicknessRange: [200, 750]  
+            iridescenceIOR:     2.8,               // 굴절률을 한계까지 끌어올려 선명한 오색 스펙트럼 라인 유도
+            iridescenceThicknessRange: [150, 750]  
           });
+
+          // 맵 잠금장치 완전 소멸화
+          crystalMat.map = null;
+          crystalMat.normalMap = null;
+          crystalMat.roughnessMap = null;
+          crystalMat.metalnessMap = null;
+          crystalMat.aoMap = null;
+          crystalMat.needsUpdate = true;
+
+          child.material = crystalMat;
         }
       });
 
