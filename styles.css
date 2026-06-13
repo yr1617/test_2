@@ -916,3 +916,7 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
 .cursor-follower {
   pointer-events: none !important;
 }
+/* 가상 커서가 화면의 그 어떤 레이어(모달 포함) 위에 있더라도, 모든 마우스 클릭/터치를 100% 무조건 통과시킴 */
+.cursor-follower {
+  pointer-events: none !important;
+}
