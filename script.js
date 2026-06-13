@@ -112,7 +112,6 @@ const initThree = () => {
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   threeRenderer.setSize(W, H);
   
-  // 맑고 투명한 느낌을 극대화하기 위해 Linear Tone Mapping 채택
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.LinearToneMapping; 
   threeRenderer.toneMappingExposure = 1.4; 
@@ -122,7 +121,6 @@ const initThree = () => {
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 광원 풍부하게 세팅하여 내부 투과율 증가
   const ambient = new THREE.AmbientLight(0xffffff, 0.9); 
   threeScene.add(ambient);
 
@@ -130,7 +128,6 @@ const initThree = () => {
   mainLight.position.set(3, 5, 4);
   threeScene.add(mainLight);
 
-  // 무지갯빛 프리즘을 영롱하게 뿜어내 줄 다채색 오로라 스폿 조명
   const laserCyan = new THREE.SpotLight(0x00ffff, 30.0, 25, Math.PI / 3, 0.5, 1);
   laserCyan.position.set(5, 5, 4);
   threeScene.add(laserCyan);
@@ -153,7 +150,6 @@ const initThree = () => {
     (gltf) => {
       const model = gltf.scene;
       
-      // 💡 [대참사 원인 제거] 예린님의 HTML 요소를 무차별 삭제하던 쓰레기 while 루프 코드를 완전히 박멸했습니다.
       if (modelAnchor) {
         threeScene.remove(modelAnchor);
       }
@@ -176,20 +172,25 @@ const initThree = () => {
         if (!child.isMesh) return;
         if (child.material.map) child.material.map = null;
         
-        // 💧 노이즈 없이 물방울처럼 투명하고 맑게 반짝이는 프리즘 재질 최적화
+        // 💎 변경 구역: 투명도 극대화 및 강렬한 무지갯빛 오로라 광택 세팅
         child.material = new THREE.MeshPhysicalMaterial({
           color:              0xffffff,
           metalness:          0.0,
-          roughness:          0.0,        // 매끄러운 유리 겉면
-          transmission:       0.99,       // 99% 투명도로 속이 훤히 비침
-          ior:                1.46,       // 수정 및 물방울의 자연스러운 굴절
-          thickness:          1.5,        // 영롱함을 줄 수 있는 내부 두께감
-          clearcoat:          1.0,        // 하이라이트가 쨍하게 맺히는 코팅
+          roughness:          0.01,              // 극도로 매끄러운 표면으로 흐릿한 흰색 끼 제어
+          transmission:       1.0,               // 100% 완전 투과율로 물방울 질감 구현
+          ior:                2.4,               // 고굴절률 다이아몬드 수치 적용으로 더 선명하게 꺾이는 하이라이트 대비
+          thickness:          2.5,               // 유리 내부 깊이감을 주어 영롱한 그림자 강화
+          clearcoat:          1.0,               // 표면 위 한 번 더 매끄러운 코팅층 형성
           clearcoatRoughness: 0.0,
-          dispersion:         4.0,        // 자글자글한 픽셀 노이즈가 없는 깨끗한 빛 분산
           opacity:            1.0,
           transparent:        true,
-          side:               THREE.DoubleSide
+          side:               THREE.DoubleSide,
+          
+          // 🌈 빛 분산 효과(Dispersion)와 오색 간섭(Iridescence)을 최대로 끌어올려 무지갯빛 반사 강화
+          dispersion:         7.0,               
+          iridescence:        1.0,               
+          iridescenceIOR:     2.2,               
+          iridescenceThicknessRange: [200, 700]  
         });
       });
 
@@ -199,7 +200,6 @@ const initThree = () => {
       
       if (crystalFallback) crystalFallback.style.display = 'none';
 
-      // ⏱️ 3D 로드가 다 끝나면 별 로고 로딩창 지우기
       hideSiteLoader();
     },
     undefined,
@@ -323,23 +323,23 @@ const initAll = () => {
             observer.unobserve(entry.target);
           }
         });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
-    );
-    revealCards.forEach(card => observer.observe(card));
-  }
+      },\
+      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }\
+    );\
+    revealCards.forEach(card => observer.observe(card));\
+  }\
 
-  initThree();
-  animate();
-};
+  initThree();\
+  animate();\
+};\
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAll);
-} else {
-  initAll();
-}
+if (document.readyState === 'loading') {\
+  document.addEventListener('DOMContentLoaded', initAll);\
+} else {\
+  initAll();\
+}\
 
-window.addEventListener('resize', () => {
-  if (landingCanvasCtrl) landingCanvasCtrl.resize();
-  resizeThree();
-});
+window.addEventListener('resize', () => {\
+  if (landingCanvasCtrl) landingCanvasCtrl.resize();\
+  resizeThree();\
+});\
