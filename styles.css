@@ -451,7 +451,7 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
 .reveal-card.is-visible { opacity: 1; transform: translateY(0); }
 
 /* ════════════════════════════════
-   PROJECT TYPE GRID
+    PROJECT TYPE GRID
 ════════════════════════════════ */
 .project-grid {
   display: grid; grid-template-columns: repeat(3, minmax(0,1fr));
@@ -462,23 +462,15 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   background:
     linear-gradient(180deg, rgba(255,250,241,0.04), rgba(255,250,241,0.02)),
     linear-gradient(180deg, rgba(17,17,19,0.96), rgba(10,10,12,0.98));
-  min-height: 320px;          /* ◀ [수정] 카드 높이를 420px에서 320px로 조절 */
-  position: relative; 
-  display: flex;
-  flex-direction: column; 
-  justify-content: flex-end;
-  border-left: 1px solid var(--line); 
-  border-top: 0; 
-  border-right: 0;
+  min-height: 280px !important; /* [수정] 카드 기본 높이를 줄이고 고정시킵니다 */
+  position: relative; display: flex;
+  flex-direction: column; justify-content: flex-end;
+  border-left: 1px solid var(--line); border-top: 0; border-right: 0;
   border-bottom: 1px solid var(--line); 
-  padding: 42px 32px 32px;    /* ◀ [수정] 상단 여백을 100px에서 42px로 좁힘 */
-  color: #f6f2ea; 
-  filter: grayscale(0.08) brightness(0.9); 
-  opacity: 0.94;
-  transform: translateY(0) scale(0.985); 
-  transform-origin: center bottom;
-  z-index: 1; 
-  overflow: hidden;
+  padding: 32px 32px 32px !important; /* [수정] 상단 빈 공간 패딩을 100px에서 32px로 대폭 줄입니다 */
+  color: #f6f2ea; filter: grayscale(0.08) brightness(0.9); opacity: 0.94;
+  transform: translateY(0) scale(0.985); transform-origin: center bottom;
+  z-index: 1; overflow: hidden;
 }
 .reveal-card.project-card { transform: translateY(42px) scale(0.985); }
 .reveal-card.project-card.is-visible { transform: translateY(0) scale(0.985); }
@@ -493,11 +485,18 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   border: 1px solid rgba(255,255,255,0.12); border-radius: 14px;
   opacity: 0; transition: opacity 0.28s ease;
 }
-.project-grid:hover .project-card { opacity: 0.82; filter: grayscale(0.12) brightness(0.82); transform: scale(0.98) translateY(4px) translateZ(0); }
+/* [수정] 마우스를 올리기 전 전체 그리드 상태에서 높이가 덮어씌워지지 않도록 수정 */
+.project-grid:hover .project-card { 
+  opacity: 0.82; filter: grayscale(0.12) brightness(0.82); 
+  transform: scale(0.98) translateY(4px) translateZ(0);
+  min-height: 280px !important; 
+}
+/* [수정] 특정 카드에 마우스를 올렸을 때도 줄어든 높이가 유지되도록 수정 */
 .project-grid:hover .project-card:hover {
   opacity: 1; filter: grayscale(0) brightness(1);
   transform: translateY(-6px) scale(1.01) translateZ(18px);
   z-index: 5; border-color: rgba(219,255,134,0.22); box-shadow: 0 24px 42px rgba(0,0,0,0.28);
+  min-height: 280px !important;
 }
 .project-grid:hover .project-card:hover::after { opacity: 1; }
 .project-card h3 { margin-top: 10px; position: relative; z-index: 1; color: #fbf7ee; transition: color 0.28s ease; }
