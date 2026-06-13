@@ -99,7 +99,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    HIGH-FREQUENCY 환경광 맵 
+    HIGH-FREQUENCY 환경광 맵 생성
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
@@ -177,51 +177,45 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 영롱한 오로라 통유리 재질 세팅
+      // 영롱한 크리스탈 투명 유리 재질
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.02,            
+        roughness: 0.03,            
         transparent: true,
-        opacity: 0.5,               
-        transmission: 1.0,          
-        ior: 1.5,                  
+        opacity: 0.55,               
+        transmission: 0.95,          
+        ior: 1.48,                  
         side: THREE.FrontSide,      
         depthWrite: true,
         depthTest: true,
         iridescence: 1.0,           
-        iridescenceIOR: 1.8,        
-        iridescenceThicknessRange: [100, 400], 
+        iridescenceIOR: 1.6,        
+        iridescenceThicknessRange: [100, 350], 
         clearcoat: 1.0,             
         clearcoatRoughness: 0.0
       });
 
-      // 💥 [예린님 아이디어 반영 핵심 스마트 공정]
-      // 내부의 찌그러진 가이드용 메쉬를 버리고, 가장 정점(Vertex) 데이터가 풍부하고 거대한 '진짜 겉껍데기'를 찾아냅니다.
-      let perfectOuterMesh = null;
-      let maxVertexCount = 0;
+      // 💥 [오더 반영 완료] 가장 온전한 진짜 별 메쉬 하나만 정확히 남기는 정제 로직
+      let targetValidMesh = null;
 
+      // 트래버스를 돌며 파일 구조 내에서 발견되는 순수한 '첫 번째 메쉬'가 진짜 예쁜 메쉬입니다.
       model.traverse((child) => {
-        if (child.isMesh && child.geometry) {
-          const vertexCount = child.geometry.attributes.position.count;
-          // 정점의 개수가 가장 많다는 것은 디테일이 살아있는 최종 완성형 겉껍데기 메쉬라는 뜻입니다.
-          if (vertexCount > maxVertexCount) {
-            maxVertexCount = vertexCount;
-            perfectOuterMesh = child;
-          }
+        if (child.isMesh && !targetValidMesh) {
+          targetValidMesh = child; 
         }
       });
 
-      // 다시 한 바퀴 돌면서, 우리가 찾은 단 하나의 완벽한 메쉬만 켜고 나머지는 흔적도 없이 숨깁니다!
+      // 선택한 진짜 예쁜 메쉬만 켜서 유리 재질을 주고, 이상하게 생긴 나머지 껍데기들은 전부 제거(visible = false)합니다.
       model.traverse((child) => {
         if (child.isMesh) {
-          if (child === perfectOuterMesh) {
+          if (child === targetValidMesh) {
             child.visible = true;
             child.material = crystalMaterial;
             child.castShadow = false;
             child.receiveShadow = false;
           } else {
-            child.visible = false; // 찌그러지거나 중첩을 일으키는 가짜 메쉬들 제거
+            child.visible = false; // 지직거림을 유발하던 이상한 모양의 메쉬들 완벽 제거
           }
         }
       });
