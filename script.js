@@ -104,14 +104,14 @@ const updateLandingVars = () => {
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   const geo = new THREE.BoxGeometry(12, 12, 12);
-  const mats = [
-    new THREE.MeshBasicMaterial({ color: 0x00f3ff, side: THREE.BackSide }), // Cyan Edge
-    new THREE.MeshBasicMaterial({ color: 0x020205, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xff00ca, side: THREE.BackSide }), // Magenta Edge
-    new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // Pure White Source
-    new THREE.MeshBasicMaterial({ color: 0x04040a, side: THREE.BackSide })  
-  ];
+const mats = [
+  new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }),
+  new THREE.MeshBasicMaterial({ color: 0xf2f2f2, side: THREE.BackSide }),
+  new THREE.MeshBasicMaterial({ color: 0xe8e8e8, side: THREE.BackSide }),
+  new THREE.MeshBasicMaterial({ color: 0x101010, side: THREE.BackSide }),
+  new THREE.MeshBasicMaterial({ color: 0x202020, side: THREE.BackSide }),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide })
+];
   const box = new THREE.Mesh(geo, mats);
   scene.add(box);
 
@@ -180,13 +180,13 @@ const initThree = () => {
         metalness: 0.0,
         roughness: 0.0,             // 0.0 고정으로 표면의 자글자글한 점 가루 노이즈를 완전히 소멸
         transparent: true,
-        transmission: 0.95,          // 투명하게 굴절되는 통유리 사양 복원
+transmission: 1.0
         ior: 1.52,                   // 실제 유리의 물리 굴절률 설정
         thickness: 0.8,              
         envMap: envTexture,
-        envMapIntensity: 5.0,        // 외곽선에 사이안/핑크 오로라 빛 하이라이트를 강렬하게 반사
-        side: THREE.DoubleSide,      // 모델의 안쪽과 바깥쪽을 원본 그대로 깨짐 없이 온전하게 표현
-        depthWrite: false            // 투명 물체끼리 겹칠 때 뎁스가 찢어지는 자글거림을 물리적으로 차단
+envMapIntensity: 1.2
+side: THREE.FrontSide,
+depthWrite: true
       });
 
       // 안전한 뼈대 순회: 어떠한 복제 행위도 없이 원본에만 재질을 완벽 이식
@@ -353,3 +353,4 @@ window.addEventListener('resize', () => {
   if (landingCanvasCtrl) landingCanvasCtrl.resize();
   resizeThree();
 });
+console.log("THREE REVISION =", THREE.REVISION);
