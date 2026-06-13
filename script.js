@@ -68,7 +68,7 @@ const setupLandingCanvas = () => {
     state.dpr    = Math.min(window.devicePixelRatio || 1, 1.5);
     landingCanvas.width  = Math.max(1, Math.floor(rect.width  * state.dpr));
     landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
-    landingCanvasCanvas.style.width  = `${rect.width}px`;
+    landingCanvas.style.width  = `${rect.width}px`;
     landingCanvas.style.height = `${rect.height}px`;
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
   };
@@ -104,44 +104,41 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    🔥 상시 맑고 영롱한 은빛을 맺히게 할 HDRI 가상 돔
+    🔥 대비(Contrast)를 극명하게 찢어버리는 암흑 룸 + 눈부신 발광판 세팅
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
+  // 완전히 칠흑 같은 우주 공간 (어두운 면을 극단적으로 어둡게 만들기 위함)
   const roomGeo = new THREE.SphereGeometry(60, 16, 16);
-  const roomMat = new THREE.MeshBasicMaterial({ color: 0x111115, side: THREE.BackSide });
+  const roomMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
   const room = new THREE.Mesh(roomGeo, roomMat);
   scene.add(room);
 
+  // 상단 칼날 하이라이트용 초고강도 콤팩트 발광 블록
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(80, 5, 80),
+    new THREE.BoxGeometry(40, 2, 40),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  topLight.position.set(0, 30, 0);
+  topLight.position.set(0, 25, 0);
   scene.add(topLight);
 
+  // 정면 거울 반사용 쨍한 화이트 링 서클
   const frontCenter = new THREE.Mesh(
-    new THREE.SphereGeometry(22, 32, 32),
+    new THREE.TorusGeometry(12, 3, 16, 100),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  frontCenter.position.set(0, 10, 30);
+  frontCenter.position.set(0, 5, 25);
   scene.add(frontCenter);
 
+  // 왼쪽에서 강하게 치고 들어오는 슬릿 라인 라이트판
   const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 60, 60),
+    new THREE.BoxGeometry(1, 50, 10),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  leftPanel.position.set(-35, 5, 0);
+  leftPanel.position.set(-30, 0, 5);
   scene.add(leftPanel);
-
-  const rightPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 60, 60),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
-  );
-  rightPanel.position.set(35, 5, 0);
-  scene.add(rightPanel);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
@@ -160,7 +157,6 @@ const initThree = () => {
 
   window.threeScene = new THREE.Scene();
 
-  // 고정된 박스 스케일에 부합하도록 600x600 강제 동기화
   const W = 600;
   const H = 600;
 
@@ -174,25 +170,27 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   
-  window.threeRenderer.toneMapping      = THREE.LinearToneMapping; 
-  window.threeRenderer.toneMappingExposure = 3.0; 
+  // ⚡ 극명한 대비(High-Contrast) 연산을 위해 ACESFilmic 톤매핑으로 변경 및 노출 폭발
+  window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
+  window.threeRenderer.toneMappingExposure = 3.6; 
 
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 15.0);
-  dirLight1.position.set(0, 30, 25); 
+  // ⚡ [조명 대폭 강화] 어두운 곳과 밝은 곳의 경계가 완전히 찢어지도록 강도를 60.0 레벨로 튜닝
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 60.0); // 정면 탑라이트
+  dirLight1.position.set(5, 30, 20); 
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 10.0);
-  dirLight2.position.set(-25, 5, 20); 
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 35.0); // 좌측 서치라이트
+  dirLight2.position.set(-25, 0, 15); 
   window.threeScene.add(dirLight2);
 
-  const dirLight3 = new THREE.DirectionalLight(0xffffff, 10.0);
-  dirLight3.position.set(25, 5, 20); 
+  const dirLight3 = new THREE.DirectionalLight(0xddffff, 20.0); // 우측 보조광
+  dirLight3.position.set(25, -5, 10); 
   window.threeScene.add(dirLight3);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 5.0); 
+  // 뭉툭하게 다 밝혀버리는 은은한 앰비언트 라이트는 과감하게 축소 (대비 극대화 유도)
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
   window.threeScene.add(ambientLight);
 
-  // 시야가 왜곡되거나 엇나가지 않도록 정비율 렌즈 장착
   window.threeCamera = new THREE.PerspectiveCamera(24, 1, 0.1, 100);
   window.threeCamera.position.set(0, 0, 4.9);
 
@@ -219,9 +217,9 @@ const initThree = () => {
           child.material = new THREE.MeshStandardMaterial({
             color: 0xffffff,
             metalness: 1.0,           
-            roughness: 0.0,           
+            roughness: 0.02,          // 아주 미세한 표면 굴절을 주어 하이라이트를 더 쨍하게 만듦
             envMap: envTexture,       
-            envMapIntensity: 10.0,    
+            envMapIntensity: 15.0,    // 반사 맵 강도를 15배로 확대
             roughnessMap: null,       
             metalnessMap: null,
             normalMap: null,
@@ -278,7 +276,6 @@ const hideSiteLoader = () => {
 
 const resizeThree = () => {
   if (!window.threeRenderer || !window.threeCamera) return;
-  // 박스가 600x600 고정이므로 리사이즈 시에도 600 정비율 유지
   window.threeRenderer.setSize(600, 600);
   window.threeCamera.aspect = 1;
   window.threeCamera.updateProjectionMatrix();
