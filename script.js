@@ -99,18 +99,18 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    HIGH-END ENVIRONMENT MAP (오로라 스펙트럼 유도)
+    HIGH-END ENVIRONMENT MAP (오로라 프리즘 광원)
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   const geo = new THREE.BoxGeometry(12, 12, 12);
   const mats = [
-    new THREE.MeshBasicMaterial({ color: 0x00f3ff, side: THREE.BackSide }), // 사이안 에지
-    new THREE.MeshBasicMaterial({ color: 0x050510, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xff00ca, side: THREE.BackSide }), // 핫핑크 에지
+    new THREE.MeshBasicMaterial({ color: 0x00f3ff, side: THREE.BackSide }), // Cyan Edge
+    new THREE.MeshBasicMaterial({ color: 0x04040c, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0xff00ca, side: THREE.BackSide }), // Magenta Edge
     new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // 하이라이트 광원
-    new THREE.MeshBasicMaterial({ color: 0x080815, side: THREE.BackSide })  
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // White Highlight
+    new THREE.MeshBasicMaterial({ color: 0x060612, side: THREE.BackSide })  
   ];
   const box = new THREE.Mesh(geo, mats);
   scene.add(box);
@@ -125,7 +125,7 @@ const generatePureEnvironment = (renderer) => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS 핵심 렌더링 파이프라인
+    THREE.JS MAIN RENDER PIPELINE
 ════════════════════════════════════════ */
 const initThree = () => {
   if (!modelCanvas || window.__threeInitialized) return;
@@ -137,24 +137,23 @@ const initThree = () => {
   const W = shell.offsetWidth;
   const H = shell.offsetHeight;
 
-  // 🌟 [자글거림 원천 차단] 정밀 뎁스 버퍼 스위치를 켜서 면 겹침 모아레 현상을 완전히 소멸시킵니다.
   window.threeRenderer = new THREE.WebGLRenderer({
-    canvas:      modelCanvas,
-    alpha:       true, 
-    antialias:   true,
-    logarithmicDepthBuffer: true 
+    canvas: modelCanvas,
+    alpha: true, 
+    antialias: true
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  window.threeCamera = new THREE.PerspectiveCamera(32, W / H, 0.1, 100);
-  window.threeCamera.position.set(0, 0, 5.5); 
+  // 🌟 상하단이 잘리는 현상을 막기 위해 카메라 화각(FOV)을 조금 넓히고 안정적인 시야 거리를 확보합니다.
+  window.threeCamera = new THREE.PerspectiveCamera(38, W / H, 0.1, 100);
+  window.threeCamera.position.set(0, 0, 5.8); 
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.9);
+  const ambient = new THREE.AmbientLight(0xffffff, 1.0);
   window.threeScene.add(ambient);
 
   const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
@@ -172,50 +171,58 @@ const initThree = () => {
       if(window.modelAnchor) window.threeScene.remove(window.modelAnchor);
 
       const model = gltf.scene;
+      window.modelAnchor = new THREE.Group();
 
-      // 🌟 [레퍼런스 사양 완벽 동기화] 투과, 굴절, 오로라 빛 반사 값을 극대화한 크리스탈 재질
-      const crystalMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        metalness: 0.0,
-        roughness: 0.02,
-        transparent: true,
-        opacity: 1.0,
-        transmission: 0.95,          // 맑고 투명하게 속이 비치는 통유리 질감 구현
-        ior: 1.52,                   // 유리 고유의 리얼한 물리 굴절률 설정
-        thickness: 1.2,              // 빛이 내부에서 꺾이는 두께감 부여
-        envMap: envTexture,
-        envMapIntensity: 5.0,        // 외곽선에 사이안/핑크 무지개빛 오로라가 강렬하게 맺히도록 유도
-        side: THREE.FrontSide,       // 겹친 면의 뎁스 충돌을 막기 위해 바깥면만 깔끔하게 연산하도록 고정
-        depthWrite: true,
-        depthTest: true
-      });
-
-      // 온전한 형태 복구: 모든 멀티 파츠 메쉬에 크리스탈 재질 일괄 부여
+      // 💥 [자글거림 영구 제거 기법] 안쪽 면(Back)과 바깥면(Front)의 렌더링 순서를 완전히 분리합니다.
       model.traverse((child) => {
         if (child.isMesh) {
-          child.material = crystalMaterial;
-          child.visible = true; 
+          // 1. 공통 굴절 프리즘 재질 속성 정의
+          const baseSpecs = {
+            color: 0xffffff,
+            metalness: 0.0,
+            roughness: 0.01,
+            transparent: true,
+            transmission: 0.96,       // 투명한 크리스탈 유리 바디 구현
+            ior: 1.52,                // 실제 리얼한 컴포넌트 굴절률 설정
+            thickness: 1.0,           // 유리 내부 빛 굴절 두께감
+            envMap: envTexture,
+            envMapIntensity: 4.5,     // 에지에 마젠타/사이안 오로라를 강하게 맺히게 함
+            depthWrite: true,
+            depthTest: true
+          };
+
+          // 2. 뒷면 전용 메쉬 생성 및 재질 적용 (안쪽 투과면 선행 렌더링)
+          const backMat = new THREE.MeshPhysicalMaterial({ ...baseSpecs, side: THREE.BackSide });
+          const backMesh = child.clone();
+          backMesh.material = backMat;
+          window.modelAnchor.add(backMesh);
+
+          // 3. 앞면 전용 재질 적용 (바깥 외곽선 최종 안착 - 면 찢어짐과 자글거림 소멸)
+          const frontMat = new THREE.MeshPhysicalMaterial({ ...baseSpecs, side: THREE.FrontSide });
+          child.material = frontMat;
+          window.modelAnchor.add(child);
         }
       });
 
-      // 💥 [웅장한 크기 복원] 글자 레이아웃 옆을 가득 채우는 묵직하고 이상적인 황금 스케일
-      const GOLDEN_SCALE = 2.8; 
+      // 💥 [골든 크기 & 상하 잘림 방지 밸런스 조정] 글자 레이아웃 옆에 딱 맞으면서 테두리가 끊기지 않는 크기 계산
+      const TARGET_BOUNDS = 2.4; 
       
-      const box    = new THREE.Box3().setFromObject(model);
+      const box    = new THREE.Box3().setFromObject(window.modelAnchor);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
       const size   = new THREE.Vector3();
       box.getSize(size);
       
       const maxDim = Math.max(size.x, size.y, size.z);
-      const scale  = GOLDEN_SCALE / maxDim; 
+      const scale  = TARGET_BOUNDS / maxDim; 
       
-      model.position.sub(centre.multiplyScalar(scale));
-      model.scale.setScalar(scale);
-      model.rotation.set(Math.PI / 2.3, 0, 0); 
+      // 피벗 정렬 및 최적 각도 배치
+      window.modelAnchor.children.forEach(c => {
+        c.position.sub(centre);
+      });
+      window.modelAnchor.scale.setScalar(scale);
+      window.modelAnchor.rotation.set(Math.PI / 2.3, 0, 0); 
 
-      window.modelAnchor = new THREE.Group();
-      window.modelAnchor.add(model);
       window.threeScene.add(window.modelAnchor);
 
       eliminateFakeModels(); 
