@@ -104,40 +104,49 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    크롬 은빛 반사용 고대비 가상 스튜디오 생성
+    🔥 블렌더 뷰포트 환경 재현: 고대비 스튜디오 맵 생성
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
-  // 크롬 금속면의 엣지를 강렬하게 때려줄 고대비 조명 패널 배치
+  // 블렌더 특유의 어두운 회색/검은색 기본 베이스 공간 설정
+  const roomGeo = new THREE.SphereGeometry(50, 16, 16);
+  const roomMat = new THREE.MeshBasicMaterial({ color: 0x050508, side: THREE.BackSide });
+  const room = new THREE.Mesh(roomGeo, roomMat);
+  scene.add(room);
+
+  // 1. 상단 초강력 하이라이트 광판 (엣지에 흰색 선을 맺히게 함)
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(120, 15, 120),
+    new THREE.BoxGeometry(60, 2, 60),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  topLight.position.set(0, 40, -10);
+  topLight.position.set(0, 25, 0);
   scene.add(topLight);
 
-  const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(8, 80, 80),
+  // 2. 전면 우측 고대비 반사판 (블렌더 구형 반사 형태 재현)
+  const frontRight = new THREE.Mesh(
+    new THREE.SphereGeometry(12, 16, 16),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  leftPanel.position.set(-35, 15, 0);
+  frontRight.position.set(20, 10, 20);
+  scene.add(frontRight);
+
+  // 3. 좌측면 세로 소프트 박스 (메탈 굴곡면 대비용)
+  const leftPanel = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 40, 25),
+    new THREE.MeshBasicMaterial({ color: 0xddddff, toneMapped: false })
+  );
+  leftPanel.position.set(-25, 5, -5);
   scene.add(leftPanel);
 
-  const rightPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(8, 80, 80),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
+  // 4. 하단 은은한 반사 바닥
+  const bottomPanel = new THREE.Mesh(
+    new THREE.BoxGeometry(60, 1, 60),
+    new THREE.MeshBasicMaterial({ color: 0x222222, toneMapped: false })
   );
-  rightPanel.position.set(35, 15, 0);
-  scene.add(rightPanel);
-
-  const frontPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(80, 80, 8),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
-  );
-  frontPanel.position.set(0, 10, 45);
-  scene.add(frontPanel);
+  bottomPanel.position.set(0, -25, 0);
+  scene.add(bottomPanel);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
@@ -169,29 +178,26 @@ const initThree = () => {
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
-  window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
   
-  // ⚡ [밝기 부스팅] 톤맵 노출도를 대폭 끌어올려 메탈이 칙칙하지 않고 맑고 화사하게 은빛을 뿜게 함
-  window.threeRenderer.toneMappingExposure = 3.2; 
+  // ⚡ 블렌더 실시간 뷰포트 느낌의 고대비 톤매핑 세팅
+  window.threeRenderer.toneMapping      = THREE.LinearToneMapping; 
+  window.threeRenderer.toneMappingExposure = 2.0; 
 
-  // 공간의 메인 다이렉트 라이트 강도를 대폭 상향 (메탈 반사광 극대화)
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 12.0);
-  dirLight1.position.set(5, 20, 25); 
+  // 입체적인 메탈 덩어리감을 극대화하는 외곽 라이트 배치
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 8.0);
+  dirLight1.position.set(10, 20, 15); 
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 8.0);
-  dirLight2.position.set(-20, 10, 15); 
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 5.0);
+  dirLight2.position.set(-15, -5, 10); 
   window.threeScene.add(dirLight2);
 
-  const dirLight3 = new THREE.DirectionalLight(0xffffff, 8.0);
-  dirLight3.position.set(20, 10, 15); 
-  window.threeScene.add(dirLight3);
-
-  const ambientLight = new THREE.AmbientLight(0xffffff, 3.0); 
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
   window.threeScene.add(ambientLight);
 
+  // ⚡ 카메라를 살짝 더 가깝게 당겨 크기 유실 보완 (5.5 -> 4.8)
   window.threeCamera = new THREE.PerspectiveCamera(23, W / H, 0.1, 100);
-  window.threeCamera.position.set(0, 0, 5.5);
+  window.threeCamera.position.set(0, 0, 4.8);
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
@@ -210,12 +216,13 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 액체 수은/크롬처럼 극도로 맑고 투명하게 주변을 반사하는 재질로 전면 재수정
+      // ⚡ 완전히 주변 매핑을 깨끗하게 거울처럼 거두어들이는 수은 크롬 재질 (Roughness 최소화)
       const chromeSilverMat = new THREE.MeshStandardMaterial({
         color: 0xffffff,          
-        metalness: 1.0,           // 100% 리얼 순수 메탈릭
-        roughness: 0.02,          // 거칠기를 기존보다 더 극도로 낮춰 완전한 거울 광택 구현
-        emissive: 0x111111,       
+        metalness: 1.0,           
+        roughness: 0.005,         // 거칠기를 사실상 0에 가깝게 내려 완벽한 고대비 거울면 형성
+        emissive: 0x000000,
+        envMapIntensity: 5.0,     // 가상 스튜디오 반사 광판의 강도를 폭발적으로 상향
         side: THREE.DoubleSide
       });
 
@@ -227,13 +234,13 @@ const initThree = () => {
         }
       });
 
-      // ⚡ [비스듬한 입체 각도 밸런스 조정]
-      // 기존의 직각 세우기(Math.PI / 2 = 1.57)에서 각도를 비스듬히 틀어 입체적인 반사면 유도
-      model.rotation.x = 1.25;  // 앞으로 살짝 숙여지게 세팅
-      model.rotation.y = 0.45;  // 우측으로 비스듬히 틀어 입체감 부여
-      model.rotation.z = -0.25; // 살짝 틸트하여 유니크한 각도 정립
+      // 요청하신 매력적이고 자연스럽게 누워있는 입체 각도 완성
+      model.rotation.x = 1.20;  
+      model.rotation.y = 0.50;  
+      model.rotation.z = -0.30; 
 
-      const BOUNDS = 2.0;
+      // ⚡ [크기 대폭 확장] 기존 2.0에서 2.7로 바운딩 타겟 스케일을 키워 작아진 느낌을 완벽 복구
+      const BOUNDS = 2.7; 
       const box    = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
@@ -366,19 +373,19 @@ const animate = () => {
       let targetY = 0;
 
       if (isHoveringModel) {
-        targetX = 0 + (-mouse.y * 0.20);
-        targetY = 0 + (mouse.x * 0.35);
+        targetX = 0 + (-mouse.y * 0.15);
+        targetY = 0 + (mouse.x * 0.25);
         
         rotState.x += (targetX - rotState.x) * 0.06;
         rotState.y += (targetY - rotState.y) * 0.06;
       } else {
         rotState.x += (0 - rotState.x) * 0.03; 
-        rotState.y += 0.004; // 부드럽고 고급스러운 자전 회전
+        rotState.y += 0.003; 
       }
 
       window.modelAnchor.rotation.x = rotState.x;
       window.modelAnchor.rotation.y = rotState.y;
-      window.modelAnchor.position.y = Math.sin(clock * 0.6) * 0.025; 
+      window.modelAnchor.position.y = Math.sin(clock * 0.5) * 0.03; 
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
   }
