@@ -337,8 +337,6 @@ const animate = () => {
   if (follower) {
     follower.style.left = `${pointer.x}px`;
     follower.style.top  = `${pointer.y}px`;
-    // 모달창 오픈 유무에 따라 포인터 이벤트를 동적으로 투과시켜 먹통 현상 원천 차단
-    follower.style.pointerEvents = isModalOpen ? 'none' : 'none'; 
   }
 
   updateLandingVars();
@@ -542,8 +540,8 @@ const setupFolderGUI = () => {
     if (e.key === ' ')     item.classList.toggle('is-selected');
   });
 
-  modalClose.addEventListener('click', closeModal);
-  modalBack.addEventListener('click',  closeModal);
+  if (modalClose) modalClose.addEventListener('click', closeModal);
+  if (modalBack) modalBack.addEventListener('click',  closeModal);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeModal();
   });
