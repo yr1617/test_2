@@ -51,7 +51,7 @@ const pointer = {
 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
-// [대수술] 모델링이 누워있지 않고 똑바로 정면을 응시하도록 90도 회전축 교정값 주입
+// [대수술] 모델링이 완전히 정면을 바라보도록 고정하는 각도 오프셋 세팅
 const baseRotation = { x: Math.PI * 0.5, y: 0.0 }; 
 const rotState     = { x: Math.PI * 0.5, y: 0.0 };
 
@@ -111,39 +111,38 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    [교정] 컴퓨터 본체 재질을 날려버릴 실버 메탈 반사용 룸 스튜디오 환경
+    [교정] 컴퓨터 본체 느낌을 완벽하게 제거할 메탈 하이라이트 가상 스튜디오 룸
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
-  // 메탈릭 엣지를 눈부시게 세워줄 백색 면광원들 배치
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(50, 1, 50),
+    new THREE.BoxGeometry(60, 2, 60),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  topLight.position.set(0, 15, 0);
+  topLight.position.set(0, 20, 0);
   scene.add(topLight);
 
   const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(1, 35, 35),
+    new THREE.BoxGeometry(2, 40, 40),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  leftPanel.position.set(-15, 5, 0);
+  leftPanel.position.set(-18, 5, 0);
   scene.add(leftPanel);
 
   const rightPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(1, 35, 35),
+    new THREE.BoxGeometry(2, 40, 40),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  rightPanel.position.set(15, 5, 0);
+  rightPanel.position.set(18, 5, 0);
   scene.add(rightPanel);
 
   const frontPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(35, 35, 1),
+    new THREE.BoxGeometry(40, 40, 2),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  frontPanel.position.set(0, 5, 15);
+  frontPanel.position.set(0, 5, 18);
   scene.add(frontPanel);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -155,7 +154,7 @@ const generatePureEnvironment = (renderer) => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE MAIN
+    THREE.JS ENGINE MAIN (조명 세기 대폭 강화 및 고품질 크롬 메탈 정의)
 ════════════════════════════════════════ */
 const initThree = () => {
   if (!modelCanvas || window.__threeInitialized) return;
@@ -177,22 +176,22 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  window.threeRenderer.toneMappingExposure = 2.2; // 까만 현상을 강제로 밀어내기 위해 노출을 극한으로 상향
+  window.threeRenderer.toneMappingExposure = 2.4; // 톤맵 노출도를 극대화하여 검은 티끌을 전부 증발시킵니다.
 
-  // 사방에서 오브젝트를 강하게 때려 어둠을 완전히 지워주는 다이렉트 3점 조명 세팅
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 8.0);
-  dirLight1.position.set(8, 14, 10);
+  // 사방에서 물체를 비추는 무결점 화이트 광원 세팅
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 9.0);
+  dirLight1.position.set(10, 15, 10);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 5.0);
-  dirLight2.position.set(-8, -4, 8);
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 6.0);
+  dirLight2.position.set(-10, -5, 10);
   window.threeScene.add(dirLight2);
 
-  const dirLight3 = new THREE.DirectionalLight(0xffffff, 4.0);
-  dirLight3.position.set(0, 2, -10);
+  const dirLight3 = new THREE.DirectionalLight(0xffffff, 5.0);
+  dirLight3.position.set(0, 5, -12);
   window.threeScene.add(dirLight3);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
   window.threeScene.add(ambientLight);
 
   window.threeCamera = new THREE.PerspectiveCamera(23, W / H, 0.1, 100);
@@ -214,11 +213,11 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      /* ── [교정] 칙칙한 회색 플라스틱을 거울처럼 매끄러운 크롬 실버 메탈릭으로 변경 ── */
+      /* ── 칙칙함을 완전히 날려줄 100% 순수 액체 거울 은빛 메탈릭 재질 하드코딩 ── */
       const chromeSilverMat = new THREE.MeshStandardMaterial({
-        color: 0xffffff,       // 베이스를 완전한 백색으로 잡아야 어두운 타는 색상이 안 나옵니다.
-        metalness: 1.0,        // 거울 반사율 100% 매핑
-        roughness: 0.02,       // 거칠기를 완전 제로에 가깝게 깎아 주변 반사광을 쨍하게 먹임
+        color: 0xffffff,       
+        metalness: 1.0,        // 금속 성질 100% 최대로 당김
+        roughness: 0.01,       // 표면 거칠기를 거의 제로로 만들어 거울 효과 부여
         side: THREE.DoubleSide
       });
 
@@ -246,7 +245,7 @@ const initThree = () => {
       window.modelAnchor.add(model);
       window.threeScene.add(window.modelAnchor);
 
-      // [교정] 모델링 내부 피벗 왜곡을 상쇄하여 정수리가 아닌 정면이 보이도록 강제 고정
+      // 누워있지 않고 똑바로 일어서서 우리를 보도록 피벗 축 기준각을 강제 회전 고정
       window.modelAnchor.rotation.x = baseRotation.x;
       window.modelAnchor.rotation.y = baseRotation.y;
 
@@ -339,7 +338,7 @@ const updateNavProgress = () => {
 };
 
 /* ════════════════════════════════════════
-    MAIN ANIMATION LOOP (회전 감속 교정)
+    MAIN ANIMATION LOOP (속도 대폭 다운 및 잔잔한 연산)
 ════════════════════════════════════════ */
 let clock = 0;
 
@@ -367,8 +366,8 @@ const animate = () => {
         rotState.x += (targetX - rotState.x) * 0.05;
         rotState.y += (targetY - rotState.y) * 0.05;
       } else {
-        // [교정] 미친 듯이 빨리 돌던 자동 회전 속도를 기존의 1/4배 수준(0.0012)으로 대폭 감속 정돈
-        autoRotY += 0.0012;
+        // [회전 감속] 마구 날뛰며 빨리 돌지 않도록 우아하고 차분하게 자전 속도를 0.001로 고정
+        autoRotY += 0.001;
         const targetX = baseRotation.x + Math.sin(clock * 0.2) * 0.015;
         const targetY = autoRotY;
 
@@ -378,7 +377,7 @@ const animate = () => {
 
       window.modelAnchor.rotation.x = rotState.x;
       window.modelAnchor.rotation.y = rotState.y;
-      window.modelAnchor.position.y = Math.sin(clock * 0.5) * 0.01; // 흔들림도 우아하고 잔잔하게 보정
+      window.modelAnchor.position.y = Math.sin(clock * 0.5) * 0.01; 
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
   }
@@ -406,7 +405,7 @@ const setupHoverEvents = () => {
 };
 
 /* ════════════════════════════════════════
-    폴더 GUI 인터랙션 (원본 유지)
+    폴더 GUI 인터랙션
 ════════════════════════════════════════ */
 const FOLDER_DATA = {
   academic: {
