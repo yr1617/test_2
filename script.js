@@ -12,16 +12,16 @@ const modelCanvas    = document.querySelector('#model-canvas');
 const follower        = document.querySelector('.cursor-follower');
 const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li, .project-card-item');
 
-// 🚨 [HTML 가짜 별 레이어 강제 완전 소멸]
+// 🚨 [HTML 가짜 레이어 안전하게 제거] 문법 에러 없는 정석 방식
 const eliminateFakeModels = () => {
   const fakeIds = ['#crystal-fallback', '#codex-3d', '.fallback-layer', '.crystal-backup'];
   fakeIds.forEach(selector => {
     const el = document.querySelector(selector);
     if (el) {
-      el.style.display = 'none' !important;
-      el.style.opacity = '0' !important;
-      el.style.visibility = 'hidden' !important;
-      el.style.pointerEvents = 'none' !important;
+      el.style.setProperty('display', 'none', 'important');
+      el.style.setProperty('opacity', '0', 'important');
+      el.style.setProperty('visibility', 'hidden', 'important');
+      el.style.setProperty('pointer-events', 'none', 'important');
     }
   });
 };
@@ -142,20 +142,20 @@ const initThree = () => {
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 1.0; 
+  threeRenderer.toneMappingExposure = 1.1; 
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 💡 흰색으로 타버리는 파스텔 톤 억제 조명 세팅
-  const ambient = new THREE.AmbientLight(0xffffff, 0.5); 
+  // 쨍하고 투명한 반사선을 만들기 위한 조명 밸런스
+  const ambient = new THREE.AmbientLight(0xffffff, 0.4); 
   threeScene.add(ambient);
 
-  const sunLight = new THREE.DirectionalLight(0xff00ff, 2.0); // 엣지에 보라/핑크 반사 유도
+  const sunLight = new THREE.DirectionalLight(0xff00ff, 2.2); 
   sunLight.position.set(3, 3, 2);
   threeScene.add(sunLight);
 
-  const subLight = new THREE.DirectionalLight(0x00ffff, 2.0); // 반대편 엣지에 청록 반사 유도
+  const subLight = new THREE.DirectionalLight(0x00ffff, 2.2); 
   subLight.position.set(-3, -3, 2);
   threeScene.add(subLight);
 
@@ -191,20 +191,20 @@ const initThree = () => {
           else child.material.dispose();
         }
 
-        // 💎 [레퍼런스 근접 투명 반사 크리스탈]
+        // 💎 뒷배경이 선명하게 투과되는 다이아몬드 크리스탈 재질
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0x111115,          // ⚠️ 쌩하얀색을 버리고 베이스를 어둡게 주어야 투명하게 뒤가 뚫립니다.
-          metalness:          0.1,               
-          roughness:          0.02,              // 극도로 매끈한 표면
+          color:              0x121216,          // 어두운 베이스로 투명감 확보
+          metalness:          0.0,               
+          roughness:          0.01,              
           transparent:        true,              
-          opacity:            0.5,               // 뒷배경 요소들이 선명하게 투과되는 최적값
-          side:               THREE.FrontSide,   // 겹침 지직거림 전면 차단
+          opacity:            0.45,              // 뒷배경 요소들이 완전히 투과되어 비치는 세팅
+          side:               THREE.FrontSide,   
           depthWrite:         false,
 
-          // 🌈 꺾이는 모서리 경계선에만 오로라 선을 응축하는 속성
+          // 🌈 각진 경계선에만 얇고 선명하게 오로라빛을 응축
           iridescence:        1.0,               
-          iridescenceIOR:     2.2,               
-          iridescenceThicknessRange: [200, 400], 
+          iridescenceIOR:     2.3,               
+          iridescenceThicknessRange: [200, 420], 
 
           clearcoat:          1.0,               
           clearcoatRoughness: 0.0
@@ -215,7 +215,7 @@ const initThree = () => {
       modelAnchor.add(model);
       threeScene.add(modelAnchor);
 
-      eliminateFakeModels(); // 로드 완료 즉시 HTML 가짜 별 레이어 무력화
+      eliminateFakeModels(); // 로드 완료 시 가짜 레이어 완벽 제거
       hideSiteLoader();
     },
     undefined,
@@ -320,7 +320,7 @@ const initAll = () => {
 
   landingCanvasCtrl = setupLandingCanvas();
   setupDragEvents(); 
-  eliminateFakeModels(); // 시작할 때도 가짜 삭제 실행
+  eliminateFakeModels(); // 시작 시점에 가짜 레이어 일차 차단
 
   highlightElements.forEach((el) => {
     el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
