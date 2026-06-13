@@ -614,3 +614,6 @@ window.addEventListener('resize', () => {
   resizeThree();
   updateNavProgress();
 });
+// 모달창이 커서를 씹지 못하도록 커서 엘리먼트를 body 최상단으로 강제 인질극
+const realCursor = document.querySelector('.cursor-follower');
+if (realCursor) document.body.appendChild(realCursor);
