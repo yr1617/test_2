@@ -46,7 +46,7 @@ const pointer = {
 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
-// ⚡ [교정] 모델링이 하늘로 누워있지 않고 사용자를 똑바로 보도록 기본 각도를 정면(0, 0)으로 셋팅
+// 모델링이 공중에 누워있지 않고 사용자를 똑바로 바라보도록 세팅
 const baseRotation = { x: 0, y: 0 }; 
 const rotState     = { x: 0, y: 0 };
 
@@ -104,46 +104,47 @@ const updateLandingVars = () => {
   landing.style.setProperty('--pointer-y', `${clamp01(y/100)*100}%`);
 };
 
+/* ════════════════════════════════════════
+    가상 돔 조명 (실버 메탈 환경맵 용 스튜디오 조명)
+════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
+  scene.background = null;
 
-  const room = new THREE.Mesh(
-    new THREE.BoxGeometry(40, 40, 40),
-    new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      side: THREE.BackSide
-    })
+  // 스스로 강력하게 빛나는 고휘도 박스들 배치 (메탈 표면에 하얗게 맺힘)
+  const topLight = new THREE.Mesh(
+    new THREE.BoxGeometry(70, 6, 70),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  scene.add(room);
+  topLight.position.set(0, 25, 0);
+  scene.add(topLight);
 
-  const brightTop = new THREE.Mesh(
-    new THREE.PlaneGeometry(20, 20),
-    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  const leftPanel = new THREE.Mesh(
+    new THREE.BoxGeometry(4, 40, 40),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  brightTop.position.set(0, 18, 0);
-  brightTop.rotation.x = Math.PI / 2;
-  scene.add(brightTop);
+  leftPanel.position.set(-20, 10, 0);
+  scene.add(leftPanel);
 
-  const brightFront = new THREE.Mesh(
-    new THREE.PlaneGeometry(20, 20),
-    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  const rightPanel = new THREE.Mesh(
+    new THREE.BoxGeometry(4, 40, 40),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  brightFront.position.set(0, 0, 18);
-  scene.add(brightFront);
+  rightPanel.position.set(20, 10, 0);
+  scene.add(rightPanel);
 
-  const brightLeft = new THREE.Mesh(
-    new THREE.PlaneGeometry(20, 20),
-    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  const frontPanel = new THREE.Mesh(
+    new THREE.BoxGeometry(40, 40, 4),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  brightLeft.position.set(-18, 0, 0);
-  brightLeft.rotation.y = Math.PI / 2;
-  scene.add(brightLeft);
+  frontPanel.position.set(0, 10, 20);
+  scene.add(frontPanel);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
   const rt = pmrem.fromScene(scene);
-
   pmrem.dispose();
-
+  rt.texture.mapping = THREE.CubeReflectionMapping;
   return rt.texture;
 };
 
@@ -170,18 +171,18 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  window.threeRenderer.toneMappingExposure = 2.0; 
+  window.threeRenderer.toneMappingExposure = 2.2; 
 
-  // 메탈의 덩어리감과 하이라이트를 위해 직사광 조명 강도를 실버 톤에 맞춰 상향
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 7.0);
-  dirLight1.position.set(5, 12, 8);
+  // 실버 메탈의 에지를 쨍하게 깎아줄 스튜디오 직사광선 보강
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 8.0);
+  dirLight1.position.set(5, 15, 10);
   window.threeScene.add(dirLight1);
 
   const dirLight2 = new THREE.DirectionalLight(0xffffff, 4.5);
-  dirLight2.position.set(-5, -5, 5);
+  dirLight2.position.set(-8, -5, 5);
   window.threeScene.add(dirLight2);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 2.0); 
+  const ambientLight = new THREE.AmbientLight(0xffffff, 2.5); 
   window.threeScene.add(ambientLight);
 
   window.threeCamera = new THREE.PerspectiveCamera(23, W / H, 0.1, 100);
@@ -203,20 +204,23 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-const chromeSilverMat = new THREE.MeshStandardMaterial({
-  color: 0xdddddd,
-  metalness: 0.95,
-  roughness: 0.15,
-  emissive: 0x444444,
-  side: THREE.DoubleSide
-});
-model.traverse((child) => {
-  if (child.isMesh) {
-    child.material = silverMetalMat;
-    child.castShadow = false;
-    child.receiveShadow = false;
-  }
-});
+      // ⚡ [버그 완벽 수정 및 고휘도 실버 메탈릭 튜닝]
+      const chromeSilverMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,          // 탁한 기운이 없는 깨끗한 순백 실버
+        metalness: 1.0,           // 100% 완전한 하드 메탈 재질
+        roughness: 0.12,          // 거울보다 약간 더 은은하고 세련된 반사 질감
+        emissive: 0x333333,       // 어두운 배경 뒤에서도 스스로 은빛 광택을 머금도록 보정
+        side: THREE.DoubleSide
+      });
+
+      // 에러의 원인이었던 변수명 불일치를 chromeSilverMat으로 깔끔하게 매핑 완료!
+      model.traverse((child) => {
+        if (child.isMesh) {
+          child.material    = chromeSilverMat;
+          child.castShadow    = false;
+          child.receiveShadow = false;
+        }
+      });
 
       const BOUNDS = 2.0;
       const box    = new THREE.Box3().setFromObject(model);
@@ -234,7 +238,6 @@ model.traverse((child) => {
       window.modelAnchor.add(model);
       window.threeScene.add(window.modelAnchor);
 
-      // 정면 배치 반영
       window.modelAnchor.rotation.x = baseRotation.x;
       window.modelAnchor.rotation.y = baseRotation.y;
 
@@ -348,9 +351,9 @@ const animate = () => {
 
   if (window.threeRenderer && window.threeScene && window.threeCamera) {
     if (window.modelAnchor) {
-      // ⚡ [교정] 누워있던 축을 정면(0)으로 완전히 맞추고, 마우스 무빙 각도 최적화
-      const targetX = 0 + (-mouse.y * 0.22);
-      const targetY = 0 + (mouse.x * 0.40);
+      // ⚡ 똑바로 누워있지 않게 세우고 마우스 좌우/위아래 무빙 각도 보정
+      const targetX = 0 + (-mouse.y * 0.25);
+      const targetY = 0 + (mouse.x * 0.45);
 
       rotState.x += (targetX - rotState.x) * 0.05;
       rotState.y += (targetY - rotState.y) * 0.05;
