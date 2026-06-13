@@ -36,10 +36,11 @@ const follower = document.querySelector('.cursor-follower');
 const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li, .project-card-item');
 
 const eliminateFakeModels = () => {
-  const fakeIds = ['#crystal-fallback', '#codex-3d', '.fallback-layer', '.crystal-backup'];
+  const fakeIds = ['#crystal-fallback', '#codex-3d', '.fallback-layer', '.crystal-backup', '#three-debug-hud'];
   fakeIds.forEach(selector => {
     const el = document.querySelector(selector);
     if (el) el.style.setProperty('display', 'none', 'important');
+    if (el && selector === '#three-debug-hud') el.remove(); // 디버그 허드 삭제
   });
 };
 
@@ -141,7 +142,8 @@ const initThree = () => {
     canvas: modelCanvas,
     alpha: true,
     antialias: true,
-    powerPreference: "high-performance"
+    powerPreference: "high-performance",
+    logarithmicDepthBuffer: true // 겹쳐진 조각들의 지직거림을 물리적으로 평정하는 옵션
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
@@ -177,60 +179,32 @@ const initThree = () => {
 
       const model = gltf.scene;
 
+      // 겹치는 메쉬 조각들이 서로 투과되며 영롱하게 연출되도록 재질 밸런싱 수정
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.03,            
+        roughness: 0.05,            
         transparent: true,
-        opacity: 0.55,               
-        transmission: 0.95,          
-        ior: 1.48,                  
-        side: THREE.FrontSide,      
-        depthWrite: true,
+        opacity: 0.45,               
+        transmission: 0.9,          
+        ior: 1.5,                  
+        side: THREE.DoubleSide, // 안쪽 면까지 다 렌더링하여 온전한 입체감 구현
+        depthWrite: false,      // 투명 물체끼리 겹칠 때 뒤쪽이 가려지는 버그 방지
         depthTest: true,
-        iridescence: 1.0,           
-        iridescenceIOR: 1.6,        
-        iridescenceThicknessRange: [100, 350], 
+        iridescence: 0.8,           
+        iridescenceIOR: 1.5,        
+        iridescenceThicknessRange: [100, 300], 
         clearcoat: 1.0,             
         clearcoatRoughness: 0.0
       });
 
-      // 🛠️ 파일 안의 모든 메쉬 수집
-      const meshes = [];
+      // 🛠️ 5개의 모든 정품 크리스탈 조각들을 온전하게 융합하고 재질을 입힙니다.
       model.traverse((child) => {
         if (child.isMesh) {
-          meshes.push(child);
-        }
-      });
-
-      // 💥 화면 좌측 상단에 디버깅 정보 표기용 돔 생성
-      let debugDiv = document.getElementById('three-debug-hud');
-      if (!debugDiv) {
-        debugDiv = document.createElement('div');
-        debugDiv.id = 'three-debug-hud';
-        debugDiv.style.cssText = 'position:fixed;top:10px;left:10px;z-index:99999;background:rgba(0,0,0,0.85);color:#00ffcc;font-family:monospace;font-size:11px;padding:10px;border-radius:5px;pointer-events:none;line-height:1.4;border:1px solid #00ffcc;';
-        document.body.appendChild(debugDiv);
-      }
-      
-      let hudContent = `<b>[가이드] 살릴 인덱스를 확인하세요</b><br/>`;
-      meshes.forEach((m, idx) => {
-        hudContent += `Index [${idx}] : ${m.name || '이름없음'}<br/>`;
-      });
-      debugDiv.innerHTML = hudContent;
-
-      // 💥 [수동 매칭 공정] 
-      // 만약 1번이 진짜 별이고 0번이 가짜라면, 'index !== 1'로 세팅하면 1번만 살고 다 꺼집니다.
-      // 현재는 1번만 살리는 기본 세팅입니다. 화면 보고 숫자를 맞춰보아요!
-      const TARGET_INDEX_TO_SAVE = 1; 
-
-      meshes.forEach((mesh, index) => {
-        if (index === TARGET_INDEX_TO_SAVE) {
-          mesh.visible = true;
-          mesh.material = crystalMaterial;
-          mesh.castShadow = false;
-          mesh.receiveShadow = false;
-        } else {
-          mesh.visible = false; // 타겟 제외 나머지 조각 완전 차단!
+          child.visible = true;
+          child.material = crystalMaterial;
+          child.castShadow = false;
+          child.receiveShadow = false;
         }
       });
 
