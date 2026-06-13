@@ -104,50 +104,54 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    [조명 환경 수정] 실버 메탈을 쨍하게 비추는 스튜디오 환경
+    [최종 해결] 실버 메탈을 하얗고 쨍하게 반사시키는 가상 돔 스튜디오
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
-  scene.background = null;
+  
+  // 1. 우주 암흑 공간이 아닌, 사방이 밝은 스튜디오 룸 형태로 배경색을 강제 지정합니다.
+  // 이 밝은 미색/흰색이 메탈 표면에 반사되어 차가운 실버 톤을 만듭니다.
+  scene.background = new THREE.Color(0xffffff);
 
-  // 💡 그냥 흰색이 아니라 스스로 강한 빛을 내뿜는(color, toneMapped) 고휘도 박스 배치
+  // 2. 금속의 꺾이는 모서리에 쨍한 칼각 하이라이트를 맺히게 해줄 고휘도 조명 기둥들 배치
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(80, 5, 80),
+    new THREE.BoxGeometry(90, 8, 90),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  topLight.position.set(0, 35, 0); // 모델과 겹치지 않게 위로 멀리 배치
+  topLight.position.set(0, 30, 0);
   scene.add(topLight);
 
   const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(5, 40, 40),
+    new THREE.BoxGeometry(8, 50, 50),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  leftPanel.position.set(-30, 10, 10); // 좌측 측면 광원
+  leftPanel.position.set(-25, 15, 0);
   scene.add(leftPanel);
 
   const rightPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(5, 40, 40),
+    new THREE.BoxGeometry(8, 50, 50),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  rightPanel.position.set(30, 10, 10); // 우측 측면 광원
+  rightPanel.position.set(25, 15, 0);
   scene.add(rightPanel);
 
-  // 정면과 대각선에서 금속 하이라이트를 받아줄 전면 보조 광원판 추가
+  // 정면에서 메탈릭 질감을 하얗고 선명하게 밝혀줄 전면 대형 소프트박스
   const frontPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(40, 40, 5),
+    new THREE.BoxGeometry(50, 50, 8),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  frontPanel.position.set(0, 10, 30);
+  frontPanel.position.set(0, 15, 25);
   scene.add(frontPanel);
 
+  // 3. 이 밝은 스튜디오 공간을 360도 환경 맵 텍스처로 구워내어 메탈에 주입합니다.
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
   const rt = pmrem.fromScene(scene);
   pmrem.dispose();
+  
   rt.texture.mapping = THREE.CubeReflectionMapping;
   return rt.texture;
 };
-
 /* ════════════════════════════════════════
     THREE.JS ENGINE MAIN
 ════════════════════════════════════════ */
