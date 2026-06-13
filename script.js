@@ -3,14 +3,33 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    GLOBAL ENGINE REF (안전 초기화)
+    ENGINE DESTROY & CLEAN 공정 (강제 청소 레이어)
 ════════════════════════════════════════ */
-window.threeScene     = window.threeScene || null;
-window.threeCamera    = window.threeCamera || null;
-window.threeRenderer  = window.threeRenderer || null;
-window.modelAnchor    = window.modelAnchor || null;
-window.animFrameId    = window.animFrameId || null;
+if (window.animFrameId) {
+  cancelAnimationFrame(window.animFrameId);
+  window.animFrameId = null;
+}
 
+if (window.threeRenderer) {
+  window.threeRenderer.dispose();
+  const domCanvas = document.querySelector('#model-canvas');
+  if (domCanvas) {
+    // 캔버스 내부에 남아있는 이전 WebGL 컨텍스트 찌꺼기를 완전 소멸시킵니다.
+    const gl = domCanvas.getContext('webgl2') || domCanvas.getContext('webgl');
+    if (gl) gl.getExtension('WEBGL_lose_context')?.loseContext();
+  }
+  window.threeRenderer = null;
+}
+
+// 글로벌 참조 완전 리셋 (자글거리는 유령 메쉬 생성 차단)
+window.threeScene    = null;
+window.threeCamera   = null;
+window.modelAnchor   = null;
+window.__threeInitialized = false;
+
+/* ════════════════════════════════════════
+    DOM ELEMENT REFS
+════════════════════════════════════════ */
 const landing        = document.querySelector('.landing');
 const landingCanvas  = document.querySelector('.landing-canvas');
 const landingDisplay = document.querySelector('#landing-display');
@@ -22,11 +41,7 @@ const eliminateFakeModels = () => {
   const fakeIds = ['#crystal-fallback', '#codex-3d', '.fallback-layer', '.crystal-backup'];
   fakeIds.forEach(selector => {
     const el = document.querySelector(selector);
-    if (el) {
-      el.style.setProperty('display', 'none', 'important');
-      el.style.setProperty('opacity', '0', 'important');
-      el.style.setProperty('visibility', 'hidden', 'important');
-    }
+    if (el) el.style.setProperty('display', 'none', 'important');
   });
 };
 
@@ -86,19 +101,17 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (독점 통유리 렌더 공정)
+    THREE.JS 100% 독점 빌드 공정
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   const geo = new THREE.BoxGeometry(12, 12, 12);
-  
-  // 회색 서리 원인을 원천 차단하기 위해 주변 환경에 강렬한 네온 무지개 대조만 배치
   const mats = [
-    new THREE.MeshBasicMaterial({ color: 0x00f3ff, side: THREE.BackSide }), // Cyan
+    new THREE.MeshBasicMaterial({ color: 0x00f3ff, side: THREE.BackSide }), // Cyan 에지 광원
     new THREE.MeshBasicMaterial({ color: 0x020206, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xff00ca, side: THREE.BackSide }), // Magenta
+    new THREE.MeshBasicMaterial({ color: 0xff00ca, side: THREE.BackSide }), // Magenta 에지 광원
     new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // 쨍한 엣지 라이트용 화이트
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // 하이라이트용 퓨어 화이트
     new THREE.MeshBasicMaterial({ color: 0x030308, side: THREE.BackSide })  
   ];
   const box = new THREE.Mesh(geo, mats);
@@ -109,30 +122,15 @@ const generatePureEnvironment = (renderer) => {
   const renderTarget = pmremGenerator.fromScene(scene);
   pmremGenerator.dispose();
   
-  renderTarget.texture.mapping = THREE.CubeRefractionMapping; // 투과 굴절 모드 강제 적용
+  renderTarget.texture.mapping = THREE.CubeRefractionMapping;
   return renderTarget.texture;
 };
 
 const initThree = () => {
-  if (!modelCanvas) return;
+  if (!modelCanvas || window.__threeInitialized) return;
+  window.__threeInitialized = true;
 
-  if (window.animFrameId) {
-    cancelAnimationFrame(window.animFrameId);
-    window.animFrameId = null;
-  }
-
-  // 💥 기존 잔여 씬 인스턴스 완전 파괴 후 재생성 (중첩 버그 방지)
-  if (window.threeScene) {
-    while(window.threeScene.children.length > 0){ 
-      window.threeScene.remove(window.threeScene.children[0]); 
-    }
-  }
   window.threeScene = new THREE.Scene();
-
-  if (window.threeRenderer) {
-    window.threeRenderer.dispose();
-    window.threeRenderer = null;
-  }
 
   const shell = landingDisplay || { offsetWidth: window.innerWidth, offsetHeight: window.innerHeight };
   const W = shell.offsetWidth;
@@ -142,7 +140,7 @@ const initThree = () => {
     canvas:      modelCanvas,
     alpha:       true, 
     antialias:   true,
-    premultipliedAlpha: false // 투명 배경 완전 관통 셋팅
+    premultipliedAlpha: false
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
@@ -169,7 +167,20 @@ const initThree = () => {
   loader.load(
     `./modeling.glb?v=${Date.now()}`,
     (gltf) => {
+      // 혹시라도 로드 도중 중복 실행되어 들어온 메쉬가 있다면 씬에서 원천 제거
+      if(window.modelAnchor) window.threeScene.remove(window.modelAnchor);
+
       const model = gltf.scene;
+      
+      // 💥 모델링 데이터를 순회하며 혹시 숨어있을지 모를 중복 자식 메쉬 결합 구조 해제
+      model.traverse((child) => {
+        if (child.isMesh) {
+          // 자글거리는 모아레 연산 버그 차단을 위해 뎁스 오프셋 강제 격리
+          child.material.polygonOffset = true;
+          child.material.polygonOffsetFactor = 1;
+          child.material.polygonOffsetUnits = 1;
+        }
+      });
 
       const box    = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
@@ -184,29 +195,27 @@ const initThree = () => {
       model.scale.setScalar(scale);
       model.rotation.set(Math.PI / 2.3, 0, 0); 
 
-      // 🌟 [중첩 버그 파괴용 클리어 글래스 마스터 재질]
-      // 메쉬가 내부에서 겹치더라도 회색 서리가 끼지 않고 100% 뒷배경을 투과시키는 물리 수식 조합
+      // 🌟 [통유리 투과 질감 확정 수식 - 겉면 독점 렌더링]
       const pureGlassMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
         roughness: 0.01,
-        transmission: 1.0,           // 100% 빛 투과
-        transparent: true,           // 투명도 활성화
+        transmission: 1.0,           // 배경 완벽 투과 관통
+        transparent: true,
         opacity: 1.0,
-        ior: 1.42,                   // 굴절률을 살짝 낮춰서 정중앙의 왜곡 뭉침을 최소화
-        thickness: 0.05,             // 💥 두께 연산을 거의 제로에 가깝게 깎아 회색 덩어리 현상 원천 차단!
+        ior: 1.42,
+        thickness: 0.05,             // 두께 연산을 깎아 중앙부 회색 뭉침 파괴
         reflectivity: 0.9,
         clearcoat: 1.0,
         clearcoatRoughness: 0.0,
-        side: THREE.FrontSide,       // 💥 [초핵심] 뒷면까지 전부 렌더링해서 겹치게 만들던 옵션을 FrontSide(겉면만)로 제한하여 투명 통유리 완성!
+        side: THREE.FrontSide,       // 💥 겉면만 그려내어 내부 겹침 자글거림 완전 삭제
         depthWrite: true,
         envMap: envTexture,
         envMapIntensity: 2.2
       });
 
-      // 프리즘 분산 효과 강제 주입
       if (typeof THREE.MeshPhysicalMaterial.prototype.dispersion !== 'undefined') {
-        pureGlassMaterial.dispersion = 12.0; // 엣지에 맺힐 오로라 스펙트럼 강도
+        pureGlassMaterial.dispersion = 12.0; // 에지 크리스탈 오로라 광채
       }
 
       model.traverse((child) => {
@@ -318,9 +327,6 @@ const setupDragEvents = () => {
 };
 
 const initAll = () => {
-  if (window.__threeInitialized) return; 
-  window.__threeInitialized = true;
-
   landingCanvasCtrl = setupLandingCanvas();
   setupDragEvents(); 
   eliminateFakeModels(); 
