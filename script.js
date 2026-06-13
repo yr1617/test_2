@@ -105,20 +105,20 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (오로라 유리 반사 제어 공정)
+    THREE.JS ENGINE (가산 혼합형 초투명 오로라 프리즘)
 ════════════════════════════════════════ */
 const generateRefractionEnvironment = (renderer) => {
   const scene = new THREE.Scene();
-  const geo = new THREE.BoxGeometry(8, 8, 8);
+  const geo = new THREE.BoxGeometry(10, 10, 10);
   
-  // 유리의 에지 각면마다 영롱한 네온 컬러 반사광이 맺히도록 그라데이션 환경 형성 (레퍼런스 1:1 대응)
+  // 회색 서리를 차단하기 위해 환경 스카이박스 자체를 맑고 선명한 원색 프리즘 밴드로 구성
   const mats = [
     new THREE.MeshBasicMaterial({ color: 0x00ffff, side: THREE.BackSide }), // 시안
-    new THREE.MeshBasicMaterial({ color: 0x050508, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x020205, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.BackSide }), // 마젠타
     new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // 화이트 에지 반사광
-    new THREE.MeshBasicMaterial({ color: 0x0c0c12, side: THREE.BackSide })  
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // 화이트
+    new THREE.MeshBasicMaterial({ color: 0x050508, side: THREE.BackSide })  
   ];
   const box = new THREE.Mesh(geo, mats);
   scene.add(box);
@@ -129,7 +129,6 @@ const generateRefractionEnvironment = (renderer) => {
   const renderTarget = pmremGenerator.fromScene(scene);
   pmremGenerator.dispose();
   
-  // 💥 [핵심] 환경맵 매핑 방식을 '굴절(Refraction)'로 설정하여 투명 유리 투과 왜곡을 시뮬레이션합니다.
   renderTarget.texture.mapping = THREE.CubeRefractionMapping;
   return renderTarget.texture;
 };
@@ -157,7 +156,7 @@ const initThree = () => {
     canvas:      modelCanvas,
     alpha:       true, 
     antialias:   true,
-    premultipliedAlpha: false // 배경 투명 웹 글레이징 최적화 고정
+    premultipliedAlpha: false
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
@@ -169,13 +168,17 @@ const initThree = () => {
   const envTexture = generateRefractionEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
 
-  // 광원 세기 최적화로 투명도 유지
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+  // 회색 칙칙함을 날려줄 화사하고 맑은 조명 셋팅
+  const ambient = new THREE.AmbientLight(0xffffff, 0.4);
   window.threeScene.add(ambient);
 
-  const pointLight1 = new THREE.PointLight(0xffffff, 2.0, 50);
-  pointLight1.position.set(3, 4, 3);
+  const pointLight1 = new THREE.PointLight(0x00faff, 3.0, 30);
+  pointLight1.position.set(-4, 4, 3);
   window.threeScene.add(pointLight1);
+
+  const pointLight2 = new THREE.PointLight(0xff00b4, 3.0, 30);
+  pointLight2.position.set(4, -4, 3);
+  window.threeScene.add(pointLight2);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -200,24 +203,23 @@ const initThree = () => {
       model.scale.setScalar(scale);
       model.rotation.set(Math.PI / 2.3, 0, 0); 
 
-      // 🌟 [배경 완벽 관통 크리스탈 재질 공식]
-      // 내부 면이 하얗게 뭉치던 transmission 대신 물리 블렌딩 기법을 사용하여 투명도를 극대화합니다.
-      const crystalMaterial = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        metalness: 0.1,
-        roughness: 0.0,                  // 완벽한 고광택 매끄러운 유리면
-        transparent: true,               // 💥 하얀 덩어리 현상을 지우고 배경을 투과시키기 위한 핵심 설정
-        opacity: 0.35,                   // 💥 중심부는 맑게 뚫리도록 기본 투명도를 35%로 조정
+      // 🌟 [회색 덩어리 버그 원천 봉쇄 프리즘 재질]
+      // 내부 면들이 무수히 겹쳐도 어두워지지 않고, 투명하게 통과되면서 외곽 엣지만 쨍하게 살리는 치트키 조합
+      const glassMaterial = new THREE.MeshBasicMaterial({
+        color: 0x44bbff,                 // 💥 칙칙한 잿빛을 완전히 덮어씌울 청량한 스카이 프리즘 베이스 컬러
+        transparent: true,
+        opacity: 0.18,                   // 💥 투명도를 극단적으로 낮춰 내부 면이 겹쳐도 정중앙이 회색으로 막히는 현상 차단
         envMap: envTexture,
-        envMapIntensity: 5.0,            // 💥 환경맵 강도를 높여 엣지 각면에 청록/자홍 오로라 반사광을 쨍하게 입힘
+        combine: THREE.MixOperation,
+        reflectivity: 0.9,               // 💥 표면 반사율을 극대화하여 엣지 가이드 라인이 영롱하게 도드라지도록 처리
         side: THREE.DoubleSide,
-        depthWrite: false,               // 앞뒷면 겹침으로 투명도가 깨지는 버그 차단
-        blending: THREE.NormalBlending
+        depthWrite: false,               // 앞뒷면 뎁스 가림현상 영구 박멸
+        blending: THREE.AdditiveBlending // 💥 [초핵심] 면이 겹칠수록 어두워지는(Normal) 게 아니라, 겹칠수록 맑고 화사하게 빛나는 모드로 변환
       });
 
       model.traverse((child) => {
         if (child.isMesh) {
-          child.material = crystalMaterial;
+          child.material = glassMaterial;
           child.castShadow = false;
           child.receiveShadow = false;
         }
