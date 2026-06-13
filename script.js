@@ -2,10 +2,14 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
+/* ════════════════════════════════════════
+    ENGINE DESTROY & CLEAN 공정
+════════════════════════════════════════ */
 if (window.animFrameId) {
   cancelAnimationFrame(window.animFrameId);
   window.animFrameId = null;
 }
+
 if (window.threeRenderer) {
   window.threeRenderer.dispose();
   const domCanvas = document.querySelector('#model-canvas');
@@ -16,16 +20,19 @@ if (window.threeRenderer) {
   window.threeRenderer = null;
 }
 
-window.threeScene = null;
-window.threeCamera = null;
-window.modelAnchor = null;
+window.threeScene    = null;
+window.threeCamera   = null;
+window.modelAnchor   = null;
 window.__threeInitialized = false;
 
-const landing = document.querySelector('.landing');
-const landingCanvas = document.querySelector('.landing-canvas');
+/* ════════════════════════════════════════
+    DOM ELEMENT REFS
+════════════════════════════════════════ */
+const landing        = document.querySelector('.landing');
+const landingCanvas  = document.querySelector('.landing-canvas');
 const landingDisplay = document.querySelector('#landing-display');
-const modelCanvas = document.querySelector('#model-canvas');   
-const follower = document.querySelector('.cursor-follower');
+const modelCanvas    = document.querySelector('#model-canvas');   
+const follower        = document.querySelector('.cursor-follower');
 const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li, .project-card-item');
 
 const eliminateFakeModels = () => {
@@ -41,6 +48,9 @@ const rotationState = { currentX: 0, currentY: 0, targetX: 0, targetY: 0, isDrag
 let modelAutoRotY = 0; 
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
+/* ════════════════════════════════════════
+    LANDING CANVAS BACKGROUND
+════════════════════════════════════════ */
 const setupLandingCanvas = () => {
   if (!landing || !landingCanvas) return null;
   const ctx = landingCanvas.getContext('2d');
@@ -49,12 +59,12 @@ const setupLandingCanvas = () => {
 
   const resize = () => {
     const rect = landing.getBoundingClientRect();
-    state.width = rect.width;
+    state.width  = rect.width;
     state.height = rect.height;
-    state.dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-    landingCanvas.width = Math.max(1, Math.floor(rect.width * state.dpr));
+    state.dpr    = Math.min(window.devicePixelRatio || 1, 1.5);
+    landingCanvas.width  = Math.max(1, Math.floor(rect.width  * state.dpr));
     landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
-    landingCanvas.style.width = `${rect.width}px`;
+    landingCanvas.style.width  = `${rect.width}px`;
     landingCanvas.style.height = `${rect.height}px`;
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
   };
@@ -67,9 +77,9 @@ const setupLandingCanvas = () => {
     const px = pointer.x - rect.left;
     const py = pointer.y - rect.top;
     const glow = ctx.createRadialGradient(px, py, 0, px, py, Math.max(width, height) * 0.52);
-    glow.addColorStop(0, 'rgba(255,255,255,0.08)');
-    glow.addColorStop(0.3, 'rgba(150,100,255,0.04)');
-    glow.addColorStop(1, 'rgba(16,16,18,0)');
+    glow.addColorStop(0,    'rgba(255,255,255,0.08)');
+    glow.addColorStop(0.3,  'rgba(150,100,255,0.04)');
+    glow.addColorStop(1,    'rgba(16,16,18,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, width, height);
   };
@@ -82,22 +92,25 @@ let landingCanvasCtrl = null;
 const updateLandingVars = () => {
   if (!landing) return;
   const rect = landing.getBoundingClientRect();
-  const x = ((pointer.x - rect.left) / Math.max(rect.width, 1)) * 100;
-  const y = ((pointer.y - rect.top) / Math.max(rect.height, 1)) * 100;
+  const x = ((pointer.x - rect.left) / Math.max(rect.width,  1)) * 100;
+  const y = ((pointer.y - rect.top)  / Math.max(rect.height, 1)) * 100;
   landing.style.setProperty('--pointer-x', `${clamp01(x / 100) * 100}%`);
   landing.style.setProperty('--pointer-y', `${clamp01(y / 100) * 100}%`);
 };
 
+/* ════════════════════════════════════════
+    HIGH-END ENVIRONMENT MAP (오로라 스펙트럼 유도)
+════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   const geo = new THREE.BoxGeometry(12, 12, 12);
   const mats = [
-    new THREE.MeshBasicMaterial({ color: 0x00f3ff, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x020206, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xff00ca, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x00f3ff, side: THREE.BackSide }), // 사이안 에지
+    new THREE.MeshBasicMaterial({ color: 0x050510, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0xff00ca, side: THREE.BackSide }), // 핫핑크 에지
     new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x030308, side: THREE.BackSide })  
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // 하이라이트 광원
+    new THREE.MeshBasicMaterial({ color: 0x080815, side: THREE.BackSide })  
   ];
   const box = new THREE.Mesh(geo, mats);
   scene.add(box);
@@ -111,39 +124,45 @@ const generatePureEnvironment = (renderer) => {
   return renderTarget.texture;
 };
 
+/* ════════════════════════════════════════
+    THREE.JS 핵심 렌더링 파이프라인
+════════════════════════════════════════ */
 const initThree = () => {
   if (!modelCanvas || window.__threeInitialized) return;
   window.__threeInitialized = true;
 
   window.threeScene = new THREE.Scene();
+
   const shell = landingDisplay || { offsetWidth: window.innerWidth, offsetHeight: window.innerHeight };
   const W = shell.offsetWidth;
   const H = shell.offsetHeight;
 
+  // 🌟 [자글거림 원천 차단] 정밀 뎁스 버퍼 스위치를 켜서 면 겹침 모아레 현상을 완전히 소멸시킵니다.
   window.threeRenderer = new THREE.WebGLRenderer({
-    canvas: modelCanvas,
-    alpha: true, 
-    antialias: true
+    canvas:      modelCanvas,
+    alpha:       true, 
+    antialias:   true,
+    logarithmicDepthBuffer: true 
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  window.threeCamera = new THREE.PerspectiveCamera(35, W / H, 0.1, 100);
+  window.threeCamera = new THREE.PerspectiveCamera(32, W / H, 0.1, 100);
   window.threeCamera.position.set(0, 0, 5.5); 
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.9);
   window.threeScene.add(ambient);
 
-  const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
-  dirLight.position.set(5, 5, 5);
+  const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
+  dirLight.position.set(5, 8, 5);
   window.threeScene.add(dirLight);
 
   const loader = new GLTFLoader();
-  const draco = new DRACOLoader();
+  const draco  = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
   loader.setDRACOLoader(draco);
 
@@ -154,40 +173,42 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 🌟 [면 찢어짐 수정 + 자글거림 영구 제거 안정화 재질 사양]
-      const pureGlassMaterial = new THREE.MeshStandardMaterial({
+      // 🌟 [레퍼런스 사양 완벽 동기화] 투과, 굴절, 오로라 빛 반사 값을 극대화한 크리스탈 재질
+      const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
-        metalness: 0.1,
-        roughness: 0.05,
+        metalness: 0.0,
+        roughness: 0.02,
         transparent: true,
-        opacity: 0.5,               // 중앙 투명도 투과 확보
+        opacity: 1.0,
+        transmission: 0.95,          // 맑고 투명하게 속이 비치는 통유리 질감 구현
+        ior: 1.52,                   // 유리 고유의 리얼한 물리 굴절률 설정
+        thickness: 1.2,              // 빛이 내부에서 꺾이는 두께감 부여
         envMap: envTexture,
-        envMapIntensity: 3.5,        // 에지 무지개 크리스탈 리플렉션 강화
-        side: THREE.DoubleSide,      // 앞뒤 패널 안정적 동시 렌더링
-        depthWrite: true             // 뎁스 정렬 에러 완전 차단
+        envMapIntensity: 5.0,        // 외곽선에 사이안/핑크 무지개빛 오로라가 강렬하게 맺히도록 유도
+        side: THREE.FrontSide,       // 겹친 면의 뎁스 충돌을 막기 위해 바깥면만 깔끔하게 연산하도록 고정
+        depthWrite: true,
+        depthTest: true
       });
 
-      // 💥 파츠 깨짐 전면 수정: 모든 자식 메쉬 온전하게 복구
+      // 온전한 형태 복구: 모든 멀티 파츠 메쉬에 크리스탈 재질 일괄 부여
       model.traverse((child) => {
         if (child.isMesh) {
-          child.material = pureGlassMaterial;
+          child.material = crystalMaterial;
           child.visible = true; 
-          child.castShadow = false;
-          child.receiveShadow = false;
         }
       });
 
-      // 💥 크기 중간 고정: 레이아웃 서체 옆 가장 이상적인 스케일 밸런스 강제 주입
-      const GOLDEN_SCALE = 1.95; 
+      // 💥 [웅장한 크기 복원] 글자 레이아웃 옆을 가득 채우는 묵직하고 이상적인 황금 스케일
+      const GOLDEN_SCALE = 2.8; 
       
-      const box = new THREE.Box3().setFromObject(model);
+      const box    = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
-      const size = new THREE.Vector3();
+      const size   = new THREE.Vector3();
       box.getSize(size);
       
       const maxDim = Math.max(size.x, size.y, size.z);
-      const scale = GOLDEN_SCALE / maxDim; 
+      const scale  = GOLDEN_SCALE / maxDim; 
       
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
@@ -225,6 +246,9 @@ const resizeThree = () => {
   window.threeCamera.updateProjectionMatrix();
 };
 
+/* ════════════════════════════════════════
+    MAIN ANIMATION LOOP
+════════════════════════════════════════ */
 const animate = () => {
   window.animFrameId = requestAnimationFrame(animate);
 
@@ -250,12 +274,16 @@ const animate = () => {
 
       window.modelAnchor.rotation.x = rotationState.currentX;
       window.modelAnchor.rotation.y = rotationState.currentY;
+
       window.modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.006;
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
   }
 };
 
+/* ════════════════════════════════════════
+    DRAG & MOUSE EVENTS
+════════════════════════════════════════ */
 const setupDragEvents = () => {
   if (!landingDisplay) return;
 
