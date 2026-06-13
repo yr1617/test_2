@@ -908,31 +908,23 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   min-height: 280px !important; 
 }
 /* ════════════════════════════════════════
-    [최종 해결] 모달창 먹통 및 마우스 멈춤 현상 완벽 제거
+    [진짜 최종 복구] 모달 먹통 해결 및 가상 커서 유지
 ════════════════════════════════════════ */
 
-/* 1. 연두색 가상 커서는 무조건 화면 맨 위에서 살아 움직이되, 클릭은 100% 통과 */
+/* 1. 연두색 가상 커서: 디자인 유지, 화면 최상단 고정, 클릭 통과 */
 .cursor-follower {
   position: fixed !important;
-  z-index: 2000000000 !important; /* 웹사이트 최상위 레이어로 격상 */
-  pointer-events: none !important; /* 절대 마우스 클릭을 가로막지 않음 */
+  z-index: 999999 !important;      /* 모든 모달 창보다 무조건 위에 뜨게 만듭니다 */
+  pointer-events: none !important; /* 커서가 모달 안의 파일 클릭을 절대 방해하지 않음 */
 }
 
-/* 2. 화면이 뿌얘지는 모달 배경 및 모달창 전체의 마우스 클릭/스크롤 강제 허용 */
-#folder-modal, 
-.modal-backdrop, 
-.modal-wrapper {
-  opacity: 1 !important;           /* 혹시 반투명하게 가려진 게 있다면 투명도 해제 */
-  visibility: visible !important;   /* 화면에서 증발하지 않도록 가시성 확보 */
-  pointer-events: auto !important;  /* 클릭할 때마다 마우스가 멈추거나 씹히는 현상 원천 차단 */
-  z-index: 100000000 !important;    /* 가상 커서 바로 아래 레이어로 단단히 고정 */
+/* 2. 모달 전체 컨테이너: 가상 커서 바로 아래 레이어로 배치 */
+#folder-modal {
+  z-index: 99998 !important;       /* 가상 커서(99999)보다는 아래에 둡니다 */
 }
 
-/* 3. 폴더 안의 내용물(텍스트, 이미지, 파일 리스트)이 무조건 앞으로 튀어나오도록 설정 */
-.modal-content, 
-.modal-file-list, 
-.modal-body {
-  position: relative !important;
-  z-index: 100000001 !important;   /* 배경 뒤로 숨지 못하게 한 단계 더 앞으로 배치 */
-  pointer-events: auto !important;  /* 폴더 안의 내용물 클릭 완벽 허용 */
+/* 3. 모달 배경(뿌연 레이어): 모달창보다도 아래에 깔리도록 수정 */
+.modal-backdrop {
+  z-index: 99997 !important;       /* 모달창 내용물보다 뒤로 보내서 화면 덮는 현상 해결 */
+  pointer-events: auto !important; /* 배경 클릭 시 모달 닫히는 기존 기능 유지 */
 }
