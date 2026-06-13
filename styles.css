@@ -623,3 +623,14 @@ h3{font-size:1.5rem;font-weight:700;line-height:1.1;}
   .reveal-card,.reveal-card.is-visible,.page-spotlight,.cursor-follower{transition:none !important;animation:none !important;}
   .reveal-card{opacity:1;transform:none;}
 }
+/* 가짜 백업 레이어 완전 분쇄 디스플레이 스크립트 */
+#crystal-fallback, 
+#codex-3d, 
+.fallback-layer, 
+.crystal-backup {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    z-index: -9999 !important;
+}
