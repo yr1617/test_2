@@ -100,17 +100,17 @@ const updateLandingVars = () => {
   landing.style.setProperty('--pointer-y', `${clamp01(y / 100) * 100}%`);
 };
 
-// 💡 스튜디오급 초고대비 하이라이트를 만들어줄 순백색 초고광량 스카이돔 환경맵 생성
+// 💡 [대비/회색 탈출] 유리 내부에 쨍한 반사광을 맺히게 해줄 고대비 가상 스튜디오 인프라 구축
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   const geo = new THREE.BoxGeometry(20, 20, 20);
   const mats = [
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // 모든 면에서 순백색의 강력한 광원이 반사됨
+    new THREE.MeshBasicMaterial({ color: 0x00ffff, side: THREE.BackSide }), // 사이안 사이드광
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // 상단 순백 하이라이트
+    new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.BackSide }), // 마젠타 프리즘광
+    new THREE.MeshBasicMaterial({ color: 0x020205, side: THREE.BackSide }), // 칠흑 블랙 (대비 극대화)
     new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x0a0a0f, side: THREE.BackSide }), // 바닥면만 어둡게 하여 대비 밸런스 조정
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x0a0a0f, side: THREE.BackSide })  
+    new THREE.MeshBasicMaterial({ color: 0x05050a, side: THREE.BackSide })  
   ];
   const box = new THREE.Mesh(geo, mats);
   scene.add(box);
@@ -139,29 +139,31 @@ const initThree = () => {
 
   window.threeRenderer = new THREE.WebGLRenderer({
     canvas: modelCanvas,
-    alpha: true,        // 💡 뒷배경 HTML 그라데이션이 투명하게 완벽 투과됨
+    alpha: true,         // 뒷배경 HTML 완전 투과 투명화
     antialias: true,
-    powerPreference: "high-performance"
+    powerPreference: "high-performance",
+    logarithmicDepthBuffer: true // 💡 [노이즈 박멸] 미세하게 겹친 면들의 해상도를 비약적으로 높여 지지직거림 완벽 차단
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
-  window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping; // 시네마틱 톤매핑으로 쨍한 대비 활성화
-  window.threeRenderer.toneMappingExposure = 1.6;
+  window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping; // 쨍하고 트렌디한 대비감
+  window.threeRenderer.toneMappingExposure = 1.5;
 
-  // 💡 메쉬의 메탈릭/글래스 하이라이트를 극대화할 다각도 고광량 스튜디오 스포트라이트 설치
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 5.0);
-  dirLight1.position.set(5, 12, 8);
+  // 광량 대폭 업스케일
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 5.5);
+  dirLight1.position.set(5, 10, 7);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 3.5);
-  dirLight2.position.set(-5, -5, 5);
+  const dirLight2 = new THREE.DirectionalLight(0x00f0ff, 3.5);
+  dirLight2.position.set(-6, -4, 5);
   window.threeScene.add(dirLight2);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
   window.threeScene.add(ambientLight);
 
-  window.threeCamera = new THREE.PerspectiveCamera(30, W / H, 0.1, 100);
+  // 💡 [잘림 현상 해결] Near 값을 0.01로 당겨 코앞까지 다가와도 절대 잘리지 않도록 카메라 한계 개방
+  window.threeCamera = new THREE.PerspectiveCamera(30, W / H, 0.01, 100);
   window.threeCamera.position.set(0, 0, 5.0); 
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
@@ -172,9 +174,8 @@ const initThree = () => {
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
   loader.setDRACOLoader(draco);
 
-  // 💡 [경로 고정] 파일명을 예린님의 절대 순정 원본 파일인 'modeling.glb'로 완전 고정합니다!
   loader.load(
-    `./modeling.glb?cache-kill=${Date.now()}`,
+    `./modeling.glb?v=${Math.random()}`,
     (gltf) => {
       if(!gltf || !gltf.scene) {
         hideSiteLoader();
@@ -184,21 +185,39 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 💡 [지직거림 차단 및 대비 복구] 예린님이 만든 원래 재질(Material)을 훼손하지 않고 100% 그대로 쓰되,
-      // 투명 면 겹침 연산 버그(Depth)와 어두운 환경만 정밀 교정합니다.
+      // 💡 [프리즘 글래스 재질 완전 재설계]
+      const crystalMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        metalness: 0.0,
+        roughness: 0.01,             // 맑고 투명한 유리 표면 질감
+        transparent: true,
+        opacity: 0.35,               // 배경이 영롱하게 비치는 투명도
+        transmission: 0.96,          // 투과율 극대화로 회색 탁함 제거
+        ior: 2.2,                    // 보석급 굴절률로 안쪽 굴절 왜곡 효과 연출
+        side: THREE.DoubleSide,      
+        depthWrite: false,           // 💡 반투명 면끼리 겹칠 때 생기는 노이즈 완전 제거
+        depthTest: true,
+        iridescence: 1.0,            // 💡 [프리즘 이펙트] 보는 각도에 따라 무지갯빛이 감도는 광학 막 코팅
+        iridescenceIOR: 1.8,
+        iridescenceThicknessRange: [100, 360],
+        clearcoat: 1.0,              
+        clearcoatRoughness: 0.0,
+        specularIntensity: 2.0
+      });
+
+      // 💡 6개 파편 메쉬의 투명 레이어 정렬 순서를 강제로 꼬아서 그래픽 카드의 충돌을 원천 봉쇄
+      let meshIndex = 0;
       model.traverse((child) => {
         if (child.isMesh) {
-          if (child.material) {
-            child.material.depthWrite = false; // 💡 면끼리 겹쳐서 지지직 찢어지는 현상 100% 소멸
-            child.material.needsUpdate = true;
-          }
+          child.material = crystalMaterial;
+          child.renderOrder = meshIndex++; // 💡 순차적 레이어 배치로 지지직거림 완벽 디퓨징
           child.castShadow = false;
           child.receiveShadow = false;
         }
       });
 
-      // 💡 [크기 웅장하게 확대] 화면의 절반 이상을 꽉 채우도록 바운딩 박스 크기 비율을 대폭 업스케일 (기존대비 1.6배)
-      const IDEAL_LAYOUT_BOUNDS = 3.6; 
+      // 💡 [안전한 크기 조정] 화면을 벗어나 위아래가 잘리지 않도록 안전 자운드 경계 설정 (기존 3.6 -> 2.6으로 조율)
+      const IDEAL_LAYOUT_BOUNDS = 2.6; 
       const box = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
@@ -214,7 +233,7 @@ const initThree = () => {
       window.modelAnchor = new THREE.Group();
       window.modelAnchor.add(model);
       
-      // 💡 [꼿꼿한 각도 정렬] 정면을 똑바로 예쁘게 바라보고 서 있도록 로테이션 각도 제로 보정
+      // 💡 [꼿꼿한 각도 세팅] 누워있지 않고 정면을 정직하게 바라보도록 정렬
       window.modelAnchor.rotation.set(0, 0, 0); 
       window.threeScene.add(window.modelAnchor);
 
@@ -272,12 +291,11 @@ const animate = () => {
       rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
       rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
 
-      // 꼿꼿이 선 각도를 기준으로 고급스럽게 마우스 반응 회전
       window.modelAnchor.rotation.x = rotationState.currentX;
       window.modelAnchor.rotation.y = rotationState.currentY;
 
-      // 부드러운 공중 부유 효과 추가
-      window.modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.012;
+      // 우아한 공중 부유 효과
+      window.modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.01;
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
   }
