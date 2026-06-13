@@ -175,7 +175,7 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  window.threeRenderer.toneMappingExposure = 1.2; 
+  window.threeRenderer.toneMappingExposure = 2.0; 
 
   // 메탈의 덩어리감과 하이라이트를 위해 직사광 조명 강도를 실버 톤에 맞춰 상향
   const dirLight1 = new THREE.DirectionalLight(0xffffff, 7.0);
