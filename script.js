@@ -43,19 +43,14 @@ const eliminateFakeModels = () => {
   });
 };
 
+// 마우스 트래킹 변수 (화면 중심 기준 -1 ~ 1 값으로 변환용)
+const mouse = { x: 0, y: 0 };
 const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, tx: window.innerWidth * 0.5, ty: window.innerHeight * 0.5 };
 
-// 💡 과하게 드러눕지 않고, 원래 예린님이 세팅했던 웅장하고 예쁜 정면 비스듬 각도 셋팅
-const rotationState = { 
-  currentX: 0.55,     // 앞쪽으로 적당히 숙여져서 입체감이 잘 보이는 각도
-  currentY: -0.5,     // 살짝 오른쪽을 보게 하여 비스듬한 감각 극대화
-  targetX: 0.55, 
-  targetY: -0.5, 
-  isDragging: false, 
-  previousMouseX: 0, 
-  previousMouseY: 0 
-};
-let modelAutoRotY = 0; 
+// 💡 기본 시작 각도 셋팅 (정면에서 입체감이 딱 예쁘게 살아나는 기본 고정축)
+const baseRotation = { x: 0.45, y: -0.4 };
+const rotationState = { currentX: 0.45, currentY: -0.4 };
+
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
 /* ════════════════════════════════════════
@@ -89,8 +84,8 @@ const setupLandingCanvas = () => {
     const px = pointer.x - rect.left;
     const py = pointer.y - rect.top;
     const glow = ctx.createRadialGradient(px, py, 0, px, py, Math.max(width, height) * 0.52);
-    glow.addColorStop(0, 'rgba(255,255,255,0.08)');
-    glow.addColorStop(0.3, 'rgba(150,100,255,0.04)');
+    glow.addColorStop(0, 'rgba(255,255,255,0.09)');
+    glow.addColorStop(0.3, 'rgba(160,110,255,0.04)');
     glow.addColorStop(1, 'rgba(16,16,18,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, width, height);
@@ -110,33 +105,30 @@ const updateLandingVars = () => {
   landing.style.setProperty('--pointer-y', `${clamp01(y / 100) * 100}%`);
 };
 
-// 💡 [대비와 무지개빛을 만드는 고해상도 가상 스튜디오 환경 생성]
-// 칙칙한 회색을 없애기 위해 칠흑 같은 우주 공간에 하이라이트 조명판들을 물리적으로 배치합니다.
+// 💡 맑은 투명도와 대비감을 극대화하기 위한 가상 인공 스튜디오 광원 맵 생성
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a0a0c);
+  scene.background = null; 
 
-  // 상단 스튜디오 라이트 박스
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(8, 0.5, 8),
+    new THREE.BoxGeometry(10, 0.5, 10),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  topLight.position.set(0, 6, 0);
+  topLight.position.set(0, 8, 0);
   scene.add(topLight);
 
-  // 크리스탈 측면을 찌르는 마젠타/싸이언 네온 패널 (무지개 굴절 유도)
   const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(0.2, 5, 5),
+    new THREE.BoxGeometry(0.1, 6, 6),
     new THREE.MeshBasicMaterial({ color: 0x00ffff })
   );
-  leftPanel.position.set(-6, 2, -2);
+  leftPanel.position.set(-7, 3, -2);
   scene.add(leftPanel);
 
   const rightPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(0.2, 5, 5),
+    new THREE.BoxGeometry(0.1, 6, 6),
     new THREE.MeshBasicMaterial({ color: 0xff00ff })
   );
-  rightPanel.position.set(6, 1, 2);
+  rightPanel.position.set(7, 2, 2);
   scene.add(rightPanel);
 
   const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -163,7 +155,7 @@ const initThree = () => {
 
   window.threeRenderer = new THREE.WebGLRenderer({
     canvas: modelCanvas,
-    alpha: true,         
+    alpha: true,         // 배경 투명화 필수 (웹사이트 배경 그라데이션 투과)
     antialias: true,
     powerPreference: "high-performance"
   });
@@ -171,22 +163,22 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping; 
-  window.threeRenderer.toneMappingExposure = 2.2; // 대비와 밝기 대폭 상향
+  window.threeRenderer.toneMappingExposure = 2.0; 
 
-  // 크리스탈 고유 광택을 극대화할 직사광선 레이아웃
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 6.0);
-  dirLight1.position.set(4, 10, 6);
+  // 강력한 직사 핀조명 세팅 (대비감 극대화)
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 7.0);
+  dirLight1.position.set(5, 12, 7);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 3.0);
-  dirLight2.position.set(-5, -2, 4);
+  const dirLight2 = new THREE.DirectionalLight(0xddf0ff, 4.0);
+  dirLight2.position.set(-6, -2, 5);
   window.threeScene.add(dirLight2);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
   window.threeScene.add(ambientLight);
 
-  window.threeCamera = new THREE.PerspectiveCamera(26, W / H, 0.1, 100);
-  window.threeCamera.position.set(0, 0, 5.5); 
+  window.threeCamera = new THREE.PerspectiveCamera(25, W / H, 0.1, 100);
+  window.threeCamera.position.set(0, 0, 5.8); 
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
@@ -207,39 +199,35 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 💡 [진짜 프리즘 퓨어 크리스탈 재질 세팅]
-      // 회색 유리 느낌을 완전히 삭제하고, 투명도와 무지개 필터 두께를 최고치로 올렸습니다.
+      // 💡 불투명한 회색 유기를 지우고, 안쪽 겹침이 투명하게 정돈되도록 메터리얼 전면 재설계
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.01,             // 극도로 매끄러운 표면광
+        roughness: 0.02,             // 극도로 투명하고 매끄러운 질감
         transparent: true,
-        opacity: 0.35,               // 안쪽 레이어가 맑게 비쳐 보이도록 투명도 최적화
-        transmission: 1.0,           // 유리처럼 100% 빛이 통과하도록 투과율 맥스
-        ior: 2.4,                    // 다이아몬드급 굴절률로 배경 비침 왜곡 극대화
+        opacity: 0.28,               // 불투명함을 걷어내고 배경이 완전히 투과되도록 투명도 설정
+        transmission: 1.0,           // 빛을 100% 통과시켜 맑은 크리스탈 구현
+        ior: 2.2,                    // 굴절률을 높여 겹친 내부 메쉬가 영롱하게 굴절되도록 유도
         side: THREE.DoubleSide,      
-        depthWrite: false,           // 지지직거림(Z-fighting) 원천 차단을 위해 다시 false 복구
+        depthWrite: false,           // 투명 메쉬 내부 정렬 꼬임 방지
         depthTest: true,
-        iridescence: 1.0,            // 홀로그램 무지개빛 오버레이 활성화
-        iridescenceIOR: 2.2,
-        iridescenceThicknessRange: [150, 400], // 다채로운 스펙트럼 컬러 유도
-        clearcoat: 1.0,              // 겉면에 매끄러운 코팅막 한 겹 추가
+        iridescence: 1.0,            // 프리즘 무지개 효과 활성화
+        iridescenceIOR: 2.5,
+        iridescenceThicknessRange: [140, 380], // 영롱한 오로라 스펙트럼 유도
+        clearcoat: 1.0,              // 겉면에 유리가 코팅된 듯한 반사광 레이어 추가
         clearcoatRoughness: 0.0,
-        specularIntensity: 2.0
+        specularIntensity: 2.5
       });
 
-      // 💡 내부 6개 레이어의 그리는 순서를 고정하여 겹침 버그 해결
-      let orderIdx = 0;
       model.traverse((child) => {
         if (child.isMesh) {
           child.material = crystalMaterial;
-          child.renderOrder = orderIdx++; 
           child.castShadow = false;
           child.receiveShadow = false;
         }
       });
 
-      // 안전 바운딩 스케일링
+      // 스케일 오토 레이아웃
       const IDEAL_LAYOUT_BOUNDS = 2.1; 
       const box = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
@@ -255,8 +243,6 @@ const initThree = () => {
 
       window.modelAnchor = new THREE.Group();
       window.modelAnchor.add(model);
-      
-      window.modelAnchor.rotation.set(0, 0, 0); 
       window.threeScene.add(window.modelAnchor);
 
       eliminateFakeModels(); 
@@ -305,18 +291,18 @@ const animate = () => {
 
   if (window.threeRenderer && window.threeScene && window.threeCamera) {
     if (window.modelAnchor) {
-      if (!rotationState.isDragging) {
-        modelAutoRotY += 0.0015;
-        rotationState.targetY += 0.0015;
-      }
+      // 💡 [호버 기반 유연한 제한 관성 회전 인터랙션]
+      // 마우스의 위치(mouse.x, mouse.y)에 따라 정해진 범위(최대 약 25도 내외) 안에서만 부드럽게 기울어집니다.
+      const targetRotationX = baseRotation.x + (mouse.y * 0.45);
+      const targetRotationY = baseRotation.y + (mouse.x * 0.55);
 
-      rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
-      rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
+      rotationState.currentX += (targetRotationX - rotationState.currentX) * 0.06;
+      rotationState.currentY += (targetRotationY - rotationState.currentY) * 0.06;
 
       window.modelAnchor.rotation.x = rotationState.currentX;
       window.modelAnchor.rotation.y = rotationState.currentY;
 
-      // 우아한 공중 부유 효과
+      // 부드러운 유영 효과 추가
       window.modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.015;
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
@@ -324,44 +310,22 @@ const animate = () => {
 };
 
 /* ════════════════════════════════════════
-    DRAG & MOUSE EVENTS
+    MOUSE HOVER INTERACTION SETUP
 ════════════════════════════════════════ */
-const setupDragEvents = () => {
-  if (!landingDisplay) return;
-
-  landingDisplay.addEventListener('pointerdown', (e) => {
-    rotationState.isDragging = true;
-    rotationState.previousMouseX = e.clientX;
-    rotationState.previousMouseY = e.clientY;
-  });
-
+const setupHoverEvents = () => {
   window.addEventListener('pointermove', (e) => {
     pointer.tx = e.clientX;
     pointer.ty = e.clientY;
 
-    if (!rotationState.isDragging || !window.modelAnchor) return;
-
-    const deltaX = e.clientX - rotationState.previousMouseX;
-    const deltaY = e.clientY - rotationState.previousMouseY;
-
-    rotationState.targetY += deltaX * 0.006;
-    rotationState.targetX += deltaY * 0.006;
-
-    // 마우스 조작 중 과도하게 수평으로 발라당 드러눕지 않도록 회전 한계 고정
-    rotationState.targetX = Math.max(0.1, Math.min(1.0, rotationState.targetX));
-
-    rotationState.previousMouseX = e.clientX;
-    rotationState.previousMouseY = e.clientY;
-  });
-
-  window.addEventListener('pointerup', () => {
-    rotationState.isDragging = false;
+    // 💡 화면 중심을 기준으로 마우스의 위치를 -1 ~ 1 사이의 비율값으로 정규화
+    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
   });
 };
 
 const initAll = () => {
   landingCanvasCtrl = setupLandingCanvas();
-  setupDragEvents(); 
+  setupHoverEvents(); // 드래그 제거 후 원본 호버 이벤트 리스너 결합
   eliminateFakeModels(); 
 
   highlightElements.forEach((el) => {
