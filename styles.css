@@ -810,18 +810,14 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
 ════════════════════════════════ */
 .cursor-follower {
   position: fixed;
-  width: 24px;
-  height: 24px;
-  background: rgba(0, 255, 102, 0.4); /* 원래 쓰시던 반투명 연두색 */
-  border: 1.5px solid #00ff66;       /* 원래 쓰시던 쨍한 연두색 라인 */
+  width: 8px;                  /* 작은 원 크기 */
+  height: 8px;
+  background: #00ff66;         /* 연두색 꽉 찬 투명도 없는 원 */
   border-radius: 50%;
-  box-shadow: 0 0 12px rgba(0, 255, 102, 0.5); /* 원래 쓰시던 네온 광채 */
-  backdrop-filter: blur(1px);
-  
-  /* 모달과 3D 화면을 모두 뚫고 최상단에 보이게 만드는 필수 속성 */
-  z-index: 10000000 !important; 
-  pointer-events: none !important; /* 마우스 그래픽이 다른 버튼 클릭을 막지 않게 투과 */
-}
+  pointer-events: none;
+  z-index: 10000000 !important; /* 모달창 등 최상단 레이어 위로 배치 */
+  transform: translate(-50%, -50%); /* 마우스 포인터 정중앙 정렬 */
+  transition: transform 0.1s ease-out;
 }
 .cursor-follower.is-link {
   width: 20px; height: 20px;
