@@ -99,18 +99,18 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    HIGH-END ENVIRONMENT MAP (오로라 프리즘 광원)
+    HIGH-END ENVIRONMENT MAP (오로라 스펙트럼 광원)
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   const geo = new THREE.BoxGeometry(12, 12, 12);
   const mats = [
     new THREE.MeshBasicMaterial({ color: 0x00f3ff, side: THREE.BackSide }), // Cyan Edge
-    new THREE.MeshBasicMaterial({ color: 0x04040c, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x020205, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0xff00ca, side: THREE.BackSide }), // Magenta Edge
     new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // White Highlight
-    new THREE.MeshBasicMaterial({ color: 0x060612, side: THREE.BackSide })  
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // Pure White Source
+    new THREE.MeshBasicMaterial({ color: 0x04040a, side: THREE.BackSide })  
   ];
   const box = new THREE.Mesh(geo, mats);
   scene.add(box);
@@ -137,27 +137,29 @@ const initThree = () => {
   const W = shell.offsetWidth;
   const H = shell.offsetHeight;
 
+  // 🌟 정밀 고대비 안티앨리어싱 세팅으로 자글거림을 억제합니다.
   window.threeRenderer = new THREE.WebGLRenderer({
     canvas: modelCanvas,
     alpha: true, 
-    antialias: true
+    antialias: true,
+    powerPreference: "high-performance"
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  // 🌟 상하단이 잘리는 현상을 막기 위해 카메라 화각(FOV)을 조금 넓히고 안정적인 시야 거리를 확보합니다.
-  window.threeCamera = new THREE.PerspectiveCamera(38, W / H, 0.1, 100);
-  window.threeCamera.position.set(0, 0, 5.8); 
+  // 🌟 카메라 거리를 더 여유롭게 확보하여 사방 꼭짓점이 절대로 잘리지 않도록 안전 구역을 만듭니다.
+  window.threeCamera = new THREE.PerspectiveCamera(34, W / H, 0.1, 100);
+  window.threeCamera.position.set(0, 0, 6.2); 
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
 
-  const ambient = new THREE.AmbientLight(0xffffff, 1.0);
+  const ambient = new THREE.AmbientLight(0xffffff, 1.2);
   window.threeScene.add(ambient);
 
-  const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
-  dirLight.position.set(5, 8, 5);
+  const dirLight = new THREE.DirectionalLight(0xffffff, 3.0);
+  dirLight.position.set(5, 10, 6);
   window.threeScene.add(dirLight);
 
   const loader = new GLTFLoader();
@@ -171,58 +173,48 @@ const initThree = () => {
       if(window.modelAnchor) window.threeScene.remove(window.modelAnchor);
 
       const model = gltf.scene;
-      window.modelAnchor = new THREE.Group();
 
-      // 💥 [자글거림 영구 제거 기법] 안쪽 면(Back)과 바깥면(Front)의 렌더링 순서를 완전히 분리합니다.
+      // 🌟 [오로라 크리스탈 마스터 재질] 무아레 현상을 유발하는 복제를 없애고, 투과면의 노이즈를 완벽하게 제어합니다.
+      const crystalMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        metalness: 0.0,
+        roughness: 0.0,             // 0.0 고정으로 표면의 자글자글한 점 가루 노이즈를 완전히 소멸
+        transparent: true,
+        transmission: 0.95,          // 투명하게 굴절되는 통유리 사양 복원
+        ior: 1.52,                   // 실제 유리의 물리 굴절률 설정
+        thickness: 0.8,              
+        envMap: envTexture,
+        envMapIntensity: 5.0,        // 외곽선에 사이안/핑크 오로라 빛 하이라이트를 강렬하게 반사
+        side: THREE.DoubleSide,      // 모델의 안쪽과 바깥쪽을 원본 그대로 깨짐 없이 온전하게 표현
+        depthWrite: false            // 투명 물체끼리 겹칠 때 뎁스가 찢어지는 자글거림을 물리적으로 차단
+      });
+
+      // 안전한 뼈대 순회: 어떠한 복제 행위도 없이 원본에만 재질을 완벽 이식
       model.traverse((child) => {
         if (child.isMesh) {
-          // 1. 공통 굴절 프리즘 재질 속성 정의
-          const baseSpecs = {
-            color: 0xffffff,
-            metalness: 0.0,
-            roughness: 0.01,
-            transparent: true,
-            transmission: 0.96,       // 투명한 크리스탈 유리 바디 구현
-            ior: 1.52,                // 실제 리얼한 컴포넌트 굴절률 설정
-            thickness: 1.0,           // 유리 내부 빛 굴절 두께감
-            envMap: envTexture,
-            envMapIntensity: 4.5,     // 에지에 마젠타/사이안 오로라를 강하게 맺히게 함
-            depthWrite: true,
-            depthTest: true
-          };
-
-          // 2. 뒷면 전용 메쉬 생성 및 재질 적용 (안쪽 투과면 선행 렌더링)
-          const backMat = new THREE.MeshPhysicalMaterial({ ...baseSpecs, side: THREE.BackSide });
-          const backMesh = child.clone();
-          backMesh.material = backMat;
-          window.modelAnchor.add(backMesh);
-
-          // 3. 앞면 전용 재질 적용 (바깥 외곽선 최종 안착 - 면 찢어짐과 자글거림 소멸)
-          const frontMat = new THREE.MeshPhysicalMaterial({ ...baseSpecs, side: THREE.FrontSide });
-          child.material = frontMat;
-          window.modelAnchor.add(child);
+          child.material = crystalMaterial;
+          child.visible = true;
         }
       });
 
-      // 💥 [골든 크기 & 상하 잘림 방지 밸런스 조정] 글자 레이아웃 옆에 딱 맞으면서 테두리가 끊기지 않는 크기 계산
-      const TARGET_BOUNDS = 2.4; 
+      // 🌟 [안정적인 웅장함 스케일] 글자 레이아웃 옆을 채우면서 화면 경계선에 닿지 않는 크기
+      const IDEAL_BOUNDS = 2.4; 
       
-      const box    = new THREE.Box3().setFromObject(window.modelAnchor);
+      const box    = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
       const size   = new THREE.Vector3();
       box.getSize(size);
       
       const maxDim = Math.max(size.x, size.y, size.z);
-      const scale  = TARGET_BOUNDS / maxDim; 
+      const scale  = IDEAL_BOUNDS / maxDim; 
       
-      // 피벗 정렬 및 최적 각도 배치
-      window.modelAnchor.children.forEach(c => {
-        c.position.sub(centre);
-      });
-      window.modelAnchor.scale.setScalar(scale);
-      window.modelAnchor.rotation.set(Math.PI / 2.3, 0, 0); 
+      model.position.sub(centre.multiplyScalar(scale));
+      model.scale.setScalar(scale);
+      model.rotation.set(Math.PI / 2.3, 0, 0); 
 
+      window.modelAnchor = new THREE.Group();
+      window.modelAnchor.add(model);
       window.threeScene.add(window.modelAnchor);
 
       eliminateFakeModels(); 
