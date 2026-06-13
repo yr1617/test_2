@@ -877,81 +877,32 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   .reveal-card { opacity: 1; transform: none; }
 }
 /* ════════════════════════════════════════
-    [진짜 수정] 카드 내부(안쪽) 위쪽 여백만 축소
+    [완벽 종결] 카드 내부 위아래 여백 완전 압축
 ════════════════════════════════════════ */
 
-/* 1. 프로젝트 유형 카드 안쪽 위쪽 여백 축소 (기존 100px -> 40px로 수정) */
+/* 1. 유형 카드 (01, 02, 03) 내부 위아래 여백 최소화 */
 .project-card {
-  padding-top: 40px !important;  /* 카드 내부의 글자나 콘텐츠가 위로 바짝 올라갑니다 */
-}
-
-/* 2. 메인 프로젝트 카드 안쪽 위쪽 여백 축소 (기존 16px -> 4px로 수정) */
-.main-project-card {
-  padding-top: 4px !important;   /* 카드 내부 썸네일/컨텐츠 위쪽 여백을 타이트하게 조입니다 */
-}
-/* ════════════════════════════════════════
-    [진짜 수정] 카드 내 위쪽 빈 공간 완벽 축소
-════════════════════════════════════════ */
-
-/* 1. 유형 카드 (02 개인 프로젝트 쪽) 내부 위쪽 공백 축소 */
-.project-card {
-  /* 바닥에 처박혀 있던 텍스트를 위로 올릴 수 있도록 정렬 변경 */
+  /* 바닥에 붙어있던 텍스트를 위로 완전히 밀착 */
   justify-content: flex-start !important; 
-  /* 기존 100px였던 천장 여백을 대폭 깎아서 컨텐츠를 완전히 위로 밀착 */
-  padding-top: 32px !important; 
-}
-
-/* 유형 카드 내부의 인덱스 숫자(02) 위치가 겹치지 않게 미세 조정 */
-.project-index {
-  top: 16px !important;
-}
-
-
-/* 2. 메인 프로젝트 카드 (맛집 지도 쪽) 내부 위쪽 공백 축소 */
-.main-project-card {
-  /* 카드 내부 요소들이 천장부터 차곡차곡 쌓이도록 위쪽 정렬 고정 */
-  justify-content: flex-start !important;
-  /* 카드 자체의 안쪽 위 공백 최소화 */
+  /* 천장과 바닥 패딩을 최소한의 여백만 남기고 싹 날립니다 */
   padding-top: 16px !important; 
+  padding-bottom: 8px !important; 
+  /* 카드가 내용물 크기에 딱 맞게 줄어들도록 최소 높이 제거 */
+  min-height: auto !important; 
 }
 
-/* 썸네일 이미지 영역 위쪽에 붙어있는 불필요한 간격이나 마진이 있다면 제거 */
-.main-project-card .project-thumb {
-  margin-top: 0 !important;
-}
-/* ════════════════════════════════════════
-    [최종 교정] 카드 내부 위아래 여백 밸런스 매칭
-════════════════════════════════════════ */
-
-/* 1. 유형 카드 (01, 02, 03) 밸런스 복구 및 아래 여백 확보 */
-.project-card {
-  /* 1) 텍스트를 다시 바닥 정렬로 안전하게 복구 */
-  justify-content: flex-end !important; 
-  
-  /* 2) 천장 패딩을 100px에서 50px로 절반만 줄여 윗공백 제거 */
-  padding-top: 50px !important; 
-  
-  /* 3) 바닥 패딩을 기존 32px에서 40px로 살짝 늘려 아래 여백 확실히 확보 */
-  padding-bottom: 40px !important; 
-  
-  /* 4) 패딩 조정에 맞춰 카드 전체가 찌그러지지 않게 최소 높이 유지 */
-  min-height: 420px !important; 
+/* 01, 02 숫자 위치 미세 조정 */
+.project-index {
+  top: 12px !important;
 }
 
-
-/* 2. 메인 프로젝트 카드 (주요 프로젝트 쪽) 밸런스 복구 */
+/* 2. 메인 프로젝트 카드 (주요 프로젝트) 내부 위아래 여백 최소화 */
 .main-project-card {
-  /* 1) 정렬 상태 복구 및 요소 간 간격 유지 */
-  justify-content: flex-end !important;
-  
-  /* 2) 사방 패딩을 균일하게 맞추되, 위쪽만 미세하게 조절 (기존 16px 구조 반영) */
-  padding: 14px 16px 20px 16px !important; /* 위(14) 좌우(16) 아래(20)로 아래 여백 확보 */
-  
-  /* 3) 내부 요소(글자, 버튼 등)들 사이의 간격 유지 */
-  gap: 12px !important;
-}
-
-/* 썸네일 이미지 아래쪽 마진을 살짝 주어 글씨와의 간격 확보 */
-.project-thumb {
-  margin-bottom: 8px !important;
+  /* 내용물을 위로 완전히 밀착 */
+  justify-content: flex-start !important;
+  /* 천장과 바닥 패딩 최소화 */
+  padding-top: 8px !important; 
+  padding-bottom: 8px !important;
+  /* 최소 높이 제거 */
+  min-height: auto !important;
 }
