@@ -104,51 +104,46 @@ const updateLandingVars = () => {
   landing.style.setProperty('--pointer-y', `${clamp01(y/100)*100}%`);
 };
 
-/* ════════════════════════════════════════
-    가상 돔 조명 생성
-════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
-  scene.background = null;
 
-  const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(60, 5, 60),
+  const room = new THREE.Mesh(
+    new THREE.BoxGeometry(40, 40, 40),
+    new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      side: THREE.BackSide
+    })
+  );
+  scene.add(room);
+
+  const brightTop = new THREE.Mesh(
+    new THREE.PlaneGeometry(20, 20),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  topLight.position.set(0, 15, 0);
-  scene.add(topLight);
+  brightTop.position.set(0, 18, 0);
+  brightTop.rotation.x = Math.PI / 2;
+  scene.add(brightTop);
 
-  const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 30, 30),
+  const brightFront = new THREE.Mesh(
+    new THREE.PlaneGeometry(20, 20),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  leftPanel.position.set(-15, 5, 0);
-  scene.add(leftPanel);
+  brightFront.position.set(0, 0, 18);
+  scene.add(brightFront);
 
-  const rightPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 30, 30),
+  const brightLeft = new THREE.Mesh(
+    new THREE.PlaneGeometry(20, 20),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  rightPanel.position.set(15, 5, 0);
-  scene.add(rightPanel);
-const backPanel = new THREE.Mesh(
-  new THREE.BoxGeometry(40, 40, 2),
-  new THREE.MeshBasicMaterial({ color: 0xffffff })
-);
-backPanel.position.set(0, 5, -15);
-scene.add(backPanel);
+  brightLeft.position.set(-18, 0, 0);
+  brightLeft.rotation.y = Math.PI / 2;
+  scene.add(brightLeft);
 
-const frontPanel = new THREE.Mesh(
-  new THREE.BoxGeometry(40, 40, 2),
-  new THREE.MeshBasicMaterial({ color: 0xcccccc })
-);
-frontPanel.position.set(0, 5, 15);
-scene.add(frontPanel);
   const pmrem = new THREE.PMREMGenerator(renderer);
-  pmrem.compileEquirectangularShader();
   const rt = pmrem.fromScene(scene);
+
   pmrem.dispose();
-  rt.texture.mapping = THREE.CubeReflectionMapping;
+
   return rt.texture;
 };
 
@@ -208,13 +203,11 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-const silverMetalMat = new THREE.MeshStandardMaterial({
-  color: 0xd8d8d8,
-  metalness: 0.65,
-  roughness: 0.22,
-
-  emissive: 0x222222,
-
+const chromeSilverMat = new THREE.MeshStandardMaterial({
+  color: 0xdddddd,
+  metalness: 0.95,
+  roughness: 0.15,
+  emissive: 0x444444,
   side: THREE.DoubleSide
 });
 model.traverse((child) => {
