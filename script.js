@@ -63,7 +63,7 @@ const setupLandingCanvas = () => {
     state.height = rect.height;
     state.dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     landingCanvas.width = Math.max(1, Math.floor(rect.width * state.dpr));
-    landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr)); // 💥 오타 완벽 수정 완료!
+    landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
     landingCanvas.style.width = `${rect.width}px`;
     landingCanvas.style.height = `${rect.height}px`;
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
@@ -105,9 +105,9 @@ const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   const geo = new THREE.BoxGeometry(16, 16, 16);
   const mats = [
-    new THREE.MeshBasicMaterial({ color: 0x00faff, side: THREE.BackSide }), // Cyan
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // White High
-    new THREE.MeshBasicMaterial({ color: 0xff00d4, side: THREE.BackSide }), // Magenta
+    new THREE.MeshBasicMaterial({ color: 0x00faff, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0xff00d4, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0x101015, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0x020205, side: THREE.BackSide })  
@@ -125,17 +125,17 @@ const generatePureEnvironment = (renderer) => {
 };
 
 /* ════════════════════════════════════════
-    🌈 면 겹침 차단 + 고해상도 오로라 프리즘 셰이더
+    🌈 면 깨짐 자글거림 무력화 + 오로라 프리즘 셰이더
 ════════════════════════════════════════ */
 const createAntiOverlapPrismMaterial = (envTexture) => {
   return new THREE.ShaderMaterial({
     uniforms: {
       envMap: { value: envTexture },
-      iorR: { value: 1.07 },
-      iorG: { value: 1.13 },
-      iorB: { value: 1.20 },
-      rainbowIntensity: { value: 3.8 },
-      brightness: { value: 1.5 }
+      iorR: { value: 1.05 },
+      iorG: { value: 1.10 },
+      iorB: { value: 1.15 },
+      rainbowIntensity: { value: 3.2 },
+      brightness: { value: 1.4 }
     },
     vertexShader: `
       varying vec3 vNormal;
@@ -166,10 +166,13 @@ const createAntiOverlapPrismMaterial = (envTexture) => {
       varying vec3 vViewDir;
 
       void main() {
+        // 뒤집히거나 겹친 노멀 벡터를 화면 방향에 맞춰 보정 (자글거리는 깨짐 현상 차단)
         vec3 normal = normalize(vWorldNormal);
+        if (!gl_FrontFacing) normal = -normal; 
+
         vec3 viewDir = vViewDir;
 
-        // 굴절각 분할 계산으로 내부 깨짐 최소화
+        // 분산 효과 연산
         vec3 reR = refract(viewDir, normal, 1.0 / iorR);
         vec3 reG = refract(viewDir, normal, 1.0 / iorG);
         vec3 reB = refract(viewDir, normal, 1.0 / iorB);
@@ -179,28 +182,25 @@ const createAntiOverlapPrismMaterial = (envTexture) => {
         float b = textureCube(envMap, reB).b;
         vec3 rainbow = vec3(r, g, b) * rainbowIntensity;
 
-        // 반사광 하이라이트 추가
+        // 표면 하이라이트 매끄럽게 처리
         vec3 refDir = reflect(viewDir, normal);
-        vec3 reflection = textureCube(envMap, refDir).rgb * 2.0;
+        vec3 reflection = textureCube(envMap, refDir).rgb * 1.5;
 
-        // 프레넬 림라이트
-        float fresnel = pow(1.0 + dot(viewDir, normal), 2.2);
+        float fresnel = pow(1.0 + dot(viewDir, normal), 2.0);
         fresnel = clamp(fresnel, 0.0, 1.0);
 
-        // 시커멓게 죽는 내부를 맑게 밀어내기 위한 크리스탈 베이스광
-        vec3 baseGlass = vec3(0.96, 0.97, 0.99) * brightness;
-        
-        // 외곽선에 투명한 오로라 스펙트럼 합성
-        vec3 finalColor = mix(baseGlass + rainbow * 0.25, rainbow + reflection, fresnel);
-        float alpha = mix(0.18, 0.90, fresnel);
+        // 시커먼 어둠을 지우고 맑은 크리스탈 베이스 투과
+        vec3 baseGlass = vec3(0.95, 0.96, 0.98) * brightness;
+        vec3 finalColor = mix(baseGlass + rainbow * 0.2, rainbow + reflection, fresnel);
+        float alpha = mix(0.20, 0.85, fresnel);
 
         gl_FragColor = vec4(finalColor, alpha);
       }
     `,
     transparent: true,
     blending: THREE.NormalBlending,
-    side: THREE.DoubleSide,
-    depthWrite: false, // 💥 면 겹침으로 어두워지는 현상 완벽 방어
+    side: THREE.DoubleSide, // 💥 앞뒷면 연산을 안전하게 켜두되, 내부 셰이더 조건문으로 깨짐을 잡습니다.
+    depthWrite: false, 
     depthTest: true
   });
 };
@@ -243,7 +243,6 @@ const initThree = () => {
     `./modeling.glb?v=${Date.now()}`,
     (gltf) => {
       if(!gltf || !gltf.scene) {
-        console.warn("GLB 데이터 구조 오류");
         hideSiteLoader();
         return;
       }
@@ -260,7 +259,7 @@ const initThree = () => {
         }
       });
 
-      // 💥 우측 그리드를 묵직하게 채우는 안정적인 최적 크기 밸런싱 고정
+      // 우측 영역 꽉 차게 밸런스 조정
       const IDEAL_LAYOUT_BOUNDS = 2.6; 
       
       const box = new THREE.Box3().setFromObject(model);
