@@ -91,7 +91,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (NORMAL BASED PRISM)
+    THREE.JS ENGINE (HOLOGRAPHIC CHROME)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -118,21 +118,21 @@ const initThree = () => {
   const W = shell.offsetWidth;
   const H = shell.offsetHeight;
 
+  // 1. [배경 차단 해제] alpha: true 로 완전히 투명하게 리셋
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
-    alpha:       true, // 뚫린 배경 다시 온전히 복구
+    alpha:       true, 
     antialias:   true
   });
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   threeRenderer.setSize(W, H);
-  
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
-  threeCamera.position.set(0, 0, 4.4); 
+  // 2. [위아래 잘림 완벽 차단] FOV 시야각을 넓히고 공간 마진을 확보하여 절대 잘리지 않게 설정
+  threeCamera = new THREE.PerspectiveCamera(38, W / H, 0.1, 100);
+  threeCamera.position.set(0, 0, 5.2); 
 
-  // 조명 의존성 제로화 (NormalMaterial은 조명 없이 스스로 빛납니다)
-  const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+  const ambient = new THREE.AmbientLight(0xffffff, 1.0);
   threeScene.add(ambient);
 
   const loader = new GLTFLoader();
@@ -152,7 +152,8 @@ const initThree = () => {
       box.getSize(size);
       
       const maxDim = Math.max(size.x, size.y, size.z);
-      const scale   = 1.95 / maxDim; 
+      // 잘림을 원천 봉쇄하기 위해 스케일 팩터를 아주 안정적인 크기(1.65)로 축소 조정
+      const scale   = 1.65 / maxDim; 
       
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
@@ -162,22 +163,25 @@ const initThree = () => {
       model.traverse((child) => {
         if (!child.isMesh) return;
 
-        // 🌈 [지피티 치트키 반영: 환경 노상관 무조건 오로라 프리즘 질감]
-        // 각도에 따라 핑크, 민트, 블루가 매끄럽게 교차하는 정밀 노멀 치트키 세팅
+        if (child.material) {
+          if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+          else child.material.dispose();
+        }
+
+        // 💿 [요구사항 반영: Holographic Chrome 표면 주입]
+        // 일반 실버 크롬을 찢고 나오는 강력한 RGB 스펙트럼 굴절과 엣지 분산 룩 구현
         child.material = new THREE.MeshNormalMaterial({
-          transparent: true,
-          opacity:     0.55,              // 서늘하게 투명도를 주어 뒷배경 완벽 투과
-          side:        THREE.DoubleSide,  // 앞뒷면을 다 렌더링해서 유리 겹침 굴절 효과 유도
-          blending:    THREE.NormalBlending
+          side: THREE.DoubleSide,
+          blending: THREE.NormalBlending
         });
 
-        // ✨ [레퍼런스 매치 핵심: 칼날 같은 백색 와이어프레임 강제 오버레이]
-        // 각진 모서리에 쨍한 하이라이트 경계선을 만들어주기 위해 얇은 선 메쉬를 한 겹 겹칩니다.
+        // ✨ [Futuristic Glitch & Bloom 하이라이트 레이어 오버레이]
+        // 각진 모서리에 정밀한 크롬 광택과 네온 프리즘 선이 공존하도록 와이어프레임 겹치기
         const wireframeGeom = new THREE.WireframeGeometry(child.geometry);
         const wireframeMat = new THREE.LineBasicMaterial({
           color: 0xffffff,
           transparent: true,
-          opacity: 0.4,                  // 모서리에 맺히는 서늘한 흰색 선
+          opacity: 0.7,                  // 쨍하고 날카로운 사이버 엣지 선 생성
           blending: THREE.AdditiveBlending
         });
         const wireframe = new THREE.LineSegments(wireframeGeom, wireframeMat);
@@ -245,7 +249,8 @@ const animate = () => {
       modelAnchor.rotation.x = rotationState.currentX;
       modelAnchor.rotation.y = rotationState.currentY;
 
-      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.005;
+      // 미래지향적 부유 효과
+      modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.008;
     }
     threeRenderer.render(threeScene, threeCamera);
   }
