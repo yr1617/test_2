@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    GLOBAL ENGINE REF (전역 안전 바인딩)
+    GLOBAL ENGINE REF
 ════════════════════════════════════════ */
 window.threeScene     = window.threeScene || null;
 window.threeCamera    = window.threeCamera || null;
@@ -105,20 +105,20 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (맑은 유리 프리즘 렌더 공정)
+    THREE.JS ENGINE (오로라 유리 반사 제어 공정)
 ════════════════════════════════════════ */
-const generateFakeEnvironment = (renderer) => {
+const generateRefractionEnvironment = (renderer) => {
   const scene = new THREE.Scene();
-  const geo = new THREE.BoxGeometry(6, 6, 6);
+  const geo = new THREE.BoxGeometry(8, 8, 8);
   
-  // 💥 유리를 허옇게 가리던 100% 화이트 면을 제거하고, 맑은 반사 실루엣만 맺히도록 톤다운된 스카이박스 구축
+  // 유리의 에지 각면마다 영롱한 네온 컬러 반사광이 맺히도록 그라데이션 환경 형성 (레퍼런스 1:1 대응)
   const mats = [
-    new THREE.MeshBasicMaterial({ color: 0x333338, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x00ffff, side: THREE.BackSide }), // 시안
     new THREE.MeshBasicMaterial({ color: 0x050508, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x222225, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.BackSide }), // 마젠타
     new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x333338, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x0a0a0f, side: THREE.BackSide })  
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // 화이트 에지 반사광
+    new THREE.MeshBasicMaterial({ color: 0x0c0c12, side: THREE.BackSide })  
   ];
   const box = new THREE.Mesh(geo, mats);
   scene.add(box);
@@ -128,6 +128,9 @@ const generateFakeEnvironment = (renderer) => {
   
   const renderTarget = pmremGenerator.fromScene(scene);
   pmremGenerator.dispose();
+  
+  // 💥 [핵심] 환경맵 매핑 방식을 '굴절(Refraction)'로 설정하여 투명 유리 투과 왜곡을 시뮬레이션합니다.
+  renderTarget.texture.mapping = THREE.CubeRefractionMapping;
   return renderTarget.texture;
 };
 
@@ -150,40 +153,29 @@ const initThree = () => {
   const W = shell.offsetWidth;
   const H = shell.offsetHeight;
 
-  // 💥 [핵심 교정] 알파 투과 연산 정상화 및 하얗게 뜨는 왜곡 원천 차단
   window.threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
     alpha:       true, 
     antialias:   true,
-    premultipliedAlpha: true // true로 전환하여 배경 레이어와의 물리 투명 블렌딩을 정상화합니다.
+    premultipliedAlpha: false // 배경 투명 웹 글레이징 최적화 고정
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
-  window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-  window.threeRenderer.toneMappingExposure = 0.9; // 광량 오버로 인한 화이트 아웃 억제
 
   window.threeCamera = new THREE.PerspectiveCamera(36, W / H, 0.1, 100);
   window.threeCamera.position.set(0, 0, 5.3); 
 
-  const envTexture = generateFakeEnvironment(window.threeRenderer);
+  const envTexture = generateRefractionEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
 
-  // 💥 유리를 하얀 덩어리로 만들던 과한 조명 세기 전면 하향 및 색상 예리화
-  const ambient = new THREE.AmbientLight(0xffffff, 0.2);
+  // 광원 세기 최적화로 투명도 유지
+  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
   window.threeScene.add(ambient);
 
-  const keyLight1 = new THREE.DirectionalLight(0xffffff, 0.8); // 정면 메인광 축소 (하얗게 타는 버그 방지)
-  keyLight1.position.set(5, 8, 5);
-  window.threeScene.add(keyLight1);
-
-  const keyLight2 = new THREE.DirectionalLight(0x00ffff, 4.0); // 엣지에 맺힐 선명한 시안 프리즘광
-  keyLight2.position.set(-6, 4, 2);
-  window.threeScene.add(keyLight2);
-
-  const keyLight3 = new THREE.DirectionalLight(0xff00ff, 4.0); // 엣지에 맺힐 선명한 마젠타 프리즘광
-  keyLight3.position.set(6, -4, 2);
-  window.threeScene.add(keyLight3);
+  const pointLight1 = new THREE.PointLight(0xffffff, 2.0, 50);
+  pointLight1.position.set(3, 4, 3);
+  window.threeScene.add(pointLight1);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -208,32 +200,24 @@ const initThree = () => {
       model.scale.setScalar(scale);
       model.rotation.set(Math.PI / 2.3, 0, 0); 
 
-      // 🌟 [투명 통유리 마스터피스 재질] 불투명 현상 완벽 박멸 공식
-      const clearGlassMaterial = new THREE.MeshPhysicalMaterial({
+      // 🌟 [배경 완벽 관통 크리스탈 재질 공식]
+      // 내부 면이 하얗게 뭉치던 transmission 대신 물리 블렌딩 기법을 사용하여 투명도를 극대화합니다.
+      const crystalMaterial = new THREE.MeshStandardMaterial({
         color: 0xffffff,
-        metalness: 0.0,
-        roughness: 0.0,
-        transmission: 1.0,              // 100% 완전 투과
-        ior: 1.5,                       // 현실적인 유리 굴절률로 고정하여 밀도 최적화
-        thickness: 0.2,                 // 💥 두께감을 슬림하게 줄여 내부 폴리곤이 화얗게 뭉치는 현상 차단
-        transparent: true,
-        opacity: 1.0,
-        reflectivity: 0.8,
-        clearcoat: 1.0,                 
-        clearcoatRoughness: 0.0,
-        side: THREE.DoubleSide,         
-        depthWrite: false,              // 💥 [초초초핵심] 깊이 버퍼 쓰기를 꺼서 앞뒤 면이 서로를 가리지 않고 투명하게 관통하도록 처리합니다.
+        metalness: 0.1,
+        roughness: 0.0,                  // 완벽한 고광택 매끄러운 유리면
+        transparent: true,               // 💥 하얀 덩어리 현상을 지우고 배경을 투과시키기 위한 핵심 설정
+        opacity: 0.35,                   // 💥 중심부는 맑게 뚫리도록 기본 투명도를 35%로 조정
         envMap: envTexture,
-        envMapIntensity: 1.5            
+        envMapIntensity: 5.0,            // 💥 환경맵 강도를 높여 엣지 각면에 청록/자홍 오로라 반사광을 쨍하게 입힘
+        side: THREE.DoubleSide,
+        depthWrite: false,               // 앞뒷면 겹침으로 투명도가 깨지는 버그 차단
+        blending: THREE.NormalBlending
       });
-
-      if (typeof THREE.MeshPhysicalMaterial.prototype.dispersion !== 'undefined') {
-        clearGlassMaterial.dispersion = 15.0; // 💥 무지개빛 강도를 최대로 높여 면 분할 시 맑은 프리즘 색상 유도
-      }
 
       model.traverse((child) => {
         if (child.isMesh) {
-          child.material = clearGlassMaterial;
+          child.material = crystalMaterial;
           child.castShadow = false;
           child.receiveShadow = false;
         }
