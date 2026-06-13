@@ -1,462 +1,388 @@
-import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-
 /* ════════════════════════════════════════
-    ENGINE DESTROY & CLEAN
+    1. RESET & CORE STYLES
 ════════════════════════════════════════ */
-if (window.animFrameId) {
-  cancelAnimationFrame(window.animFrameId);
-  window.animFrameId = null;
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
-if (window.threeRenderer) {
-  window.threeRenderer.dispose();
-  const domCanvas = document.querySelector('#model-canvas');
-  if (domCanvas) {
-    const gl = domCanvas.getContext('webgl2') || domCanvas.getContext('webgl');
-    if (gl) gl.getExtension('WEBGL_lose_context')?.loseContext();
-  }
-  window.threeRenderer = null;
+
+body {
+  background-color: #101012;
+  color: #eeeeee;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
-window.threeScene    = null;
-window.threeCamera   = null;
-window.modelAnchor   = null;
-window.__threeInitialized = false;
 
 /* ════════════════════════════════════════
-    DOM REFS
+    2. CURSOR & SPOTLIGHT (형광 연두 마우스)
 ════════════════════════════════════════ */
-const landing      = document.querySelector('.landing');
-const landingCanvas= document.querySelector('.landing-canvas');
-const landingDisplay = document.querySelector('#landing-display');
-const modelCanvas  = document.querySelector('#model-canvas');
-const follower     = document.querySelector('.cursor-follower');
-const navLinks     = document.querySelectorAll('.topnav a[data-target]');
-const sections     = [];
+.cursor-follower {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  background: #00ff66 !important; /* 완벽한 형광 연두색 */
+  border-radius: 50%;
+  pointer-events: none !important;
+  transform: translate(-50%, -50%);
+  z-index: 10000000 !important;
+  transition: none !important;
+  display: block !important;
+  box-shadow: 0 0 10px #00ff66, 0 0 20px rgba(0, 255, 102, 0.5);
+}
 
-const eliminateFakeModels = () => {
-  ['#crystal-fallback','#codex-3d','.fallback-layer','.crystal-backup','#three-debug-hud'].forEach(sel => {
-    const el = document.querySelector(sel);
-    if (el) el.style.setProperty('display','none','important');
-  });
-};
-
-/* ════════════════════════════════════════
-    마우스 트래킹 & 전역 상태 변수
-════════════════════════════════════════ */
-const mouse = { x: 0, y: 0 };
-const pointer = {
-  x: window.innerWidth * 0.5,  y: window.innerHeight * 0.5,
-  tx: window.innerWidth * 0.5, ty: window.innerHeight * 0.5
-};
-const clamp01 = v => Math.max(0, Math.min(1, v));
-
-// [순정 복구] 원래 사용하시던 비스듬하게 누워있던 기본 회전 각도값
-const baseRotation = { x: 0.3, y: -0.5 }; 
-const rotState     = { x: 0.3, y: -0.5 };
-
-let isHoveringModel = false;
-let isModalOpen = false; 
-
-/* ════════════════════════════════════════
-    LANDING CANVAS BACKGROUND
-════════════════════════════════════════ */
-const setupLandingCanvas = () => {
-  if (!landing || !landingCanvas) return null;
-  const ctx = landingCanvas.getContext('2d');
-  if (!ctx) return null;
-  let state = { width: 0, height: 0, dpr: 1 };
-
-  const resize = () => {
-    const rect = landing.getBoundingClientRect();
-    state.width  = rect.width;
-    state.height = rect.height;
-    state.dpr    = Math.min(window.devicePixelRatio || 1, 1.5);
-    landingCanvas.width  = Math.max(1, Math.floor(rect.width  * state.dpr));
-    landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
-    landingCanvas.style.width  = `${rect.width}px`;
-    landingCanvas.style.height = `${rect.height}px`;
-    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
-  };
-
-  const draw = () => {
-    const { width, height } = state;
-    if (!width || !height) return;
-    ctx.clearRect(0, 0, width, height);
-    const rect = landing.getBoundingClientRect();
-    const px = pointer.x - rect.left;
-    const py = pointer.y - rect.top;
-    const glow = ctx.createRadialGradient(px, py, 0, px, py, Math.max(width, height) * 0.52);
-    glow.addColorStop(0,   'rgba(255,255,255,0.09)');
-    glow.addColorStop(0.3, 'rgba(160,110,255,0.04)');
-    glow.addColorStop(1,   'rgba(16,16,18,0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, width, height);
-  };
-
-  resize();
-  return { resize, draw };
-};
-
-let landingCanvasCtrl = null;
-
-const updateLandingVars = () => {
-  if (!landing) return;
-  const rect = landing.getBoundingClientRect();
-  const x = ((pointer.x - rect.left) / Math.max(rect.width,  1)) * 100;
-  const y = ((pointer.y - rect.top)  / Math.max(rect.height, 1)) * 100;
-  landing.style.setProperty('--pointer-x', `${clamp01(x/100)*100}%`);
-  landing.style.setProperty('--pointer-y', `${clamp01(y/100)*100}%`);
-};
-
-/* ════════════════════════════════════════
-    [재질 개선] 맑고 반짝이는 스튜디오 환경 맵 생성
-════════════════════════════════════════ */
-const generatePureEnvironment = (renderer) => {
-  const scene = new THREE.Scene();
-  scene.background = null;
-
-  const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(60, 5, 60),
-    new THREE.MeshBasicMaterial({ color: 0xffffff })
+.page-spotlight {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(
+    600px circle at var(--page-pointer-x, 50%) var(--page-pointer-y, 50%),
+    rgba(140, 90, 255, 0.07),
+    transparent 80%
   );
-  topLight.position.set(0, 15, 0);
-  scene.add(topLight);
-
-  const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 30, 30),
-    new THREE.MeshBasicMaterial({ color: 0xffffff })
-  );
-  leftPanel.position.set(-15, 5, 0);
-  scene.add(leftPanel);
-
-  const rightPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 30, 30),
-    new THREE.MeshBasicMaterial({ color: 0xffffff })
-  );
-  rightPanel.position.set(15, 5, 0);
-  scene.add(rightPanel);
-
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  pmrem.compileEquirectangularShader();
-  const rt = pmrem.fromScene(scene);
-  pmrem.dispose();
-  rt.texture.mapping = THREE.CubeReflectionMapping;
-  return rt.texture;
-};
+}
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE MAIN
+    3. TOP NAVIGATION BAR
 ════════════════════════════════════════ */
-const initThree = () => {
-  if (!modelCanvas || window.__threeInitialized) return;
-  window.__threeInitialized = true;
+.topnav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 92px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 4%;
+  background: rgba(16, 16, 18, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 2000;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
 
-  window.threeScene = new THREE.Scene();
+.topnav .logo {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
 
-  const shell = landingDisplay || { offsetWidth: window.innerWidth, offsetHeight: window.innerHeight };
-  const W = shell.offsetWidth;
-  const H = shell.offsetHeight;
+.topnav .nav-links {
+  display: flex;
+  gap: 40px;
+}
 
-  window.threeRenderer = new THREE.WebGLRenderer({
-    canvas: modelCanvas,
-    alpha: true,
-    antialias: true,
-    powerPreference: 'high-performance',
-  });
-  window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  window.threeRenderer.setSize(W, H);
-  window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
-  window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  window.threeRenderer.toneMappingExposure = 2.0; 
+.topnav .nav-links a {
+  position: relative;
+  text-decoration: none;
+  color: #88888e;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 10px 0;
+  transition: color 0.3s ease;
+}
 
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 5.5);
-  dirLight1.position.set(5, 12, 8);
-  window.threeScene.add(dirLight1);
+.topnav .nav-links a:hover,
+.topnav .nav-links a.is-active {
+  color: #eeeeee;
+}
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 3.5);
-  dirLight2.position.set(-5, -5, 5);
-  window.threeScene.add(dirLight2);
-
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.4); 
-  window.threeScene.add(ambientLight);
-
-  window.threeCamera = new THREE.PerspectiveCamera(23, W / H, 0.1, 100);
-  window.threeCamera.position.set(0, 0, 5.5);
-
-  const envTexture = generatePureEnvironment(window.threeRenderer);
-  window.threeScene.environment = envTexture;
-
-  const loader = new GLTFLoader();
-  const draco  = new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
-  loader.setDRACOLoader(draco);
-
-  loader.load(
-    `./modeling.glb?v=${Math.random()}`,
-    (gltf) => {
-      if (!gltf || !gltf.scene) { hideSiteLoader(); return; }
-      if (window.modelAnchor) window.threeScene.remove(window.modelAnchor);
-
-      const model = gltf.scene;
-
-      /* ── 크롬 실버 재질 하드코딩 ── */
-      const chromeSilverMat = new THREE.MeshStandardMaterial({
-        color: 0xeeeeee,
-        metalness: 1.0,          // 은빛 메탈릭 100%
-        roughness: 0.02,         // 거칠기 최소화로 투명한 반사 효과 구현
-        envMapIntensity: 4.0,    // 주변광 반사 세기를 키워 화사하게 빌드
-        side: THREE.DoubleSide
-      });
-
-      model.traverse((child) => {
-        if (child.isMesh) {
-          child.material    = chromeSilverMat;
-          child.castShadow    = false;
-          child.receiveShadow = false;
-        }
-      });
-
-      const BOUNDS = 2.0;
-      const box    = new THREE.Box3().setFromObject(model);
-      const centre = new THREE.Vector3();
-      box.getCenter(centre);
-      const size   = new THREE.Vector3();
-      box.getSize(size);
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const scale  = BOUNDS / maxDim;
-      
-      model.position.sub(centre.multiplyScalar(scale));
-      model.scale.setScalar(scale);
-
-      window.modelAnchor = new THREE.Group();
-      window.modelAnchor.add(model);
-      window.threeScene.add(window.modelAnchor);
-
-      // 원래의 시그니처 비스듬히 누운 각도 설정 복구
-      window.modelAnchor.rotation.x = baseRotation.x;
-      window.modelAnchor.rotation.y = baseRotation.y;
-
-      eliminateFakeModels();
-      hideSiteLoader();
-    },
-    undefined,
-    (err) => {
-      console.warn('GLB 로드 실패', err);
-      hideSiteLoader();
-    }
-  );
-};
-
-const hideSiteLoader = () => {
-  const siteLoader = document.querySelector('#site-loader');
-  if (siteLoader) {
-    setTimeout(() => siteLoader.classList.add('is-loaded'), 500);
-  }
-};
-
-const resizeThree = () => {
-  if (!window.threeRenderer || !window.threeCamera) return;
-  const shell = landingDisplay || { offsetWidth: window.innerWidth, offsetHeight: window.innerHeight };
-  window.threeRenderer.setSize(shell.offsetWidth, shell.offsetHeight);
-  window.threeCamera.aspect = shell.offsetWidth / shell.offsetHeight;
-  window.threeCamera.updateProjectionMatrix();
-};
+.nav-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #eeeeee;
+  transform: scaleX(var(--nav-p, 0));
+  transform-origin: left;
+  transition: transform 0.1s linear;
+}
 
 /* ════════════════════════════════════════
-    SCROLL INDICATOR
+    4. LAYOUT & SECTIONS
 ════════════════════════════════════════ */
-const buildSectionMap = () => {
-  navLinks.forEach(link => {
-    const id = link.getAttribute('data-target');
-    const el = document.getElementById(id);
-    if (el) sections.push({ link, el, id, progress: link.querySelector('.nav-progress') });
-  });
-};
-
-const updateNavProgress = () => {
-  const scrollY     = window.scrollY;
-  const winH        = window.innerHeight;
-  const docH        = document.documentElement.scrollHeight;
-  const headerH     = 92;
-
-  let activeIdx = -1;
-  let maxCoverage = -1;
-
-  sections.forEach((sec, i) => {
-    const rect  = sec.el.getBoundingClientRect();
-    const top   = rect.top + scrollY - headerH;
-    const bot   = top + rect.height;
-
-    const visTop  = Math.max(scrollY, top);
-    const visBot  = Math.min(scrollY + winH, bot);
-    const overlap = Math.max(0, visBot - visTop);
-    const coverage = overlap / Math.max(rect.height, 1);
-
-    if (coverage > maxCoverage) {
-      maxCoverage = coverage;
-      activeIdx   = i;
-    }
-  });
-
-  const isAtBottom = (scrollY + winH >= docH - 8);
-
-  sections.forEach((sec, i) => {
-    if (i !== activeIdx) {
-      sec.progress.style.setProperty('--nav-p', '0');
-      sec.link.classList.remove('is-active');
-      return;
-    }
-
-    sec.link.classList.add('is-active');
-
-    const rect     = sec.el.getBoundingClientRect();
-    const secTop   = rect.top + scrollY - headerH;
-    const secH     = rect.height;
-
-    const scrolledInSection = scrollY - secTop;
-    const totalScrollableRange = secH - (i === sections.length - 1 ? winH - headerH : 100);
-    let raw = totalScrollableRange > 0 ? scrolledInSection / totalScrollableRange : 0;
-    
-    if (scrolledInSection + winH >= secH + 80) raw = 1.0;
-    if (isAtBottom && i === sections.length - 1) raw = 1.0;
-
-    sec.progress.style.setProperty('--nav-p', clamp01(raw).toFixed(4));
-  });
-};
+section {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  padding: 140px 4% 80px 4%;
+  z-index: 2;
+}
 
 /* ════════════════════════════════════════
-    MAIN ANIMATION LOOP
+    5. LANDING HERO (3D 스타 메인 영역)
 ════════════════════════════════════════ */
-let clock = 0;
+.landing {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
 
-const animate = () => {
-  window.animFrameId = requestAnimationFrame(animate);
-  clock = Date.now() * 0.001;
+.landing-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
 
-  pointer.x += (pointer.tx - pointer.x) * 0.12;
-  pointer.y += (pointer.ty - pointer.y) * 0.12;
+.landing-display-shell {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+  height: 70vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2;
+}
 
-  // #DBFF86 꽉 찬 형광 연두색 마우스 커서 위치 실시간 대입 연산
-  if (follower) {
-    follower.style.left = `${pointer.x}px`;
-    follower.style.top  = `${pointer.y}px`;
-  }
+#landing-display {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
 
-  updateLandingVars();
-  if (landingCanvasCtrl) landingCanvasCtrl.draw();
-
-  if (window.threeRenderer && window.threeScene && window.threeCamera) {
-    if (window.modelAnchor) {
-      // 마우스 좌표 변화에 유연하게 따라오는 묵직한 오리지널 댐핑 회전
-      const targetX = baseRotation.x + (-mouse.y * 0.12);
-      const targetY = baseRotation.y + (mouse.x * 0.35);
-
-      rotState.x += (targetX - rotState.x) * 0.05;
-      rotState.y += (targetY - rotState.y) * 0.05;
-
-      window.modelAnchor.rotation.x = rotState.x;
-      window.modelAnchor.rotation.y = rotState.y;
-      
-      window.modelAnchor.position.y = Math.sin(clock * 0.6) * 0.02; 
-    }
-    window.threeRenderer.render(window.threeScene, window.threeCamera);
-  }
-};
+#model-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
 
 /* ════════════════════════════════════════
-    HOVER & POINTER EVENTS
+    6. ARCHIVE SECTION (데스크탑 그리드)
 ════════════════════════════════════════ */
-const setupHoverEvents = () => {
-  window.addEventListener('pointermove', (e) => {
-    pointer.tx = e.clientX;
-    pointer.ty = e.clientY;
-    mouse.x = (e.clientX / window.innerWidth)  * 2 - 1;
-    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-  });
+#desktop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 30px;
+  max-width: 1000px;
+  margin: 40px auto 0 auto;
+}
 
-  const displayShell = document.querySelector('.landing-display-shell');
-  if (displayShell) {
-    displayShell.addEventListener('pointerenter', () => { isHoveringModel = true; });
-    displayShell.addEventListener('pointerleave', () => { isHoveringModel = false; });
-  }
-};
+.folder-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  padding: 15px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  transition: background 0.2s, border 0.2s;
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.folder-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.folder-item.is-selected {
+  background: rgba(140, 90, 255, 0.15);
+  border-color: rgba(140, 90, 255, 0.4);
+}
+
+.folder-icon-wrapper {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  color: #a078ff;
+}
+
+.folder-name {
+  font-size: 0.8rem;
+  text-align: center;
+  color: #cccccc;
+  word-break: keep-all;
+  line-height: 1.3;
+}
 
 /* ════════════════════════════════════════
-    폴더 GUI 인터랙션 (원본 데이터 완전 매핑)
+    7. GUI MODAL WINDOW
 ════════════════════════════════════════ */
-const FOLDER_DATA = {
-  academic: {
-    title: '교과 프로젝트 경험',
-    path:  '~/archive/academic/',
-    items: [
-      { text: '학생 마음 건강 콘텐츠 공모전, 포스터 부문 참여', highlight: false },
-      { text: '포토샵 아트워크 & 브랜딩 굿즈 제작 프로젝트', highlight: false },
-      { text: '멜론 광고 영상 제작 프로젝트 [공유하는 마음]', highlight: false },
-      { text: '맛집 지도 서비스 제작 프로젝트 [MZ]', highlight: true },
-      { text: '그래픽 포스터 제작 프로젝트 [모디곰 BI 포스터]', highlight: true },
-      { text: '학교 아이덴티티 반영 패턴디자인 제작 프로젝트', highlight: false },
-      { text: '흥부전 픽토그램 디자인 프로젝트', highlight: false },
-      { text: 'GUI 스타일별 아이콘 제작 프로젝트', highlight: true },
-      { text: 'OTT 서비스 디자인 시스템 컴포넌트 및 디자인 시스템 제작 프로젝트', highlight: true },
-      { text: '패션 종합 어플리케이션 [MFF] 창업 계획서 작성 프로젝트', highlight: false },
-    ]
-  },
-  club: {
-    title: '교내 활동 · 동아리 활동',
-    path:  '~/archive/club/',
-    items: [
-      { text: '급식 티켓팅 서비스 제작 프로젝트 [급식 패스]', highlight: true },
-      { text: '미림 해커톤 / 컬러워크 기록 서비스 제작 프로젝트 [투데인트]', highlight: true },
-      { text: 'AI ESG 교육 이수', highlight: false },
-      { text: 'JS 스터디 홍보 게시물 제작', highlight: true },
-    ]
-  },
-  personal: {
-    title: '개인 프로젝트 경험',
-    path:  '~/archive/personal/',
-    items: [
-      { text: '컵에 끼우는 화상 방지용 실리콘 차단물로 창업 아이디어 경진 대회 참여', highlight: false },
-      { text: '(진행중) 하루 한번 면접 질문 서비스 제작 프로젝트 [모디곰]', highlight: true },
-    ]
-  },
-  books: {
-    title: '독서 경험',
-    path:  '~/archive/books/',
-    items: [
-      { text: '< 라면집도 디자이너가 하면 다르다 > — 강범규', highlight: true },
-      { text: '< 디자인 구구단 > — 에이핫', highlight: false },
-      { text: '< (UX/UI 디자이너를 위한) 실무 피그마 > — 클레어정', highlight: true },
-      { text: '< (비전공자를 위한 이해할 수 있는) IT 지식 > — 최원영', highlight: false },
-      { text: '< 1일 1로그 100일 완성 IT 지식 > — 브라이언 W. 커니핸', highlight: false },
-      { text: '< 폰트의 비밀 > — 고바야시 아키라', highlight: true },
-      { text: '< 갱부 > — 나쓰메 소세키', highlight: false },
-    ]
-  },
-  cert: {
-    title: '자격취득내용',
-    path:  '~/archive/cert/',
-    items: [
-      { text: 'GTQ 1급', highlight: false },
-      { text: 'ITQ 한글 A급, PPT C급', highlight: false },
-    ]
-  },
-  awards: {
-    title: '수상 이력',
-    path:  '~/archive/awards/',
-    items: [
-      { text: '신입생 대표 선서, 학교장 장학금', highlight: true },
-      { text: '1학년 1학기 일본어 교과우수상 수상', highlight: false },
-      { text: '피그마 재즈 대상 수상', highlight: true },
-      { text: 'AI ESG 교육 이수 수료증', highlight: false },
-    ]
-  }
-};
+#folder-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
 
-const setupFolderGUI = () => {
-  const grid       = document.getElementById('desktop-grid');
-  const modal      = document.getElementById('folder-modal');
-  const modalClose = document.getElementById('modal-close');
-  const modalBack  = document.getElementById('modal-backdrop');
-  const modalTitle = document.getElementById('modal-title');
-  const modalPath  = document.getElementById('modal-
+#folder-modal.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#modal-backdrop {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: rgba(8, 8, 10, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.modal-window {
+  position: relative;
+  width: 90%;
+  max-width: 640px;
+  height: 480px;
+  background: #16161a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.modal-header {
+  height: 48px;
+  background: #1d1d24;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#modal-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #eeeeee;
+}
+
+#modal-close {
+  background: transparent;
+  border: none;
+  color: #66666e;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+#modal-close:hover {
+  color: #ff5555;
+}
+
+.modal-pathbar {
+  height: 32px;
+  background: #121215;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #66666e;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+#modal-body {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.modal-section-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #66666e;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+}
+
+.modal-file-list {
+  list-style: none;
+}
+
+.modal-file-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 0.85rem;
+  color: #aaaaaa;
+  line-height: 1.4;
+}
+
+.modal-file-item.is-highlight {
+  color: #eeeeee;
+  font-weight: 500;
+}
+
+.file-icon {
+  color: #a078ff;
+  font-weight: bold;
+}
+
+/* ════════════════════════════════════════
+    8. SCROLL REVEAL CARDS (기타 섹션 컴포넌트)
+════════════════════════════════════════ */
+.reveal-card {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.reveal-card.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ════════════════════════════════════════
+    9. SITE LOADER
+════════════════════════════════════════ */
+#site-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #101012;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  transition: opacity 0.5s ease, pointer-events 0.5s ease;
+}
+
+#site-loader.is-loaded {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loader-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.05);
+  border-top-color: #a078ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
