@@ -14,14 +14,12 @@ if (window.threeRenderer) {
   window.threeRenderer.dispose();
   const domCanvas = document.querySelector('#model-canvas');
   if (domCanvas) {
-    // 캔버스 내부에 남아있는 이전 WebGL 컨텍스트 찌꺼기를 완전 소멸시킵니다.
     const gl = domCanvas.getContext('webgl2') || domCanvas.getContext('webgl');
     if (gl) gl.getExtension('WEBGL_lose_context')?.loseContext();
   }
   window.threeRenderer = null;
 }
 
-// 글로벌 참조 완전 리셋 (자글거리는 유령 메쉬 생성 차단)
 window.threeScene    = null;
 window.threeCamera   = null;
 window.modelAnchor   = null;
@@ -107,11 +105,11 @@ const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   const geo = new THREE.BoxGeometry(12, 12, 12);
   const mats = [
-    new THREE.MeshBasicMaterial({ color: 0x00f3ff, side: THREE.BackSide }), // Cyan 에지 광원
+    new THREE.MeshBasicMaterial({ color: 0x00f3ff, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0x020206, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xff00ca, side: THREE.BackSide }), // Magenta 에지 광원
+    new THREE.MeshBasicMaterial({ color: 0xff00ca, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // 하이라이트용 퓨어 화이트
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0x030308, side: THREE.BackSide })  
   ];
   const box = new THREE.Mesh(geo, mats);
@@ -152,7 +150,7 @@ const initThree = () => {
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
   window.threeScene.add(ambient);
 
   const pointLight = new THREE.PointLight(0xffffff, 2.5, 40);
@@ -167,21 +165,56 @@ const initThree = () => {
   loader.load(
     `./modeling.glb?v=${Date.now()}`,
     (gltf) => {
-      // 혹시라도 로드 도중 중복 실행되어 들어온 메쉬가 있다면 씬에서 원천 제거
       if(window.modelAnchor) window.threeScene.remove(window.modelAnchor);
 
       const model = gltf.scene;
-      
-      // 💥 모델링 데이터를 순회하며 혹시 숨어있을지 모를 중복 자식 메쉬 결합 구조 해제
+
+      // 🌟 [통유리 투과 질감 마스터 스펙]
+      const pureGlassMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        metalness: 0.0,
+        roughness: 0.02,
+        transmission: 1.0,           
+        transparent: true,
+        opacity: 1.0,
+        ior: 1.45,
+        thickness: 0.05,             
+        reflectivity: 0.8,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.0,
+        side: THREE.FrontSide,       
+        depthWrite: true,
+        envMap: envTexture,
+        envMapIntensity: 2.0
+      });
+
+      if (typeof THREE.MeshPhysicalMaterial.prototype.dispersion !== 'undefined') {
+        pureGlassMaterial.dispersion = 10.0; 
+      }
+
+      // 💥 [초강력 중복 필터] 내부 구조 순회하며 딱 "첫 번째 메쉬"만 남기고 나머지는 완전 삭제
+      let meshCount = 0;
       model.traverse((child) => {
         if (child.isMesh) {
-          // 자글거리는 모아레 연산 버그 차단을 위해 뎁스 오프셋 강제 격리
-          child.material.polygonOffset = true;
-          child.material.polygonOffsetFactor = 1;
-          child.material.polygonOffsetUnits = 1;
+          meshCount++;
+          if (meshCount === 1) {
+            // 오직 첫 번째 메쉬에만 유리 재질 주입
+            child.material = pureGlassMaterial;
+            child.visible = true;
+            child.castShadow = false;
+            child.receiveShadow = false;
+          } else {
+            // 중첩되어 자글거림을 만드는 두 번째 메쉬부터는 아예 렌더링에서 제외
+            child.visible = false;
+            child.geometry.dispose();
+          }
         }
       });
 
+      // 💥 [크기 중간 고정 장치] 창 크기에 영향받지 않는 수동 절대 스케일
+      // 💡 래퍼런스 대비 너무 작아 보이면 1.8로 올리고, 너무 꽉 차면 1.4로 줄이시면 됩니다!
+      const FIXED_SCALE = 1.6; 
+      
       const box    = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
@@ -189,42 +222,11 @@ const initThree = () => {
       box.getSize(size);
       
       const maxDim = Math.max(size.x, size.y, size.z);
-      const scale  = 2.6 / maxDim; 
+      const scale  = FIXED_SCALE / maxDim; 
       
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
       model.rotation.set(Math.PI / 2.3, 0, 0); 
-
-      // 🌟 [통유리 투과 질감 확정 수식 - 겉면 독점 렌더링]
-      const pureGlassMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        metalness: 0.0,
-        roughness: 0.01,
-        transmission: 1.0,           // 배경 완벽 투과 관통
-        transparent: true,
-        opacity: 1.0,
-        ior: 1.42,
-        thickness: 0.05,             // 두께 연산을 깎아 중앙부 회색 뭉침 파괴
-        reflectivity: 0.9,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.0,
-        side: THREE.FrontSide,       // 💥 겉면만 그려내어 내부 겹침 자글거림 완전 삭제
-        depthWrite: true,
-        envMap: envTexture,
-        envMapIntensity: 2.2
-      });
-
-      if (typeof THREE.MeshPhysicalMaterial.prototype.dispersion !== 'undefined') {
-        pureGlassMaterial.dispersion = 12.0; // 에지 크리스탈 오로라 광채
-      }
-
-      model.traverse((child) => {
-        if (child.isMesh) {
-          child.material = pureGlassMaterial;
-          child.castShadow = false;
-          child.receiveShadow = false;
-        }
-      });
 
       window.modelAnchor = new THREE.Group();
       window.modelAnchor.add(model);
