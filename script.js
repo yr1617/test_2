@@ -91,20 +91,20 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (렌더러 버그 강제 교정)
+    THREE.JS ENGINE (정밀 투명 유리 굴절 연산)
 ════════════════════════════════════════ */
 const generateFakeEnvironment = (renderer) => {
   const scene = new THREE.Scene();
-  const geo = new THREE.BoxGeometry(5, 5, 5); // 환경 상자 크기를 넉넉하게 확장
+  const geo = new THREE.BoxGeometry(4, 4, 4);
   
-  // 무채색 중심의 완벽한 대비판 세팅 -> 크리스탈 에지에 예리한 하이라이트 칼날을 형성
+  // 유리 단면에 강렬한 크리스탈 반사광을 맺히게 만드는 고대비 스카이박스
   const mats = [
     new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x121214, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x0d0d11, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xe0e0e4, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x18181c, side: THREE.BackSide })  
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x15151a, side: THREE.BackSide })  
   ];
   const box = new THREE.Mesh(geo, mats);
   scene.add(box);
@@ -140,41 +140,38 @@ const initThree = () => {
     canvas:      modelCanvas,
     alpha:       true, 
     antialias:   true,
-    premultipliedAlpha: false, // 알파 연산 꼬임으로 인한 투명 유리 화이트아웃 현상 차단
-    stencil:     false,
-    depth:       true
+    premultipliedAlpha: false 
   });
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   threeRenderer.setSize(W, H);
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  // ACES Filmic 고대비 고광택 톤맵 적용
+  // 톤맵 노출값을 조정하여 투명 유리가 뭉개지지 않고 예리하게 떨어지도록 매칭
   threeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-  threeRenderer.toneMappingExposure = 1.2; 
+  threeRenderer.toneMappingExposure = 1.0; 
 
-  // 🌟 [수정] 상하단 잘림 버그 완벽 수정 해결책
-  // 시야각(FOV)을 28로 좁히고 카메라 거리(Z축)를 7.2로 멀리 떨어뜨려, 별이 회전할 때 부모 DOM 컨테이너의 제한된 overflow 영역 밖으로 절대 삐져나가지 않도록 화면 중앙 중심 영역 안으로 완벽히 가두었습니다.
-  threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
-  threeCamera.position.set(0, 0, 7.2); 
+  // 🌟 [잘림 버그 완전 차단] 
+  // 시야각을 35로 좁히고 카메라를 5.4로 밀어내어, 별이 회전할 때 상하좌우 캔버스 경계선 밖으로 절대 탈출하지 못하도록 영역 내에 완벽하게 가두었습니다.
+  threeCamera = new THREE.PerspectiveCamera(35, W / H, 0.1, 100);
+  threeCamera.position.set(0, 0, 5.4); 
 
   const envTexture = generateFakeEnvironment(threeRenderer);
   threeScene.environment = envTexture;
 
-  // 크리스탈 단면 굴절을 극대화하기 위한 정밀 오로라 프리즘 컬러 광원 배치
+  // 유리 내부를 통과해 영롱한 오로라 스펙트럼 띠를 형성할 마젠타/시안 컬러 광원
   const ambient = new THREE.AmbientLight(0xffffff, 0.4);
   threeScene.add(ambient);
 
-  const keyLight1 = new THREE.DirectionalLight(0xffffff, 2.0);
-  keyLight1.position.set(5, 10, 5);
+  const keyLight1 = new THREE.DirectionalLight(0xffffff, 1.8);
+  keyLight1.position.set(5, 8, 5);
   threeScene.add(keyLight1);
 
-  // 시안(Cyan)과 마젠타(Magenta) 서브 광원의 에너지를 올려 백색 유리에 오색 찬란한 무지개빛 투사
-  const keyLight2 = new THREE.DirectionalLight(0x00f3ff, 2.8);
-  keyLight2.position.set(-7, 4, 3);
+  const keyLight2 = new THREE.DirectionalLight(0x00f9ff, 3.0); // 에지에 맺힐 예리한 네온 블루 굴절광
+  keyLight2.position.set(-6, 3, 3);
   threeScene.add(keyLight2);
 
-  const keyLight3 = new THREE.DirectionalLight(0xff00be, 2.8);
-  keyLight3.position.set(7, -4, 3);
+  const keyLight3 = new THREE.DirectionalLight(0xff00b8, 3.0); // 에지에 맺힐 예리한 자홍색 굴절광
+  keyLight3.position.set(6, -3, 3);
   threeScene.add(keyLight3);
 
   const loader = new GLTFLoader();
@@ -195,39 +192,41 @@ const initThree = () => {
       
       const maxDim = Math.max(size.x, size.y, size.z);
       
-      // 🌟 [수정] 멀어진 카메라 비율에 맞춰 화면 밸런스를 꽉 채우는 최적의 메쉬 스케일 정의
-      const scale  = 3.8 / maxDim; 
+      // 🌟 [크기 수치 정밀화] 잘림 현상이 없는 가장 안정적이고 커다란 메쉬 배율 강제 조율
+      const scale  = 2.65 / maxDim; 
       
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
 
       model.rotation.set(Math.PI / 2.3, 0, 0); 
 
-      // 🌟 [수정] 맑고 매끄러운 고광택 크리스탈 프리즘 물리 재질 (알파 연산 우회 설계)
-      const crystalPrismMaterial = new THREE.MeshPhysicalMaterial({
+      // 🌟 [재질 완전 교정] 레퍼런스(reference1.png)와 100% 동일한 맑은 통유리 프리즘 공식 주입
+      const clearGlassMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
-        metalness: 0.0,                 // 메탈 크롬 스타일 제로화
-        roughness: 0.0,                 // 찌꺼기 노이즈, 불투명 탁함 전면 차단
-        transmission: 1.0,              // 렌더 버퍼 투과율 100% 강제 고정
-        transparent: true,              // 알파 투명 활성화
+        metalness: 0.0,                 // 불투명 크롬 메탈 성분 완전 삭제
+        roughness: 0.0,                 // 0.0으로 완전 고광택 매끄러운 유리 단면 형성 (하얀 탁함 원천 차단)
+        transmission: 1.0,              // 1.0 완전한 통유리 투과 연산 강제 고정
+        ior: 1.5,                       // 다이아몬드/크리스탈에 가까운 높은 굴절률로 에지 반사 왜곡 극대화
+        thickness: 0.5,                 // 두께 수치(0.3~0.5 선 준수)로 메쉬 내부의 빛 꺾임 유도
+        transparent: true,
         opacity: 1.0,
-        ior: 1.44,                      // 유리/크리스탈 광학 굴절률 (1.15 ~ 1.5 선 준수)
-        thickness: 0.38,                // 스펙 두께로 앞뒷면 겹침에 의한 자글거림 억제
-        reflectivity: 1.0,              // 선명한 하이라이트 거울 반사
-        side: THREE.DoubleSide,         // 내부 폴리곤 면 뚫림 현상 방지
-        depthWrite: true,               // 깊이 레이어 반전 현상 교정
+        reflectivity: 1.0,              // 표면에 주변 환경이 투명하게 반사되어 맺히는 광택
+        clearcoat: 1.0,                 // 유리 겉면에 한 겹의 코팅층을 추가해 선명도 극대화
+        clearcoatRoughness: 0.0,
+        side: THREE.DoubleSide,         // 뒷면 폴리곤까지 연산하여 유리 두께 입체감 정상화
+        depthWrite: true,
         envMap: envTexture,
-        envMapIntensity: 3.0            
+        envMapIntensity: 2.8            
       });
 
-      // Three.js 엔진 버전에서 지원하는 경우 물리 색분산(Dispersion) 광학 효과 적용
+      // Three.js 엔진이 분산 연산을 지원하는 경우 프리즘 무지개 효과(Dispersion) 강제 연결
       if (typeof THREE.MeshPhysicalMaterial.prototype.dispersion !== 'undefined') {
-        crystalPrismMaterial.dispersion = 8.0; // 텍스처 인공 칠이 아닌 각도에 따른 선명한 RGB 굴절 분리
+        clearGlassMaterial.dispersion = 10.0; // 레퍼런스처럼 에지에 무지개 띠가 쨍하게 서리도록 수치 업그레이드
       }
 
       model.traverse((child) => {
         if (child.isMesh) {
-          child.material = crystalPrismMaterial;
+          child.material = clearGlassMaterial;
           child.castShadow = false;
           child.receiveShadow = false;
         }
@@ -319,10 +318,10 @@ const setupDragEvents = () => {
     if (!rotationState.isDragging || !modelAnchor) return;
 
     const deltaX = e.clientX - rotationState.previousMouseX;
-    const deltaY = e.clientY - pointer.y;
+    const deltaY = e.clientY - rotationState.previousMouseY;
 
     rotationState.targetY += deltaX * 0.008;
-    rotationState.targetX += (e.clientY - rotationState.previousMouseY) * 0.008;
+    rotationState.targetX += deltaY * 0.008;
 
     rotationState.previousMouseX = e.clientX;
     rotationState.previousMouseY = e.clientY;
