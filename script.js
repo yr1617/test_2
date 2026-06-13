@@ -99,7 +99,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    HIGH-FREQUENCY 환경광 맵 (유리 반사용 고해상도 박스)
+    HIGH-FREQUENCY 환경광 맵 (반사용 고해상도 소스)
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
@@ -147,12 +147,12 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  // 유리 질감의 굴절과 깊이감을 극대화하기 위해 조명 추가
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.5);
+  // 유리 투명감을 극대화해 줄 대비 조명 세팅
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 2.0);
   dirLight1.position.set(5, 10, 7);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xa3e5ff, 1.0);
+  const dirLight2 = new THREE.DirectionalLight(0xa3e5ff, 1.2);
   dirLight2.position.set(-5, -5, 2);
   window.threeScene.add(dirLight2);
 
@@ -178,35 +178,45 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 💥 탁한 플라스틱/회색 종이 느낌을 완전히 도려낼 물리 기반 투명 크리스탈 재질
+      // 💎 완벽한 투명 오로라 유리를 위한 최고급 물리 질감 세팅
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.03,            // 표면을 매끄러운 유리막으로 처리
+        roughness: 0.02,            
         transparent: true,
-        opacity: 0.4,               // 전체적인 기본 투명도 확보
-        transmission: 0.95,         // 내부 투과율 최대로 높여 맑게 만듦
-        ior: 1.52,                  // 실제 유리/크리스탈의 굴절률
-        side: THREE.FrontSide,      // 💥 중요: 안쪽 면 연산을 무시하여 겹쳐서 탁해지는 현상 원천 차단!
+        opacity: 0.6,               
+        transmission: 1.0,          // 내부 투과율 100% (속을 맑게 비춤)
+        ior: 1.5,                  
+        side: THREE.FrontSide,      
         depthWrite: true,
         depthTest: true,
-        
-        // 오로라 프리즘 효과를 위한 코팅 레이어 설정
-        iridescence: 1.0,           // 무지갯빛 필름 코팅 100% 활성화
-        iridescenceIOR: 1.8,        // 코팅면의 굴절률을 높여 영롱함 극대화
-        iridescenceThicknessRange: [100, 400], // 빛이 갈라지는 두께 영역 지정
-        
-        clearcoat: 1.0,             // 겉면에 투명 코팅을 한 겹 더 씌워 광택 추가
+        iridescence: 1.0,           // 오로라 광택 활성화
+        iridescenceIOR: 1.9,        
+        iridescenceThicknessRange: [100, 400], 
+        clearcoat: 1.0,             
         clearcoatRoughness: 0.0
       });
 
+      // 💥 [핵심 공정] 겹쳐서 지지직거리는 다중 메쉬를 필터링하여 딱 '하나'만 남깁니다.
+      let singleMesh = null;
       model.traverse((child) => {
         if (child.isMesh) {
-          child.material = crystalMaterial;
-          child.castShadow = false;   
-          child.receiveShadow = false;
+          if (!singleMesh) {
+            singleMesh = child; // 가장 첫 번째 메쉬만 대표로 선정
+          } else {
+            // 이미 메쉬를 하나 확보했다면, 겹쳐 있는 나머지 메쉬들은 가시성을 꺼서 완전히 제거
+            child.visible = false;
+          }
         }
       });
+
+      // 살아남은 단 하나의 메쉬에만 투명 유리 재질을 부여합니다.
+      if (singleMesh) {
+        singleMesh.visible = true;
+        singleMesh.material = crystalMaterial;
+        singleMesh.castShadow = false;
+        singleMesh.receiveShadow = false;
+      }
 
       const IDEAL_LAYOUT_BOUNDS = 2.6; 
       
