@@ -79,7 +79,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (강제 텍스처 소멸 복구판)
+    THREE.JS ENGINE (강제 차단 해제 시스템 장착)
 ════════════════════════════════════════ */
 let threeRenderer = null;
 let threeScene    = null;
@@ -89,6 +89,11 @@ let animFrameId   = null;
 
 const initThree = () => {
   if (!modelCanvas) return;
+
+  // 🔥 [초강수 CSS 무력화] 캔버스 자체에 걸려있을 수 있는 모든 하얀 배경색을 강제로 증발시킵니다.
+  modelCanvas.style.backgroundColor = 'transparent';
+  modelCanvas.style.background = 'none';
+  modelCanvas.style.mixBlendMode = 'normal';
 
   if (animFrameId) {
     cancelAnimationFrame(animFrameId);
@@ -105,7 +110,7 @@ const initThree = () => {
 
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
-    alpha:       true,
+    alpha:       true,               // 투명 배경 활성화
     antialias:   true,
     powerPreference: 'high-performance',
   });
@@ -114,14 +119,14 @@ const initThree = () => {
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 2.5; // 하이라이트 경계선의 대비를 극대화
+  threeRenderer.toneMappingExposure = 2.4; 
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 전체를 하얗고 뿌옇게 흐리던 환경광 원천 제거
+  // 공간을 하얗고 뿌옇게 만들던 환경광 완전 제거
   const ambient = new THREE.AmbientLight(0xffffff, 0.0); 
   threeScene.add(ambient);
 
@@ -130,7 +135,7 @@ const initThree = () => {
   mainLight.position.set(0, 4, 2);
   threeScene.add(mainLight);
 
-  // 🌈 오로라 유리의 핵심인 선명한 네온 스폿 조명 배치
+  // 🌈 오로라 프리즘을 표현하기 위한 선명한 네온 컬러 스폿 광원 배치
   const laserCyan = new THREE.SpotLight(0x00f5ff, 180.0, 30, Math.PI / 4, 0.5, 0.1);
   laserCyan.position.set(4, 3, 2);
   threeScene.add(laserCyan);
@@ -172,10 +177,8 @@ const initThree = () => {
       model.rotation.set(Math.PI / 2.3, 0, 0); 
 
       model.traverse((child) => {
-        // 🔥 [초강수 방어막 해제] 메쉬나 지오메트리를 가진 모든 하위 노드를 추적합니다.
         if (child.isMesh || child.geometry) {
           
-          // 기존에 구워져서 고정되어 있던 모든 재질 바인딩 영구 해제 및 메모리 해제
           if (child.material) {
             if (Array.isArray(child.material)) {
               child.material.forEach(m => m.dispose());
@@ -184,13 +187,13 @@ const initThree = () => {
             }
           }
           
-          // 💎 GLB 파일 안에 잠겨있던 하얀 텍스처 맵을 강제로 삭제(null) 처리하여 장벽 폭파
+          // 💎 기존 하얀 껍질 데이터를 영구 해제하고 100% 관통하는 오로라 유리막 강제 이식
           const crystalMat = new THREE.MeshPhysicalMaterial({
             color:              0xffffff,
             metalness:          0.0,
             roughness:          0.0,               // 완전 투명 유광 질감 강제 주입
             transparent:        true,
-            opacity:            0.15,              // 뒤가 무조건 시원하게 비치도록 투명도 강제 고정
+            opacity:            0.15,              // 뒤가 시원하게 비치도록 투명도 고정
             depthWrite:         false,             // 면들이 겹쳐서 지직거리거나 하얗게 뜨는 버그 원천 봉쇄
             side:               THREE.DoubleSide,
             
@@ -203,7 +206,7 @@ const initThree = () => {
             iridescenceThicknessRange: [150, 750]  
           });
 
-          // 맵 잠금장치 완전 소멸화
+          // 잠금 장치가 되어있을 법한 텍스처 데이터 완전 소멸화
           crystalMat.map = null;
           crystalMat.normalMap = null;
           crystalMat.roughnessMap = null;
