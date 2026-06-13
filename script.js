@@ -165,9 +165,9 @@ const initThree = () => {
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
   loader.setDRACOLoader(draco);
 
-  // 💡 기존 6개 메쉬를 가진 순정 뼈대 파일로 다시 안전하게 연결!
+  // ⚡ 강력한 난수 쿼리를 붙여 브라우저의 404 캐시 기억을 무조건 분쇄하고 강제 로드합니다.
   loader.load(
-    `./modeling.glb?v=${Date.now()}`,
+    `./modeling.glb?cache-bust=${Math.random()}`,
     (gltf) => {
       if(!gltf || !gltf.scene) {
         hideSiteLoader();
@@ -178,7 +178,7 @@ const initThree = () => {
       const model = gltf.scene;
       let rawPositions = [];
 
-      // 💥 [순정 강제 병합 연산] 외부 파일 없이 월드 공간 좌표를 강제로 1개의 버텍스 배열로 압축
+      // 🛠️ [강제 병합 연산] 6개 조각의 모든 버텍스 데이터를 추출해 하나의 껍데기로 용접
       model.updateMatrixWorld(true);
       model.traverse((child) => {
         if (child.isMesh && child.geometry) {
@@ -187,7 +187,7 @@ const initThree = () => {
           
           for (let i = 0; i < posAttr.count; i++) {
             localPos.fromBufferAttribute(posAttr, i);
-            localPos.applyMatrix4(child.matrixWorld); // 비틀어진 6개의 중심축을 전역 좌표로 통일
+            localPos.applyMatrix4(child.matrixWorld); // 각기 따로 놀던 로컬 축을 월드 기준으로 일치시킴
             rawPositions.push(localPos.x, localPos.y, localPos.z);
           }
         }
@@ -198,12 +198,12 @@ const initThree = () => {
         return;
       }
 
-      // 🔥 단 한 줄의 외부 코드 없이 완전히 용접된 순정 단일 기하학 객체 생성
+      // 완전히 합쳐진 단일 기하학 객체 생성
       const mergedGeometry = new THREE.BufferGeometry();
       mergedGeometry.setAttribute('position', new THREE.Float32BufferAttribute(rawPositions, 3));
-      mergedGeometry.computeVertexNormals(); // 완벽한 크리스탈 반사를 위한 법선 벡터 재계산
+      mergedGeometry.computeVertexNormals(); 
 
-      // 💎 속살 간섭이 100% 물리적으로 차단된 순도 높은 프리즘 크리스탈 글래스 재질
+      // 💎 지지직거리는 내부 간섭이 완벽하게 제거된 고투명 크리스탈 글래스 재질
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
@@ -212,7 +212,7 @@ const initThree = () => {
         opacity: 0.45,               
         transmission: 0.95,          
         ior: 1.5,                  
-        side: THREE.FrontSide, // 바깥 표면만 그리도록 제한하여 안쪽 면끼리 겹치는 지지직거림 차단
+        side: THREE.FrontSide, // 바깥면만 렌더링하여 내부 면들끼리 부딪쳐 깨지는 노이즈 원천 봉쇄
         depthWrite: true,      
         depthTest: true,
         iridescence: 0.85,           
@@ -224,7 +224,7 @@ const initThree = () => {
 
       const mergedMesh = new THREE.Mesh(mergedGeometry, crystalMaterial);
 
-      // 전체 대칭 별 정중앙 레이아웃 정렬
+      // 전체 대칭 별 레이아웃 바운드 정렬
       const IDEAL_LAYOUT_BOUNDS = 2.4; 
       const box = new THREE.Box3().setFromObject(mergedMesh);
       const centre = new THREE.Vector3();
@@ -282,101 +282,4 @@ const animate = () => {
   pointer.y += (pointer.ty - pointer.y) * 0.08;
 
   if (follower) {
-    follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
-  }
-
-  updateLandingVars();
-  if (landingCanvasCtrl) landingCanvasCtrl.draw();
-
-  if (window.threeRenderer && window.threeScene && window.threeCamera) {
-    if (window.modelAnchor) {
-      if (!rotationState.isDragging) {
-        modelAutoRotY += 0.003;
-        rotationState.targetY += 0.003;
-      }
-
-      rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
-      rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
-
-      window.modelAnchor.rotation.x = Math.PI / 6 + rotationState.currentX;
-      window.modelAnchor.rotation.y = rotationState.currentY;
-
-      window.modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.006;
-    }
-    window.threeRenderer.render(window.threeScene, window.threeCamera);
-  }
-};
-
-/* ════════════════════════════════════════
-    DRAG & MOUSE EVENTS
-════════════════════════════════════════ */
-const setupDragEvents = () => {
-  if (!landingDisplay) return;
-
-  landingDisplay.addEventListener('pointerdown', (e) => {
-    rotationState.isDragging = true;
-    rotationState.previousMouseX = e.clientX;
-    rotationState.previousMouseY = e.clientY;
-  });
-
-  window.addEventListener('pointermove', (e) => {
-    pointer.tx = e.clientX;
-    pointer.ty = e.clientY;
-
-    if (!rotationState.isDragging || !window.modelAnchor) return;
-
-    const deltaX = e.clientX - rotationState.previousMouseX;
-    const deltaY = e.clientY - rotationState.previousMouseY;
-
-    rotationState.targetY += deltaX * 0.008;
-    rotationState.targetX += deltaY * 0.008;
-
-    rotationState.previousMouseX = e.clientX;
-    rotationState.previousMouseY = e.clientY;
-  });
-
-  window.addEventListener('pointerup', () => {
-    rotationState.isDragging = false;
-  });
-};
-
-const initAll = () => {
-  landingCanvasCtrl = setupLandingCanvas();
-  setupDragEvents(); 
-  eliminateFakeModels(); 
-
-  highlightElements.forEach((el) => {
-    el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
-    el.addEventListener('mouseleave', () => el.classList.remove('is-hovered'));
-  });
-
-  const revealCards = document.querySelectorAll('.reveal-card');
-  if (revealCards.length) {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('is-visible');
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
-    );
-    revealCards.forEach(card => observer.observe(card));
-  }
-
-  initThree();
-  animate();
-};
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAll);
-} else {
-  initAll();
-}
-
-window.addEventListener('resize', () => {
-  if (landingCanvasCtrl) landingCanvasCtrl.resize();
-  resizeThree();
-});
+    follower.style.transform = `translate3d(${pointer.x}px,
