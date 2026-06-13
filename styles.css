@@ -322,12 +322,14 @@ a { color: inherit; text-decoration: none; }
 
 /* Page spotlight */
 .page-spotlight {
-  position: absolute; left: 0; right: 0;
-  top: var(--landing-end, calc(100vh - 92px)); bottom: 0; pointer-events: none;
-  background: radial-gradient(460px 460px at var(--page-pointer-x,50%) var(--page-pointer-y,16%),
-    rgba(255,255,255,0.12) 0%, rgba(219,255,134,0.1) 14%, rgba(93,53,163,0.06) 32%,
-    rgba(17,18,21,0.18) 50%, rgba(10,10,12,0.58) 74%, rgba(5,5,7,0.9) 100%);
-  z-index: 1;
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle 450px at var(--page-pointer-x, 50%) var(--page-pointer-y, 50%), rgba(140,90,255,0.07), transparent 80%);
+
+  /* ⚡ [핵심] 마우스 클릭이 이 조명 레이어를 완벽하게 투과하도록 선언 */
+  pointer-events: none !important; 
+  /* 등급을 콘텐츠 밑으로 유배 */
+  z-index: 2 !important; 
 }
 
 /* ════════════════════════════════
@@ -943,255 +945,34 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   /* ★핵심: 340px로 붕 떠 있던 카드 전체 높이를 280px로 줄여서 썸네일 위 여백 축소 */
   min-height: 280px !important; 
 }
-/* ════════════════════════════════════════
-    [최종 복구] 3D 캔버스 복원 및 가상 커서 정상화
-════════════════════════════════════════ */
+/* ═════════════════════════════════════════════════
+   최종 마우스 레이어 관통 안전장치 (기존 디자인 보존용)
+   ═════════════════════════════════════════════════ */
 
-/* 1. 가상 커서: 디자인 그대로 유지하되, 모든 모달창보다 무조건 위에 뜨도록 설정 */
-.cursor-follower {
-  position: fixed !important;
-  z-index: 99999999 !important;   /* 최고 존엄 레이어 배치 */
-  pointer-events: none !important; /* 클릭, 드래그 등 모든 마우스 인터랙션을 100% 무조건 통과시킴 */
-}
-
-/* 2. 모달창 전체 컨테이너: 가상 커서 바로 아래 레이어로 배치 */
-#folder-modal {
-  z-index: 999999 !important;     /* 커서 바로 밑에 위치 */
-  pointer-events: auto !important; /* 모달 안에서의 마우스 클릭/스크롤 정상 허용 */
-}
-
-/* 3. 모달 내부 콘텐츠 및 파일 리스트에 마우스 포커스 정상 부여 */
-.modal-content, 
-.modal-wrapper, 
-.modal-file-list {
-  pointer-events: auto !important; /* 마우스가 이 영역의 파일들을 정상적으로 인식 */
-}
-
-/* 4. 화면을 뿌얗게 만드는 백드롭이 파일 리스트를 덮어버리지 않게 뒤로 배치 */
-.modal-backdrop {
-  z-index: 999998 !important;     /* 모달창 내용물보다 한 단계 아래로 깔아줌 */
-  pointer-events: auto !important; 
-}
-/* 가상 커서는 화면 최고 권력 레이어로 얹고 클릭 완벽 투과 */
-.cursor-follower {
-  position: fixed !important;
-  z-index: 100000000 !important;
-  pointer-events: none !important;
-}
-
-/* 모달창 내용물과 폴더 파일 리스트 클릭 허용 */
-#folder-modal, 
-.modal-content, 
-.modal-file-list {
-  pointer-events: auto !important;
-}
-
-/* 1. 최상위 모달 컨테이너 (정렬 및 화면 덮기용 유령 레이어) */
-.folder-modal {
-  position: fixed !important;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 999999 !important; /* 화면 최상단 레이어 고정 */
-  opacity: 0;
-  pointer-events: none; /* 닫혀있을 때는 밑에 레이어 클릭 방해 안 함 */
-  transition: opacity 0.3s ease;
-}
-
-/* 모달이 열렸을 때 (JS가 .is-open을 붙여줌) */
-.folder-modal.is-open {
-  opacity: 1 !important;
-  pointer-events: auto !important; /* 열리면 클릭 활성화 */
-}
-
-/* 2. 뒷배경 백드롭 (★여기에만 오직 블러를 먹여야 창이 안 흐려집니다!) */
-.modal-backdrop {
-  position: absolute !important;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(10, 10, 12, 0.5) !important; /* 어두운 투명 배경 */
-  backdrop-filter: blur(12px) !important;              /* 오직 배경에만 블러 효과 */
-  -webkit-backdrop-filter: blur(12px) !important;
-  z-index: 1 !important; /* 창보다 무조건 아래 */
-  pointer-events: auto !important;
-}
-
-/* 3. 모달 윈도우 실제 창 (형제 관계이므로 절대로 안 흐려짐) */
-.modal-window {
-  position: relative !important;
-  z-index: 2 !important; /* 백드롭(1)보다 위로 올리기 */
-  filter: none !important; /* 흐림 효과 강제 해제 */
-  backdrop-filter: none !important;
-  pointer-events: auto !important; /* 창 내부 클릭 100% 정상 작동 */
-  
-  /* 혹시 창이 투명해서 뒤가 비치는 걸 막기 위해 기본 배경색 지정 */
-  background: #16161a; 
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-  border-radius: 8px; /* 기존 디자인에 맞게 조절 가능 */
-}
-
-/* 창 내부 구성요소들 선명도 보장 및 클릭 관통 방지 */
-.modal-titlebar,
-.modal-body,
-.modal-file-list,
-.modal-ctrl {
-  filter: none !important;
-  backdrop-filter: none !important;
-  pointer-events: auto !important;
-}
-
-/* 4. 연두색 가상 커서 (최상위에 얹고 모든 클릭을 100% 투과시켜 모달을 안 가로막게 함) */
-.cursor-follower {
-  position: fixed !important;
-  z-index: 100000000 !important; /* 모달창보다 위에 뜨게 설정 */
-  pointer-events: none !important; /* 가상 커서가 클릭을 가로막지 않고 완전 패스 */
-}
-/* ⚡ 1. 3D 캔버스와 껍데기 박스는 배경 수준(z-index: 1)으로 완전히 유배 보냅니다. */
+/* 3D 캔버스와 배경 판때기들이 앞으로 튀어나와 클릭을 뺏는 것 방어 */
 #model-canvas, 
 .landing-canvas, 
-.landing-display-shell, 
-#landing-display {
-  z-index: 1 !important;
-  /* 캔버스가 마우스 클릭을 가로채서 본인 혼자 처먹지 못하게 원천 차단 */
+.landing-display-shell {
   pointer-events: none !important; 
 }
 
-/* ⚡ 2. 바탕화면 폴더 그리드와 텍스트 본문들을 3D 캔버스 위(z-index: 10)로 강제 차출합니다. */
-#desktop-grid, 
-.landing-content, 
-.topnav, 
-.hero-text-wrap {
-  position: relative !important;
-  z-index: 10 !important;
-  /* 일반 버튼, 카드, 폴더들이 정상적으로 클릭을 받도록 설정 */
-  pointer-events: auto !important; 
-}
-
-/* ⚡ 3. 폴더 아이콘 각각에도 안전장치 부여 */
-.folder-item {
-  position: relative !important;
-  z-index: 11 !important;
-  pointer-events: auto !important;
-}
-
-/* ⚡ 4. 연두색 가상 커서는 이 모든 난장판 위에 군림하도록 왕좌에 배치 */
-.cursor-follower {
-  position: fixed !important;
-  z-index: 99999999 !important;
-  pointer-events: none !important; /* 커서 이미지 자체가 클릭을 막지 않게 투과 */
-}
-/* ════════════════════════════════════════
-   마우스 잠금 해제 & 레이어 서열 최종 정리
-════════════════════════════════════════ */
-
-/* 1. 배경 및 3D 영역: 뒤로 보내고, 마우스 클릭이 100% 관통되어 투과되도록 설정 */
-#model-canvas, 
-.landing-canvas, 
-.landing-display-shell, 
+/* 오직 중앙의 3D 모델링 회전 감지 구역만 마우스 인터랙션을 임시 허용 */
 #landing-display {
-  position: absolute !important;
-  z-index: 1 !important;
-  pointer-events: none !important; /* 중요: 클릭이 얘를 뚫고 뒤나 앞의 버튼으로 가야 함 */
+  pointer-events: auto !important;
 }
 
-/* 2. 바탕화면 그리드, 버튼, 카드 본문: 3D보다 앞으로 배치하고 클릭 잠금 해제 */
-#desktop-grid, 
-.landing-content, 
-.landing-copy,
-.landing-foot,
-.topbar,
+/* 상단 바 내비게이션 및 폴더 그리드가 완벽하게 클릭을 접수하도록 강제 선언 */
+.topbar, 
 .topnav, 
-.hero-text-wrap,
-.content-shell,
-.reveal-card {
-  position: relative !important;
-  z-index: 10 !important;
-  pointer-events: auto !important; /* 브라우저 클릭 접수 활성화 */
-}
-
-/* 3. 폴더 아이콘 개별 보안관 */
-.folder-item {
-  position: relative !important;
-  z-index: 20 !important;
-  pointer-events: auto !important;
-}
-
-/* 4. 가상 커서: 최상단에서 춤추되, 본인 몸뚱아리가 클릭을 가로막지 않게 패스 */
-.cursor-follower {
-  position: fixed !important;
-  z-index: 999999 !important;
-  pointer-events: none !important; /* 가상 커서 뒤에 있는 버튼이 눌려야 하므로 필수 */
-}
-/* ═════════════════════════════════════════════════════════
-   🔥 마우스 먹통 현상 및 인터랙션 전면 해제 최종 해결본
-═════════════════════════════════════════════════════════ */
-
-/* 1. 전체 선택자(*)의 마우스 센서 차단 강제 복구 및 수정 */
-html, body {
-  cursor: none !important;
-}
-/* 3D 캔버스, 가상 커서, 스포트라이트를 제외한 모든 일반 UI의 마우스 포인터 권한 복구 */
-*, a, button, .folder-item, .reveal-card, .topnav a, .project-card, .contact-card {
-  pointer-events: auto !important; 
-}
-
-/* 2. 화면을 거대하게 가로막고 있던 스포트라이트 막 투과 처리 */
-.page-spotlight {
-  position: absolute !important;
-  pointer-events: none !important; /* 마우스가 이 레이어를 완벽히 관통하도록 수정 */
-  z-index: 1 !important; /* 등급을 최하위로 유배 */
-}
-
-/* 3. 3D 모델 및 관련 캔버스 유배 (배경 레이어로 완전 강등) */
-#model-canvas, 
-.model-canvas,
-.landing-canvas, 
-.landing-display-shell, 
-#landing-display,
-.display-frame,
-.landing-field {
-  position: absolute !important;
-  z-index: 1 !important;
-  pointer-events: none !important; /* 마우스 클릭이 얘를 무조건 뚫고 지나가야 함 */
-}
-
-/* 4. 바탕화면 폴더 그리드, 내비바, 카드, 글자들 서열 최상위 배치 */
-.topbar,
-.topbar-inner,
-.topnav,
-.topnav a,
+.topnav a, 
 #desktop-grid, 
-.landing-content, 
-.landing-copy,
-.landing-foot,
-.hero-text-wrap,
-.content-shell,
-.section,
-.reveal-card,
-.project-grid,
-.hero,
-.hero-copy {
-  position: relative !important;
-  z-index: 9999 !important; /* 3D 모델과 배경을 디디고 맨 위로 올라오도록 설정 */
-  pointer-events: auto !important; /* 브라우저 클릭 및 호버 정상 접수 */
-}
-
-/* 5. 개별 폴더 아이콘 최종 잠금 해제 */
 .folder-item {
-  position: relative !important;
-  z-index: 10000 !important;
   pointer-events: auto !important;
 }
 
-/* 6. 초록색 연두색 가상 커서 보안관 배치 */
+/* 초록색 가상 마우스 커서가 자기 자신을 클릭하지 못하도록 관통 */
 .cursor-follower {
   position: fixed !important;
-  z-index: 99999999 !important; /* 세상 그 어떤 것보다 최상위 */
-  pointer-events: none !important; /* 커서 이미지 자체가 클릭을 막는 버그 방지 */
+  pointer-events: none !important;
+  z-index: 100000000 !important;
 }
