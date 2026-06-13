@@ -68,7 +68,7 @@ const setupLandingCanvas = () => {
     state.dpr    = Math.min(window.devicePixelRatio || 1, 1.5);
     landingCanvas.width  = Math.max(1, Math.floor(rect.width  * state.dpr));
     landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
-    landingCanvas.style.width  = `${rect.width}px`;
+    landingCanvasCanvas.style.width  = `${rect.width}px`;
     landingCanvas.style.height = `${rect.height}px`;
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
   };
@@ -115,7 +115,6 @@ const generatePureEnvironment = (renderer) => {
   const room = new THREE.Mesh(roomGeo, roomMat);
   scene.add(room);
 
-  // 천장 대형 하이라이트판
   const topLight = new THREE.Mesh(
     new THREE.BoxGeometry(80, 5, 80),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -123,7 +122,6 @@ const generatePureEnvironment = (renderer) => {
   topLight.position.set(0, 30, 0);
   scene.add(topLight);
 
-  // 정면 거울 반사용 화이트 구체
   const frontCenter = new THREE.Mesh(
     new THREE.SphereGeometry(22, 32, 32),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -131,7 +129,6 @@ const generatePureEnvironment = (renderer) => {
   frontCenter.position.set(0, 10, 30);
   scene.add(frontCenter);
 
-  // 좌우 사이드 반사 윙
   const leftPanel = new THREE.Mesh(
     new THREE.BoxGeometry(2, 60, 60),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -163,9 +160,9 @@ const initThree = () => {
 
   window.threeScene = new THREE.Scene();
 
-  const shell = landingDisplay || { offsetWidth: 650, offsetHeight: 650 };
-  const W = shell.offsetWidth;
-  const H = shell.offsetHeight;
+  // 고정된 박스 스케일에 부합하도록 600x600 강제 동기화
+  const W = 600;
+  const H = 600;
 
   window.threeRenderer = new THREE.WebGLRenderer({
     canvas: modelCanvas,
@@ -177,11 +174,9 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   
-  // ⚡ 뷰포트 노출도를 상향 조정하여 상시 눈부시게 세팅
   window.threeRenderer.toneMapping      = THREE.LinearToneMapping; 
   window.threeRenderer.toneMappingExposure = 3.0; 
 
-  // 조명 파워 리프트 (사방 균일 배치)
   const dirLight1 = new THREE.DirectionalLight(0xffffff, 15.0);
   dirLight1.position.set(0, 30, 25); 
   window.threeScene.add(dirLight1);
@@ -197,9 +192,9 @@ const initThree = () => {
   const ambientLight = new THREE.AmbientLight(0xffffff, 5.0); 
   window.threeScene.add(ambientLight);
 
-  // 정사각형 구조에 맞게 카메라 화각(FOV) 및 거리 최적화 (이탈 현상 차단)
-  window.threeCamera = new THREE.PerspectiveCamera(24, W / H, 0.1, 100);
-  window.threeCamera.position.set(0, 0, 5.0);
+  // 시야가 왜곡되거나 엇나가지 않도록 정비율 렌즈 장착
+  window.threeCamera = new THREE.PerspectiveCamera(24, 1, 0.1, 100);
+  window.threeCamera.position.set(0, 0, 4.9);
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
@@ -220,12 +215,11 @@ const initThree = () => {
 
       model.traverse((child) => {
         if (child.isMesh) {
-          // 🚨 블렌더 쉐이더 잠금 강제 해제 후 순도 100% 리얼 크롬 실버 재질 주입
           child.material.dispose(); 
           child.material = new THREE.MeshStandardMaterial({
             color: 0xffffff,
             metalness: 1.0,           
-            roughness: 0.0,           // 표면 스크래치 제로 -> 극상의 무결점 거울
+            roughness: 0.0,           
             envMap: envTexture,       
             envMapIntensity: 10.0,    
             roughnessMap: null,       
@@ -239,12 +233,10 @@ const initThree = () => {
         }
       });
 
-      // 요청하신 원본의 예쁜 비스듬한 눕기 각도
       model.rotation.x = 1.20;  
       model.rotation.y = 0.50;  
       model.rotation.z = -0.30; 
 
-      // 크기 줄이지 않고 650px 캔버스 내부에 가장 큼직하게 꽉 채우는 바운딩 스케일
       const BOUNDS = 2.45; 
       const box    = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
@@ -256,7 +248,6 @@ const initThree = () => {
       const scale  = BOUNDS / maxDim;
       model.scale.setScalar(scale);
 
-      // 모델의 기하학적 중심을 캔버스 정중앙 원점(0,0,0)에 완벽 구속
       model.position.set(-centre.x * scale, -centre.y * scale, -centre.z * scale);
 
       window.modelAnchor = new THREE.Group();
@@ -287,9 +278,9 @@ const hideSiteLoader = () => {
 
 const resizeThree = () => {
   if (!window.threeRenderer || !window.threeCamera) return;
-  const shell = landingDisplay || { offsetWidth: 650, offsetHeight: 650 };
-  window.threeRenderer.setSize(shell.offsetWidth, shell.offsetHeight);
-  window.threeCamera.aspect = shell.offsetWidth / shell.offsetHeight;
+  // 박스가 600x600 고정이므로 리사이즈 시에도 600 정비율 유지
+  window.threeRenderer.setSize(600, 600);
+  window.threeCamera.aspect = 1;
   window.threeCamera.updateProjectionMatrix();
 };
 
@@ -381,7 +372,6 @@ const animate = () => {
       let targetY = 0;
 
       if (isHoveringModel) {
-        // 시원하고 즉각적인 마우스 트래킹 감도 유지
         targetX = 0 + (-mouse.y * 0.65);
         targetY = 0 + (mouse.x * 0.95);
         
@@ -395,7 +385,6 @@ const animate = () => {
       window.modelAnchor.rotation.x = rotState.x;
       window.modelAnchor.rotation.y = rotState.y;
       
-      // 잔잔한 위아래 부유 효과
       window.modelAnchor.position.y = Math.sin(clock * 0.5) * 0.02; 
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
