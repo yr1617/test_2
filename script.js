@@ -3,9 +3,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    GLOBAL ENGINE REF (전역 변수 터짐 에러 완전 차단)
+    GLOBAL ENGINE REF (전역 안전 바인딩)
 ════════════════════════════════════════ */
-// 브라우저 윈도우 객체에 직접 박아서 'is not defined' 레퍼런스 에러를 원천 봉쇄합니다.
 window.threeScene     = window.threeScene || null;
 window.threeCamera    = window.threeCamera || null;
 window.threeRenderer  = window.threeRenderer || null;
@@ -36,7 +35,7 @@ const eliminateFakeModels = () => {
 };
 
 /* ════════════════════════════════════════
-    INTERACTION STATE (구석 박힘 현상 해결)
+    INTERACTION STATE
 ════════════════════════════════════════ */
 const pointer = { 
   x: window.innerWidth * 0.5, 
@@ -106,20 +105,20 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (완벽한 크리스탈 프리즘)
+    THREE.JS ENGINE (맑은 유리 프리즘 렌더 공정)
 ════════════════════════════════════════ */
 const generateFakeEnvironment = (renderer) => {
   const scene = new THREE.Scene();
-  const geo = new THREE.BoxGeometry(5, 5, 5);
+  const geo = new THREE.BoxGeometry(6, 6, 6);
   
-  // 에지 라인을 따라 크리스탈처럼 날카로운 흰색 하이라이트를 만들어줄 그라데이션 박스 환경맵
+  // 💥 유리를 허옇게 가리던 100% 화이트 면을 제거하고, 맑은 반사 실루엣만 맺히도록 톤다운된 스카이박스 구축
   const mats = [
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x333338, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0x050508, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x222225, side: THREE.BackSide }), 
     new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
-    new THREE.MeshBasicMaterial({ color: 0x0c0c10, side: THREE.BackSide })  
+    new THREE.MeshBasicMaterial({ color: 0x333338, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x0a0a0f, side: THREE.BackSide })  
   ];
   const box = new THREE.Mesh(geo, mats);
   scene.add(box);
@@ -151,39 +150,39 @@ const initThree = () => {
   const W = shell.offsetWidth;
   const H = shell.offsetHeight;
 
+  // 💥 [핵심 교정] 알파 투과 연산 정상화 및 하얗게 뜨는 왜곡 원천 차단
   window.threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
     alpha:       true, 
     antialias:   true,
-    premultipliedAlpha: false
+    premultipliedAlpha: true // true로 전환하여 배경 레이어와의 물리 투명 블렌딩을 정상화합니다.
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-  window.threeRenderer.toneMappingExposure = 1.1; 
+  window.threeRenderer.toneMappingExposure = 0.9; // 광량 오버로 인한 화이트 아웃 억제
 
-  // 사방 잘림 방지 뷰 각도 셋팅
   window.threeCamera = new THREE.PerspectiveCamera(36, W / H, 0.1, 100);
   window.threeCamera.position.set(0, 0, 5.3); 
 
   const envTexture = generateFakeEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+  // 💥 유리를 하얀 덩어리로 만들던 과한 조명 세기 전면 하향 및 색상 예리화
+  const ambient = new THREE.AmbientLight(0xffffff, 0.2);
   window.threeScene.add(ambient);
 
-  const keyLight1 = new THREE.DirectionalLight(0xffffff, 2.2);
+  const keyLight1 = new THREE.DirectionalLight(0xffffff, 0.8); // 정면 메인광 축소 (하얗게 타는 버그 방지)
   keyLight1.position.set(5, 8, 5);
   window.threeScene.add(keyLight1);
 
-  // 🌟 레퍼런스 이미지의 영롱한 오로라 스펙트럼 띠를 유리에 입혀줄 네온 컬러 다이렉트 광원 배치
-  const keyLight2 = new THREE.DirectionalLight(0x00faff, 3.5); 
-  keyLight2.position.set(-6, 4, 3);
+  const keyLight2 = new THREE.DirectionalLight(0x00ffff, 4.0); // 엣지에 맺힐 선명한 시안 프리즘광
+  keyLight2.position.set(-6, 4, 2);
   window.threeScene.add(keyLight2);
 
-  const keyLight3 = new THREE.DirectionalLight(0xff00b4, 3.5); 
-  keyLight3.position.set(6, -4, 3);
+  const keyLight3 = new THREE.DirectionalLight(0xff00ff, 4.0); // 엣지에 맺힐 선명한 마젠타 프리즘광
+  keyLight3.position.set(6, -4, 2);
   window.threeScene.add(keyLight3);
 
   const loader = new GLTFLoader();
@@ -209,27 +208,27 @@ const initThree = () => {
       model.scale.setScalar(scale);
       model.rotation.set(Math.PI / 2.3, 0, 0); 
 
-      // 🌟 [레퍼런스 매칭 100%] 탁한 회색 메탈 느낌을 완전히 걷어낸 투명 굴절 통유리 스펙
+      // 🌟 [투명 통유리 마스터피스 재질] 불투명 현상 완벽 박멸 공식
       const clearGlassMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
-        roughness: 0.0,                 // 고광택 유리 표면 질감
-        transmission: 1.0,              // 100% 뒤가 맑게 투과되는 연산
-        ior: 1.54,                      // 다이아몬드급 프리즘 굴절률 구현으로 내부 반사 유도
-        thickness: 0.45,                // 유리 면의 단면 두께감 설정
+        roughness: 0.0,
+        transmission: 1.0,              // 100% 완전 투과
+        ior: 1.5,                       // 현실적인 유리 굴절률로 고정하여 밀도 최적화
+        thickness: 0.2,                 // 💥 두께감을 슬림하게 줄여 내부 폴리곤이 화얗게 뭉치는 현상 차단
         transparent: true,
         opacity: 1.0,
-        reflectivity: 1.0,
+        reflectivity: 0.8,
         clearcoat: 1.0,                 
         clearcoatRoughness: 0.0,
-        side: THREE.DoubleSide,         // 내부 메쉬 겹침 노이즈 방지 및 뒷면 렌더링 활성화
-        depthWrite: true,
+        side: THREE.DoubleSide,         
+        depthWrite: false,              // 💥 [초초초핵심] 깊이 버퍼 쓰기를 꺼서 앞뒤 면이 서로를 가리지 않고 투명하게 관통하도록 처리합니다.
         envMap: envTexture,
-        envMapIntensity: 3.2            
+        envMapIntensity: 1.5            
       });
 
       if (typeof THREE.MeshPhysicalMaterial.prototype.dispersion !== 'undefined') {
-        clearGlassMaterial.dispersion = 12.0; // 에지에 예리한 무지개빛 오로라 굴절 효과 강화
+        clearGlassMaterial.dispersion = 15.0; // 💥 무지개빛 강도를 최대로 높여 면 분할 시 맑은 프리즘 색상 유도
       }
 
       model.traverse((child) => {
@@ -273,7 +272,7 @@ const resizeThree = () => {
 };
 
 /* ════════════════════════════════════════
-    MAIN ANIMATION LOOP (에러 방지 교정 완료)
+    MAIN ANIMATION LOOP
 ════════════════════════════════════════ */
 const animate = () => {
   window.animFrameId = requestAnimationFrame(animate);
