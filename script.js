@@ -617,3 +617,5 @@ window.addEventListener('resize', () => {
 // 모달창이 커서를 씹지 못하도록 커서 엘리먼트를 body 최상단으로 강제 인질극
 const realCursor = document.querySelector('.cursor-follower');
 if (realCursor) document.body.appendChild(realCursor);
+// 모달창(#folder-modal) 내부에서 일어나는 모든 마우스 이벤트가 3D/배경 캔버스로 뺏기는 것을 원천 차단
+document.getElementById('folder-modal')?.addEventListener('pointermove', (e) => e.stopPropagation(), { passive: true });
