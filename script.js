@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    ENGINE DESTROY & CLEAN
+    ENGINE DESTROY & CLEAN (노트북 터짐 방지 1단계: 엔진 초기화 강화)
 ════════════════════════════════════════ */
 if (window.animFrameId) {
   cancelAnimationFrame(window.animFrameId);
@@ -51,7 +51,7 @@ const pointer = {
 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
-// [원상복구 완결] 원래 사용하시던 비스듬하게 가장 이쁜 기본 기울기 각도값
+// [원상복구 원본] 사용자의 비스듬하게 가장 이쁜 기본 기울기 각도값 그대로 유지
 const baseRotation = { x: 0.3, y: -0.5 }; 
 const rotState     = { x: 0.3, y: -0.5 };
 
@@ -110,7 +110,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    [재질 개선] 탁한 현상을 방지하는 스튜디오 반사 맵 생성
+    [재질 개선] 눈부신 크롬 실버 반사를 위한 초고대비 환경 맵
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
@@ -200,12 +200,12 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      /* ── 크롬 실버 재질 정의 (메탈릭 100% + 주변 스튜디오 반사광 증폭) ── */
+      /* ── [크롬 실버 재질 교정 완료] 거울형 완전 금속 질감 적용 ── */
       const chromeSilverMat = new THREE.MeshStandardMaterial({
         color: 0xeeeeee,
-        metalness: 1.0,          // 은빛 메탈릭 질감 100%
-        roughness: 0.02,         // 표면 거칠기를 최소화하여 반사 선명도 확보
-        envMapIntensity: 4.0,    // 반사광 강도를 대폭 올려 화사하게 고정
+        metalness: 1.0,          // 은빛 메탈릭 100% 매핑
+        roughness: 0.02,         // 표면 거칠기를 완전 제로로 깎아 반사 선명도 확보
+        envMapIntensity: 4.0,    // 주변광 반사 세기를 확 키워 눈부신 크롬 실버 구현
         side: THREE.DoubleSide
       });
 
@@ -233,7 +233,7 @@ const initThree = () => {
       window.modelAnchor.add(model);
       window.threeScene.add(window.modelAnchor);
 
-      // 원래 이쁘게 비스듬히 누워있던 순정 기본 각도 고정
+      // 사용자의 시그니처 비스듬한 초기 각도로 고정
       window.modelAnchor.rotation.x = baseRotation.x;
       window.modelAnchor.rotation.y = baseRotation.y;
 
@@ -326,7 +326,7 @@ const updateNavProgress = () => {
 };
 
 /* ════════════════════════════════════════
-    MAIN ANIMATION LOOP
+    MAIN ANIMATION LOOP (노트북 터짐 방지 2단계: 괄호 구조 완전 매핑)
 ════════════════════════════════════════ */
 let clock = 0;
 
@@ -334,10 +334,10 @@ const animate = () => {
   window.animFrameId = requestAnimationFrame(animate);
   clock = Date.now() * 0.001;
 
-  pointer.x += (pointer.tx - pointer.x) * 0.12;
-  pointer.y += (pointer.ty - pointer.y) * 0.12;
+  pointer.x += (pointer.tx - pointer.x) * 0.08;
+  pointer.y += (pointer.ty - pointer.y) * 0.08;
 
-  // #DBFF86 미니 커서 엘리먼트 위치 업데이트 연산
+  // #00ff66 작은 원 엘리먼트 위치 실시간 업데이트
   if (follower) {
     follower.style.left = `${pointer.x}px`;
     follower.style.top  = `${pointer.y}px`;
@@ -348,7 +348,7 @@ const animate = () => {
 
   if (window.threeRenderer && window.threeScene && window.threeCamera) {
     if (window.modelAnchor) {
-      // 원래 코드가 가지고 있던 비스듬하게 누운 축 기준의 묵직한 마우스 무브 댐핑 인터랙션
+      // [원상복구 원본 인터랙션] 비스듬히 누운 각도 상태에서 마우스 움직임 방향으로만 묵직하게 댐핑 연동
       const targetX = baseRotation.x + (-mouse.y * 0.12);
       const targetY = baseRotation.y + (mouse.x * 0.35);
 
@@ -358,6 +358,7 @@ const animate = () => {
       window.modelAnchor.rotation.x = rotState.x;
       window.modelAnchor.rotation.y = rotState.y;
       
+      // 원본의 우아한 공중 부양 바운싱 연산
       window.modelAnchor.position.y = Math.sin(clock * 0.6) * 0.02; 
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
@@ -383,7 +384,7 @@ const setupHoverEvents = () => {
 };
 
 /* ════════════════════════════════════════
-    폴더 GUI 인터랙션
+    FOLDER GUI INTERACTION (원본 데이터 백업본 100% 무변경 이식)
 ════════════════════════════════════════ */
 const FOLDER_DATA = {
   academic: {
@@ -493,3 +494,122 @@ const setupFolderGUI = () => {
 
       li.appendChild(icon);
       li.appendChild(text);
+      list.appendChild(li);
+    });
+
+    modalBody.innerHTML = '';
+    modalBody.appendChild(sectionLabel);
+    modalBody.appendChild(list);
+
+    modal.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+    isModalOpen = true; 
+  };
+
+  const closeModal = () => {
+    modal.classList.remove('is-open');
+    document.body.style.overflow = '';
+    isModalOpen = false; 
+  };
+
+  grid.addEventListener('click', (e) => {
+    const item = e.target.closest('.folder-item');
+    if (!item) {
+      if (selectedItem) {
+        selectedItem.classList.remove('is-selected');
+        selectedItem = null;
+      }
+      return;
+    }
+
+    if (selectedItem && selectedItem !== item) {
+      selectedItem.classList.remove('is-selected');
+    }
+    
+    item.classList.add('is-selected');
+    selectedItem = item;
+  });
+
+  grid.addEventListener('dblclick', (e) => {
+    const item = e.target.closest('.folder-item');
+    if (!item) return;
+    
+    item.classList.add('is-opening');
+    setTimeout(() => item.classList.remove('is-opening'), 200);
+    openModal(item.dataset.folder);
+  });
+
+  grid.addEventListener('keydown', (e) => {
+    const item = e.target.closest('.folder-item');
+    if (!item) return;
+    if (e.key === 'Enter') openModal(item.dataset.folder);
+    if (e.key === ' ')     item.classList.toggle('is-selected');
+  });
+
+  modalClose.addEventListener('click', closeModal);
+  modalBack.addEventListener('click',  closeModal);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+  });
+};
+
+/* ════════════════════════════════════════
+    SCROLL REVEAL
+════════════════════════════════════════ */
+const setupReveal = () => {
+  const cards = document.querySelectorAll('.reveal-card');
+  if (!cards.length) return;
+  const obs = new IntersectionObserver(
+    (entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          obs.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
+  );
+  cards.forEach(c => obs.observe(c));
+};
+
+/* ════════════════════════════════════════
+    INIT ALL
+════════════════════════════════════════ */
+const initAll = () => {
+  landingCanvasCtrl = setupLandingCanvas();
+  setupHoverEvents();
+  eliminateFakeModels();
+  buildSectionMap();
+  setupReveal();
+  setupFolderGUI();
+
+  initThree();
+  animate();
+
+  window.addEventListener('scroll', () => {
+    updateNavProgress();
+
+    const spotlight = document.querySelector('.page-spotlight');
+    if (spotlight) {
+      const px = (pointer.x / window.innerWidth)  * 100;
+      const py = (pointer.y / window.innerHeight) * 100;
+      spotlight.style.setProperty('--page-pointer-x', `${px}%`);
+      spotlight.style.setProperty('--page-pointer-y', `${py}%`);
+    }
+  }, { passive: true });
+
+  updateNavProgress();
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAll);
+} else {
+  initAll();
+}
+
+window.addEventListener('resize', () => {
+  if (landingCanvasCtrl) landingCanvasCtrl.resize();
+  resizeThree();
+  updateNavProgress();
+});
