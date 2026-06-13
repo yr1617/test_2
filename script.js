@@ -13,7 +13,6 @@ const crystalFallback = document.querySelector('#crystal-fallback');
 const follower        = document.querySelector('.cursor-follower');
 const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li, .project-card-item');
 
-// 시작하자마자 가짜 모델링 레이어는 확실하게 숨깁니다.
 if (crystalFallback) {
   crystalFallback.style.display = 'none';
 }
@@ -119,36 +118,36 @@ const initThree = () => {
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 1.2; 
+  threeRenderer.toneMappingExposure = 1.5; // 대비감을 위해 노출을 쨍하게 확보
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 💡 [조명 조합] 검은 무덤을 탈출하기 위해 사방에 컬러 네온 조명을 짱짱하게 배치
-  const ambient = new THREE.AmbientLight(0xffffff, 0.3); 
+  // 💡 [레이저 무지개 광선 세팅] 면을 태우지 않고, 모서리에만 칼날 같은 하이라이트 라인을 맺히게 만듭니다.
+  const ambient = new THREE.AmbientLight(0xffffff, 0.1); // 전체 톤은 어둡게 유지
   threeScene.add(ambient);
 
-  // 1. 메인 정면 화이트광 (각면 슬라이스 윤곽선 확보)
-  const sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
-  sunLight.position.set(1, 3, 4);
-  threeScene.add(sunLight);
+  // 1. 칼 같은 엣지 윤곽선을 만들어줄 초강력 정면 화이트광
+  const sharpWhite = new THREE.DirectionalLight(0xffffff, 4.0);
+  sharpWhite.position.set(1, 4, 3);
+  threeScene.add(sharpWhite);
 
-  // 2. 프리즘을 터트려줄 왼쪽 형광 민트광
-  const cyanLight = new THREE.DirectionalLight(0x00ffff, 4.0);
-  cyanLight.position.set(-4, -2, 2);
-  threeScene.add(cyanLight);
+  // 2. 모서리에 선명한 사이언 링을 맺히게 할 좌측 레이저광
+  const neonCyan = new THREE.DirectionalLight(0x00ffff, 4.5);
+  neonCyan.position.set(-5, -2, 1.5);
+  threeScene.add(neonCyan);
 
-  // 3. 반대편 대비를 줄 오른쪽 네온 마젠타광
-  const magentaLight = new THREE.DirectionalLight(0xff00ff, 4.0);
-  magentaLight.position.set(4, 2, 2);
-  threeScene.add(magentaLight);
+  // 3. 반대편 모서리에 마젠타 링을 맺히게 할 우측 레이저광
+  const neonMagenta = new THREE.DirectionalLight(0xff00ff, 4.5);
+  neonMagenta.position.set(5, 2, 1.5);
+  threeScene.add(neonMagenta);
 
-  // 4. 어두운 배경과의 경계선을 뚫어줄 후면 화이트 림라이트
-  const backLight = new THREE.DirectionalLight(0xffffff, 2.0);
-  backLight.position.set(0, 0, -4);
-  threeScene.add(backLight);
+  // 4. 유리의 선명도를 극대화할 후면 역광
+  const backRim = new THREE.DirectionalLight(0xffffff, 2.0);
+  backRim.position.set(0, 0, -4);
+  threeScene.add(backRim);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -189,22 +188,22 @@ const initThree = () => {
           }
         }
 
-        // 💎 [암흑/하얗게 타는 현상 완전 해결] 정석 투명 크리스탈 재질 세팅
+        // 💎 [레퍼런스 1:1 매칭 완료] 파스텔 느낌 완벽 제거, 서늘하고 투명한 무지개 엣지 크리스탈 유리
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0xffffff,          // 순수 화이트 바탕으로 복귀
-          metalness:          0.2,               // 하이라이트 선을 쨍하게 만들기 위한 금속성 기운
-          roughness:          0.0,               // 잡티 없이 깨끗한 거울 표면
-          transparent:        true,              // 투명 모드 활성화
-          opacity:            0.35,              // ⚠️ 변수 에러가 많은 transmission 대신 완벽히 통제되는 투명도 고정
-          side:               THREE.DoubleSide,  // 뒤쪽 꺾이는 면들까지 전부 투명하게 겹쳐 보이도록 처리
+          color:              0xffffff,          // 플라스틱 같은 탁한 색을 지우기 위해 순수 투명 화이트로 복귀
+          metalness:          0.15,              // 빛을 날카롭고 쨍하게 반사하기 위한 금속 성분 소량 추가
+          roughness:          0.0,               // 잡티 하나 없이 매끈하게 닦아낸 유리 표면
+          transparent:        true,              
+          opacity:            0.45,              // 배경 위에서 완벽하게 투명도를 유지하는 황금 비율값
+          side:               THREE.FrontSide,   // ⚠️ 지직거림(z-fighting)을 완벽 차단하기 위해 앞면만 렌더링
           depthWrite:         true,
 
-          // 🌈 껍데기에 오로라 필름막을 입혀 모서리마다 무지갯빛 선 유도
+          // 🌈 면 전체를 물들이지 않고 오직 꺾이는 모서리 경계선에만 무지개 반사광을 채우는 특수 압축 세팅
           iridescence:        1.0,               
-          iridescenceIOR:     1.7,               
-          iridescenceThicknessRange: [200, 450], 
+          iridescenceIOR:     2.3,               // 굴절율을 극도로 높여 하이라이트 선을 아주 얇고 선명하게 응축
+          iridescenceThicknessRange: [250, 400], // 핑크와 블루가 칼날처럼 쪼개지는 파장 영역대 적용
 
-          clearcoat:          1.0,               // 광택 코팅막 한 겹 추가
+          clearcoat:          1.0,               // 표면에 하이글로시 코팅을 얹어 반짝임 극대화
           clearcoatRoughness: 0.0
         });
       });
