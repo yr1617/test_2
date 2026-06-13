@@ -908,23 +908,31 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   min-height: 280px !important; 
 }
 /* ════════════════════════════════════════
-    [진짜 최종 복구] 모달 먹통 해결 및 가상 커서 유지
+    [최종 복구] 3D 캔버스 복원 및 가상 커서 정상화
 ════════════════════════════════════════ */
 
-/* 1. 연두색 가상 커서: 디자인 유지, 화면 최상단 고정, 클릭 통과 */
+/* 1. 가상 커서: 디자인 그대로 유지하되, 모든 모달창보다 무조건 위에 뜨도록 설정 */
 .cursor-follower {
   position: fixed !important;
-  z-index: 999999 !important;      /* 모든 모달 창보다 무조건 위에 뜨게 만듭니다 */
-  pointer-events: none !important; /* 커서가 모달 안의 파일 클릭을 절대 방해하지 않음 */
+  z-index: 99999999 !important;   /* 최고 존엄 레이어 배치 */
+  pointer-events: none !important; /* 클릭, 드래그 등 모든 마우스 인터랙션을 100% 무조건 통과시킴 */
 }
 
-/* 2. 모달 전체 컨테이너: 가상 커서 바로 아래 레이어로 배치 */
+/* 2. 모달창 전체 컨테이너: 가상 커서 바로 아래 레이어로 배치 */
 #folder-modal {
-  z-index: 99998 !important;       /* 가상 커서(99999)보다는 아래에 둡니다 */
+  z-index: 999999 !important;     /* 커서 바로 밑에 위치 */
+  pointer-events: auto !important; /* 모달 안에서의 마우스 클릭/스크롤 정상 허용 */
 }
 
-/* 3. 모달 배경(뿌연 레이어): 모달창보다도 아래에 깔리도록 수정 */
+/* 3. 모달 내부 콘텐츠 및 파일 리스트에 마우스 포커스 정상 부여 */
+.modal-content, 
+.modal-wrapper, 
+.modal-file-list {
+  pointer-events: auto !important; /* 마우스가 이 영역의 파일들을 정상적으로 인식 */
+}
+
+/* 4. 화면을 뿌얗게 만드는 백드롭이 파일 리스트를 덮어버리지 않게 뒤로 배치 */
 .modal-backdrop {
-  z-index: 99997 !important;       /* 모달창 내용물보다 뒤로 보내서 화면 덮는 현상 해결 */
-  pointer-events: auto !important; /* 배경 클릭 시 모달 닫히는 기존 기능 유지 */
+  z-index: 999998 !important;     /* 모달창 내용물보다 한 단계 아래로 깔아줌 */
+  pointer-events: auto !important; 
 }
