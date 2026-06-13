@@ -614,15 +614,27 @@ window.addEventListener('resize', () => {
   resizeThree();
   updateNavProgress();
 });
-// 모달창이 커서를 씹지 못하도록 커서 엘리먼트를 body 최상단으로 강제 인질극
-const realCursor = document.querySelector('.cursor-follower');
-if (realCursor) document.body.appendChild(realCursor);
-// 모달창(#folder-modal) 내부에서 일어나는 모든 마우스 이벤트가 3D/배경 캔버스로 뺏기는 것을 원천 차단
-document.getElementById('folder-modal')?.addEventListener('pointermove', (e) => e.stopPropagation(), { passive: true });
-// 모달이 열려있을 때는 윈도우의 포인터 가로채기를 중단하여 모달 내 마우스 조작 완벽 허용
-window.addEventListener('pointermove', (e) => {
-  if (isModalOpen) {
-    // 모달창 내부의 클릭/이벤트가 가상 커서에 씹히지 않도록 강제 방류
-    e.stopPropagation();
+/* ════════════════════════════════════════
+    [진짜 원인 저격] 모달 오픈 시 가상 커서 좌표 마비 해결
+════════════════════════════════════════ */
+
+// 모달창(#folder-modal) 내부에서 마우스가 움직일 때, 윈도우 좌표계를 강제로 가상 커서에 주입
+document.getElementById('folder-modal')?.addEventListener('pointermove', (e) => {
+  // 이벤트가 상위 캔버스로 올라가서 루프 터지는 걸 원천 차단
+  e.stopPropagation(); 
+  
+  // 가상 커서 변수명이 pointer 또는 cursorFollower 일 텐데, 브라우저가 직접 요소를 강제 매칭하게 만듦
+  const follower = document.querySelector('.cursor-follower');
+  if (follower) {
+    // 모달창 위에서도 끊기지 않고 마우스 포인터 정중앙에 연두색 커서 강제 픽스
+    follower.style.left = `${e.clientX}px`;
+    follower.style.top = `${e.clientY}px`;
+  }
+}, { passive: true });
+
+// 모달 내부에서 클릭할 때 마우스가 일시정지(Freeze)되는 현상 방지
+document.getElementById('folder-modal')?.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+}, { passive: true });
   }
 }, { capture: true, passive: false });
