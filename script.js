@@ -114,33 +114,33 @@ const initThree = () => {
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 1.8; 
+  threeRenderer.toneMappingExposure = 1.6; 
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 전체적인 형태감을 잡아줄 은은한 기본 환경광
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6); 
+  // 💡 검게 죽는 사각지대를 완전히 없애기 위해 부드러운 환경광을 적절히 주입
+  const ambient = new THREE.AmbientLight(0xffffff, 1.2); 
   threeScene.add(ambient);
 
-  // 까맣게 타들어 가는 현상을 방지하기 위한 정면/후면 벨런스 조명
-  const mainLight1 = new THREE.DirectionalLight(0xffffff, 1.8);
-  mainLight1.position.set(3, 4, 3);
+  // 사방에서 보석을 비춰줄 3차원 기본 화이트 조명 세팅
+  const mainLight1 = new THREE.DirectionalLight(0xffffff, 1.5);
+  mainLight1.position.set(2, 4, 3);
   threeScene.add(mainLight1);
 
   const mainLight2 = new THREE.DirectionalLight(0xffffff, 1.0);
-  mainLight2.position.set(-3, -2, 2);
+  mainLight2.position.set(-2, -3, 2);
   threeScene.add(mainLight2);
 
-  // 🌈 외각선에 네온 오로라 하이라이트를 강제로 맺히게 할 스폿라이트 2개
-  const laserCyan = new THREE.SpotLight(0x00f5ff, 80.0, 40, Math.PI / 4, 0.4, 0.2);
-  laserCyan.position.set(4, 3, 2);
+  // 🌈 표면 무지갯빛 하이라이트를 더 넓고 영롱하게 퍼트릴 네온 스폿라이트 2개
+  const laserCyan = new THREE.SpotLight(0x00f5ff, 120.0, 40, Math.PI / 3, 0.6, 0.2);
+  laserCyan.position.set(4, 3, 3);
   threeScene.add(laserCyan);
 
-  const laserMagenta = new THREE.SpotLight(0xff00b5, 90.0, 40, Math.PI / 4, 0.4, 0.2);
-  laserMagenta.position.set(-4, -3, 2);
+  const laserMagenta = new THREE.SpotLight(0xff00b5, 140.0, 40, Math.PI / 3, 0.6, 0.2);
+  laserMagenta.position.set(-4, -3, 3);
   threeScene.add(laserMagenta);
 
   const loader = new GLTFLoader();
@@ -182,23 +182,25 @@ const initThree = () => {
           }
         }
 
-        // 💎 [극단적 양극화 종결 세팅] 
-        // 하얗게 타거나 까맣게 죽는 투과(transmission) 연산을 완전히 제거합니다.
+        // 💎 [하얗지도 까맣지도 않은 영롱 보석 질감 공식]
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0x444655,          // 차분하고 투명감 있는 미드나잇 실버 톤
-          metalness:          0.85,              // 금속성을 높여 내부 하얀 면들을 거울처럼 가려버림
-          roughness:          0.02,              // 쨍하고 맑은 유리 겉표면 질감 유지
+          color:              0xb0b5cf,          // 투명감을 머금은 은은한 크리스탈 스카이 블루 기반
+          metalness:          0.05,              // 돌덩어리 반사 현상을 잡기 위해 금속성 최소화
+          roughness:          0.0,               // 겉표면은 잡티 없이 맑게 정렬
           transparent:        true,
-          opacity:            0.65,              // 웹 사이트 배경이 투명하게 비치도록 투명도 조절
-          side:               THREE.FrontSide,   // 앞면만 렌더링해서 내부 중첩 버그 원천 차단
-          depthWrite:         true,
+          opacity:            0.75,              // 배경과 조명이 적절히 융합되도록 투명도 최적화
+          side:               THREE.DoubleSide,  
+          
+          // 중첩된 하얀 면들이 서로 뭉치지 않고 투명하게 투과되도록 강제 정렬
+          depthWrite:         false,
+          blending:           THREE.NormalBlending,
 
-          // 🌈 겉 껍데기 표면에 오로라 무지갯빛 하이라이트만 맺히게 하는 연산
+          // 🌈 표면 전체를 휘감는 프리즘 오로라 레이어 수치 맥스업
           clearcoat:          1.0,               
           clearcoatRoughness: 0.0,
           iridescence:        1.0,               
-          iridescenceIOR:     2.4,               
-          iridescenceThicknessRange: [200, 500]  
+          iridescenceIOR:     2.5,               
+          iridescenceThicknessRange: [250, 550]  
         });
       });
 
