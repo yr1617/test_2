@@ -114,38 +114,36 @@ const initThree = () => {
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 0.9; // 쨍하고 깊은 명암 대비 유도
+  threeRenderer.toneMappingExposure = 1.2; 
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 💡 가상 스튜디오 반사판 세팅 (세기 대폭 하향 조정하여 투명감 확보)
-  const pmremGenerator = new THREE.PMREMGenerator(threeRenderer);
-  pmremGenerator.compileEquirectangularShader();
-
-  const envScene = new THREE.Scene();
-  
-  // 타버림을 방지하기 위해 은은한 파스텔 빛깔로만 은근하게 배치합니다.
-  const fovLight1 = new THREE.DirectionalLight(0x00f5ff, 0.3); // 민트 반사광
-  fovLight1.position.set(3, 3, 2);
-  envScene.add(fovLight1);
-
-  const fovLight2 = new THREE.DirectionalLight(0xff00b5, 0.3); // 핑크 오로라 반사광
-  fovLight2.position.set(-3, -2, 2);
-  envScene.add(fovLight2);
-
-  const fovLight3 = new THREE.DirectionalLight(0xffffff, 0.2); // 정면 은은한 화이트 하이라이트
-  fovLight3.position.set(0, 0, 4);
-  envScene.add(fovLight3);
-
-  const renderTarget = pmremGenerator.fromScene(envScene, 0.05);
-  threeScene.environment = renderTarget.texture; 
-
-  // 공간의 아주 미세한 어둠 속 실루엣만 잡아줄 약한 기본 조명
-  const ambient = new THREE.AmbientLight(0xffffff, 0.1); 
+  // 💡 노이즈를 내던 가상 스튜디오(PMREM) 코드를 지우고, 맑은 실물 네온 조명을 배치했습니다.
+  const ambient = new THREE.AmbientLight(0xffffff, 0.15); 
   threeScene.add(ambient);
+
+  // 1. 우측 상단 : 오로라 핑크 빔 (유리 각면을 타지 않고 영롱하게 비춰줌)
+  const neonPink = new THREE.DirectionalLight(0xff00aa, 2.5);
+  neonPink.position.set(3, 4, 2);
+  threeScene.add(neonPink);
+
+  // 2. 좌측 하단 : 시아노 민트 청록 빔 (무지개빛 대비 형성)
+  const neonMint = new THREE.DirectionalLight(0x00f5ff, 2.2);
+  neonMint.position.set(-3, -3, 2);
+  threeScene.add(neonMint);
+
+  // 3. 정면 측면 : 윤곽선과 투명도를 살려줄 화이트 림 라이트
+  const frontRim = new THREE.DirectionalLight(0xffffff, 1.5);
+  frontRim.position.set(0, 2, 4);
+  threeScene.add(frontRim);
+
+  // 4. 후면 : 유리의 뒤가 맑게 뚫려 보이도록 뒤에서 쏴주는 조명
+  const backLight = new THREE.DirectionalLight(0x9955ff, 2.0);
+  backLight.position.set(0, 0, -4);
+  threeScene.add(backLight);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -186,24 +184,24 @@ const initThree = () => {
           }
         }
 
-        // 💎 속이 완전하고 맑게 뚫리는 오로라 유리 가공 공식
+        // 💎 노이즈 없이 맑고, 모서리마다 네온색 무지개가 뿜어져 나오는 리얼 크리스탈 재질
         child.material = new THREE.MeshPhysicalMaterial({
           color:              0xffffff,          
           metalness:          0.0,               
-          roughness:          0.01,              // 극도로 매끄러운 크리스탈 유리
+          roughness:          0.0,               // 완전 깨끗한 노노이즈 거울 표면
           transparent:        true,
-          transmission:       0.95,              // 95% 완전히 뒤가 비치도록 설정
-          ior:                1.45,              // 맑은 다이아몬드/유리 굴절값
-          thickness:          1.2,               // 묵직함을 주는 투명 두께
-          side:               THREE.FrontSide,   
+          transmission:       0.95,              // 속이 투명하게 비치는 필터
+          ior:                1.5,               // 유리 굴절
+          thickness:          1.0,               
+          side:               THREE.DoubleSide,  // 안쪽면까지 빛이 통과하도록 양면 렌더링
           depthWrite:         true,
 
-          // 🌈 조명이 약해진 만큼 비로소 진가를 발휘하는 은은한 프리즘 막 효과
+          // 🌈 네온 조명을 받아서 무지개 펄을 일으키는 핵심 공정
           clearcoat:          1.0,
           clearcoatRoughness: 0.0,
-          iridescence:        0.7,               
-          iridescenceIOR:     1.6,               
-          iridescenceThicknessRange: [100, 350]
+          iridescence:        1.0,               // 프리즘 광택 최대화
+          iridescenceIOR:     1.7,               
+          iridescenceThicknessRange: [200, 400]  // 핑크와 민트가 뚜렷하게 나뉘는 두께 범위
         });
       });
 
