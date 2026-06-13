@@ -1082,3 +1082,45 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   z-index: 99999999 !important;
   pointer-events: none !important; /* 커서 이미지 자체가 클릭을 막지 않게 투과 */
 }
+/* ════════════════════════════════════════
+   마우스 잠금 해제 & 레이어 서열 최종 정리
+════════════════════════════════════════ */
+
+/* 1. 배경 및 3D 영역: 뒤로 보내고, 마우스 클릭이 100% 관통되어 투과되도록 설정 */
+#model-canvas, 
+.landing-canvas, 
+.landing-display-shell, 
+#landing-display {
+  position: absolute !important;
+  z-index: 1 !important;
+  pointer-events: none !important; /* 중요: 클릭이 얘를 뚫고 뒤나 앞의 버튼으로 가야 함 */
+}
+
+/* 2. 바탕화면 그리드, 버튼, 카드 본문: 3D보다 앞으로 배치하고 클릭 잠금 해제 */
+#desktop-grid, 
+.landing-content, 
+.landing-copy,
+.landing-foot,
+.topbar,
+.topnav, 
+.hero-text-wrap,
+.content-shell,
+.reveal-card {
+  position: relative !important;
+  z-index: 10 !important;
+  pointer-events: auto !important; /* 브라우저 클릭 접수 활성화 */
+}
+
+/* 3. 폴더 아이콘 개별 보안관 */
+.folder-item {
+  position: relative !important;
+  z-index: 20 !important;
+  pointer-events: auto !important;
+}
+
+/* 4. 가상 커서: 최상단에서 춤추되, 본인 몸뚱아리가 클릭을 가로막지 않게 패스 */
+.cursor-follower {
+  position: fixed !important;
+  z-index: 999999 !important;
+  pointer-events: none !important; /* 가상 커서 뒤에 있는 버튼이 눌려야 하므로 필수 */
+}
