@@ -51,7 +51,7 @@ const pointer = {
 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
-// [대수술] 모델링이 완전히 정면을 바라보도록 고정하는 각도 오프셋 세팅
+// [대수술] 모델이 정수리를 보이며 눕지 않고 똑바로 일어서서 정면을 보도록 각도축 오프셋 주입
 const baseRotation = { x: Math.PI * 0.5, y: 0.0 }; 
 const rotState     = { x: Math.PI * 0.5, y: 0.0 };
 
@@ -111,7 +111,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    [교정] 컴퓨터 본체 느낌을 완벽하게 제거할 메탈 하이라이트 가상 스튜디오 룸
+    [교정] 리얼한 금속 크롬 반사를 유도하는 가상 스튜디오 박스 환경 맵 생성
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
@@ -154,7 +154,7 @@ const generatePureEnvironment = (renderer) => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE MAIN (조명 세기 대폭 강화 및 고품질 크롬 메탈 정의)
+    THREE.JS ENGINE MAIN
 ════════════════════════════════════════ */
 const initThree = () => {
   if (!modelCanvas || window.__threeInitialized) return;
@@ -176,9 +176,9 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  window.threeRenderer.toneMappingExposure = 2.4; // 톤맵 노출도를 극대화하여 검은 티끌을 전부 증발시킵니다.
+  window.threeRenderer.toneMappingExposure = 2.4; // 노출도를 끌어올려 물체가 까맣게 죽어 번지는 현상 원천 봉쇄
 
-  // 사방에서 물체를 비추는 무결점 화이트 광원 세팅
+  // 360도 전 방향 입체 3점 조명 세팅
   const dirLight1 = new THREE.DirectionalLight(0xffffff, 9.0);
   dirLight1.position.set(10, 15, 10);
   window.threeScene.add(dirLight1);
@@ -213,11 +213,11 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      /* ── 칙칙함을 완전히 날려줄 100% 순수 액체 거울 은빛 메탈릭 재질 하드코딩 ── */
+      /* ── 칙칙했던 색상을 빛을 강하게 반사하는 실버 크롬 메탈릭 질감으로 정교하게 오버라이드 ── */
       const chromeSilverMat = new THREE.MeshStandardMaterial({
         color: 0xffffff,       
-        metalness: 1.0,        // 금속 성질 100% 최대로 당김
-        roughness: 0.01,       // 표면 거칠기를 거의 제로로 만들어 거울 효과 부여
+        metalness: 1.0,        // 금속 반사율 최대로 지정
+        roughness: 0.01,       // 표면을 완전히 매끄럽게 깎아 주변 반사를 선명하게 만듦
         side: THREE.DoubleSide
       });
 
@@ -245,7 +245,7 @@ const initThree = () => {
       window.modelAnchor.add(model);
       window.threeScene.add(window.modelAnchor);
 
-      // 누워있지 않고 똑바로 일어서서 우리를 보도록 피벗 축 기준각을 강제 회전 고정
+      // 정면 각도가 찌그러지지 않도록 90도 베이스 피벗 보정 주입
       window.modelAnchor.rotation.x = baseRotation.x;
       window.modelAnchor.rotation.y = baseRotation.y;
 
@@ -276,7 +276,7 @@ const resizeThree = () => {
 };
 
 /* ════════════════════════════════════════
-    SCROLL INDICATOR
+    SCROLL INDICATOR (기존 스크롤 매핑 완벽 유지)
 ════════════════════════════════════════ */
 const buildSectionMap = () => {
   navLinks.forEach(link => {
@@ -338,7 +338,7 @@ const updateNavProgress = () => {
 };
 
 /* ════════════════════════════════════════
-    MAIN ANIMATION LOOP (속도 대폭 다운 및 잔잔한 연산)
+    MAIN ANIMATION LOOP (회전 감속 완료)
 ════════════════════════════════════════ */
 let clock = 0;
 
@@ -366,7 +366,7 @@ const animate = () => {
         rotState.x += (targetX - rotState.x) * 0.05;
         rotState.y += (targetY - rotState.y) * 0.05;
       } else {
-        // [회전 감속] 마구 날뛰며 빨리 돌지 않도록 우아하고 차분하게 자전 속도를 0.001로 고정
+        // 어지럽지 않게 기존 속도보다 매우 얌전하고 고급스러운 루프로 감속 (0.001)
         autoRotY += 0.001;
         const targetX = baseRotation.x + Math.sin(clock * 0.2) * 0.015;
         const targetY = autoRotY;
