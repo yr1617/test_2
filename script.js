@@ -113,33 +113,34 @@ const initThree = () => {
   threeRenderer.setSize(W, H);
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  // 대비와 하이라이트 경계를 칼처럼 선명하게 찢어주는 ACESFilmic 매핑
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 1.8; 
+  threeRenderer.toneMappingExposure = 2.2; 
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 전체를 흐리게 만들던 앰비언트 라이트 소멸
+  // 물체를 전체적으로 뿌옇고 하얗게 띄우던 환경광을 완전 제거(0.0)
   const ambient = new THREE.AmbientLight(0xffffff, 0.0); 
   threeScene.add(ambient);
 
-  // 입체 엣지만 잡아줄 탑 타겟 지향 광원
-  const mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
-  mainLight.position.set(0, 4, 2);
+  // 입체 실루엣의 명암 대비를 극명하게 잡아줄 탑 라이트
+  const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
+  mainLight.position.set(0, 5, 2);
   threeScene.add(mainLight);
 
-  // 🌈 레퍼런스 특유의 쨍한 외곽 오로라 컬러 전력 집중 배치
-  const laserCyan = new THREE.SpotLight(0x00f6ff, 120.0, 30, Math.PI / 4, 0.5, 0.2);
+  // 🌈 레퍼런스처럼 유리에 직접 네온 무지갯빛이 맺히도록 스폿 조명 강도를 극대화
+  const laserCyan = new THREE.SpotLight(0x00f0ff, 160.0, 30, Math.PI / 4, 0.5, 0.1);
   laserCyan.position.set(4, 3, 3);
   threeScene.add(laserCyan);
 
-  const laserMagenta = new THREE.SpotLight(0xff00a0, 140.0, 30, Math.PI / 4, 0.5, 0.2);
+  const laserMagenta = new THREE.SpotLight(0xff0099, 180.0, 30, Math.PI / 4, 0.5, 0.1);
   laserMagenta.position.set(-4, -2, 3);
   threeScene.add(laserMagenta);
 
-  const laserPurple = new THREE.SpotLight(0x8800ff, 90.0, 25, Math.PI / 3, 0.6, 0.2);
+  const laserPurple = new THREE.SpotLight(0x7700ff, 120.0, 25, Math.PI / 3, 0.6, 0.1);
   laserPurple.position.set(0, 4, -2);
   threeScene.add(laserPurple);
 
@@ -178,25 +179,26 @@ const initThree = () => {
           child.material.dispose();
         }
         
-        // 💧 흰색 막을 걷어내고 배경을 완벽히 투과시키는 순수 프리즘 유리 세팅
+        // 💎 웹 배경을 완전히 투과시키면서 엣지에 무지갯빛을 맺히게 하는 특수 알파-오로라 매핑
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0xffffff,          // 완전한 순백이어야 어두운 배경이 그대로 비칩니다.
-          metalness:          0.0,
-          roughness:          0.0,               // 매끄러운 겉면 (탁함 완벽 제거)
-          transmission:       1.0,               // 100% 완전 투과
-          ior:                1.38,              // 굴절률을 낮춰 덩어리가 겹쳐 하얗게 뜨는 원인 격리
-          thickness:          0.2,               // 두께를 극단적으로 줄여 굴절 그림자가 지지 않도록 방지
-          clearcoat:          1.0,               
-          clearcoatRoughness: 0.0,
-          opacity:            1.0,
+          color:              0xffffff,
+          metalness:          0.1,               // 아주 미세한 금속성으로 조명 빛을 더 선명하게 반사
+          roughness:          0.0,               // 완전한 무결점 거울/유리 표면 (탁한 기운 0%)
+          
+          // 🔥 [대해결] Three.js 자체 버그를 우회하기 위해 투과율 대신 알파 투명도로 웹 배경을 100% 투과
+          transmission:       0.0,               
           transparent:        true,
+          opacity:            0.25,              // 정면 면적은 웹 사이트 배경이 투명하게 비치도록 낮춤
+          
+          // 🌈 외곽 엣지에 맺히는 네온 무지갯빛 반사광 강제 고정
+          clearcoat:          1.0,               // 하이라이트 대비를 쨍하게 만들어주는 겉면 코팅
+          clearcoatRoughness: 0.0,
           side:               THREE.DoubleSide,
           
-          // 🌈 외곽 반사면에 극명하게 맺히는 프리즘 네온 무지갯빛 레이어
-          dispersion:         6.0,               
+          // 박막 간섭(Iridescence) 효과를 극한으로 끌어올려 강렬한 오색빛깔 연출
           iridescence:        1.0,               
-          iridescenceIOR:     2.3,               
-          iridescenceThicknessRange: [200, 600]  
+          iridescenceIOR:     2.8,               // 굴절률을 크게 높여 꺾이는 면에 무지갯빛이 뭉개지지 않고 선명하게 배치
+          iridescenceThicknessRange: [200, 700]  
         });
       });
 
