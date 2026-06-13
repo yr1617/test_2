@@ -104,32 +104,41 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    가상 돔 조명 생성
+    [조명 환경 수정] 실버 메탈을 쨍하게 비추는 스튜디오 환경
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
+  // 💡 그냥 흰색이 아니라 스스로 강한 빛을 내뿜는(color, toneMapped) 고휘도 박스 배치
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(60, 5, 60),
-    new THREE.MeshBasicMaterial({ color: 0xffffff })
+    new THREE.BoxGeometry(80, 5, 80),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  topLight.position.set(0, 15, 0);
+  topLight.position.set(0, 35, 0); // 모델과 겹치지 않게 위로 멀리 배치
   scene.add(topLight);
 
   const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 30, 30),
-    new THREE.MeshBasicMaterial({ color: 0xffffff })
+    new THREE.BoxGeometry(5, 40, 40),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  leftPanel.position.set(-15, 5, 0);
+  leftPanel.position.set(-30, 10, 10); // 좌측 측면 광원
   scene.add(leftPanel);
 
   const rightPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 30, 30),
-    new THREE.MeshBasicMaterial({ color: 0xffffff })
+    new THREE.BoxGeometry(5, 40, 40),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  rightPanel.position.set(15, 5, 0);
+  rightPanel.position.set(30, 10, 10); // 우측 측면 광원
   scene.add(rightPanel);
+
+  // 정면과 대각선에서 금속 하이라이트를 받아줄 전면 보조 광원판 추가
+  const frontPanel = new THREE.Mesh(
+    new THREE.BoxGeometry(40, 40, 5),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
+  );
+  frontPanel.position.set(0, 10, 30);
+  scene.add(frontPanel);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
