@@ -6,12 +6,11 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
     DOM ELEMENT REFS
 ════════════════════════════════════════ */
 const landing        = document.querySelector('.landing');
+const landingCanvas  = document.querySelector('.landing-canvas');
 const landingDisplay = document.querySelector('#landing-display');
 const modelCanvas    = document.querySelector('#model-canvas');   
 const follower        = document.querySelector('.cursor-follower');
 const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li, .project-card-item');
-
-// 가짜 백업 레이어 관련 스크립트 에러 유발 요소 완전 삭제
 
 /* ════════════════════════════════════════
     INTERACTION STATE
@@ -29,6 +28,56 @@ let modelAutoRotY = 0;
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
 /* ════════════════════════════════════════
+    LANDING CANVAS BACKGROUND
+════════════════════════════════════════ */
+const setupLandingCanvas = () => {
+  if (!landing || !landingCanvas) return null;
+  const ctx = landingCanvas.getContext('2d');
+  if (!ctx) return null;
+  const state = { width: 0, height: 0, dpr: 1 };
+
+  const resize = () => {
+    const rect = landing.getBoundingClientRect();
+    state.width  = rect.width;
+    state.height = rect.height;
+    state.dpr    = Math.min(window.devicePixelRatio || 1, 1.5);
+    landingCanvas.width  = Math.max(1, Math.floor(rect.width  * state.dpr));
+    landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
+    landingCanvas.style.width  = `${rect.width}px`;
+    landingCanvas.style.height = `${rect.height}px`;
+    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+  };
+
+  const draw = () => {
+    const { width, height } = state;
+    if (!width || !height) return;
+    ctx.clearRect(0, 0, width, height);
+    const rect = landing.getBoundingClientRect();
+    const px = pointer.x - rect.left;
+    const py = pointer.y - rect.top;
+    const glow = ctx.createRadialGradient(px, py, 0, px, py, Math.max(width, height) * 0.52);
+    glow.addColorStop(0,    'rgba(255,255,255,0.08)');
+    glow.addColorStop(0.3,  'rgba(150,100,255,0.04)');
+    glow.addColorStop(1,    'rgba(16,16,18,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, width, height);
+  };
+
+  resize();
+  return { resize, draw };
+};
+
+let landingCanvasCtrl = null;
+const updateLandingVars = () => {
+  if (!landing) return;
+  const rect = landing.getBoundingClientRect();
+  const x = ((pointer.x - rect.left) / Math.max(rect.width,  1)) * 100;
+  const y = ((pointer.y - rect.top)  / Math.max(rect.height, 1)) * 100;
+  landing.style.setProperty('--pointer-x', `${clamp01(x / 100) * 100}%`);
+  landing.style.setProperty('--pointer-y', `${clamp01(y / 100) * 100}%`);
+};
+
+/* ════════════════════════════════════════
     THREE.JS ENGINE
 ════════════════════════════════════════ */
 let threeRenderer = null;
@@ -36,42 +85,6 @@ let threeScene    = null;
 let threeCamera   = null;
 let modelAnchor   = null; 
 let animFrameId   = null;
-
-// 유리가 투과할 초고대비 네온 프리즘 텍스처를 씬 배경과 환경에 동시에 주입
-const createAdvancedEnvMap = (renderer) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 1024;
-  const ctx = canvas.getContext('2d');
-  
-  // 전체 배경을 웹사이트 기본 어두운 톤으로 채움
-  ctx.fillStyle = '#101012';
-  ctx.fillRect(0, 0, 1024, 1024);
-  
-  // 레퍼런스의 칼날 같은 무지개 하이라이트를 유도할 고대비 네온 라인 배치
-  const grad = ctx.createLinearGradient(0, 0, 1024, 1024);
-  grad.addColorStop(0.0, '#101012');
-  grad.addColorStop(0.3, '#ff0055'); // 마젠타 핑크 하이라이트 원천
-  grad.addColorStop(0.5, '#101012');
-  grad.addColorStop(0.7, '#00ffcc'); // 시안 민트 하이라이트 원천
-  grad.addColorStop(0.9, '#ffffff'); // 쨍한 백색 하이라이트
-  grad.addColorStop(1.0, '#101012');
-  
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 1024, 1024);
-  
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.mapping = THREE.EquirectangularReflectionMapping;
-  
-  const pmremGenerator = new THREE.PMREMGenerator(renderer);
-  pmremGenerator.compileEquirectangularShader();
-  const envCube = pmremGenerator.fromEquirectangular(texture);
-  
-  pmremGenerator.dispose();
-  texture.dispose();
-  
-  return envCube.texture;
-};
 
 const initThree = () => {
   if (!modelCanvas) return;
@@ -91,7 +104,7 @@ const initThree = () => {
 
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
-    alpha:       false, // ⚠️ 배경을 투명하게 빼면 투과가 먹통이 되므로 false 고정
+    alpha:       true, // 🚨 다시 투명 배경(alpha) 활성화하여 웹사이트 뒤가 100% 투과되게 만듭니다.
     antialias:   true,
     powerPreference: 'high-performance'
   });
@@ -100,25 +113,31 @@ const initThree = () => {
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 1.5; 
+  threeRenderer.toneMappingExposure = 1.3; 
 
   threeScene = new THREE.Scene();
-
-  // 🌌 씬 배경과 환경 맵을 일치시켜 유리가 배경을 완벽히 인식하고 투과하도록 처리
-  const envTexture = createAdvancedEnvMap(threeRenderer);
-  threeScene.background = new THREE.Color('#101012'); // 기본 우주 배경 톤
-  threeScene.environment = envTexture; // 유리에 맺힐 프리즘 환경
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 조명 세팅 - 겉면을 태우지 않고 각진 경계선에만 하이라이트를 응축
-  const ambient = new THREE.AmbientLight(0xffffff, 0.1);
+  // 💡 모서리 경계선에만 얇고 쨍한 오로라 광선을 먹여줄 순수 네온 조명 배치
+  const ambient = new THREE.AmbientLight(0xffffff, 0.1); 
   threeScene.add(ambient);
 
-  const sunLight = new THREE.DirectionalLight(0xffffff, 3.5);
+  // 1. 칼날 같은 엣지 명암을 잡아줄 메인 정면 탑 라이트
+  const sunLight = new THREE.DirectionalLight(0xffffff, 3.0);
   sunLight.position.set(1, 4, 3);
   threeScene.add(sunLight);
+
+  // 2. 모서리에 예리한 청록색 반사선을 맺히게 할 왼쪽 조명
+  const cyanLight = new THREE.DirectionalLight(0x00ffff, 4.0);
+  cyanLight.position.set(-4, -1, 2);
+  threeScene.add(cyanLight);
+
+  // 3. 반대편 모서리에 날카로운 자홍색 반사선을 맺히게 할 오른쪽 조명
+  const magentaLight = new THREE.DirectionalLight(0xff00ff, 4.0);
+  magentaLight.position.set(4, 1, 2);
+  threeScene.add(magentaLight);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -159,26 +178,22 @@ const initThree = () => {
           }
         }
 
-        // 💎 [레퍼런스 완벽 구현] 100% 배경 투과 및 광학 무지개 분산 크리스탈 재질
+        // 💎 [순수 크리스탈 유리 재질 고정] 탁한 색을 배제한 완벽한 굴절 유리 공식
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0xffffff,         
+          color:              0xffffff,          // 순수 무색 투명
           metalness:          0.0,               
-          roughness:          0.0,               // 거울처럼 매끄러운 텍스처
-          transparent:        true,
-          side:               THREE.FrontSide,   // 내부 겹침 지직거림 노이즈 완전 제거
-          depthWrite:         false,
+          roughness:          0.0,               // 매끈하게 폴리싱된 보석 질감
+          transparent:        true,              
+          opacity:            0.4,               // 배경 투과도를 완벽하게 고정
+          side:               THREE.FrontSide,   // 내부 겹침 지직거림 노이즈 0%화
+          depthWrite:         false,             
 
-          // ✨ 에어로젤 탈출 공정: 100% 완전 투명 투과 및 초고굴절
-          transmission:       1.0,               // 유리를 통과해 뒷배경이 100% 다 보임
-          ior:                2.42,              // 다이아몬드급 초고굴절로 명암비 극대화
-          thickness:          2.5,               // 유리 두께를 늘려 왜곡과 반사 하이라이트 증폭
-
-          // 🌈 가짜 색칠 대신 실제 빛이 쪼개지는 광학 프리즘 스펙트럼 적용
+          // 🌈 조명들과 반응하여 칼날 같은 오로라 윤곽선만 생성하는 특수 마찰막 세팅
           iridescence:        1.0,               
-          iridescenceIOR:     2.0,               
-          iridescenceThicknessRange: [250, 450], // 각면 모서리마다 청록과 핑크선이 날카롭게 맺히는 영역
+          iridescenceIOR:     2.4,               // 수치를 높여 하이라이트 라인을 얇고 정밀하게 응축
+          iridescenceThicknessRange: [200, 450], // 핑크와 블루가 가장 쨍하게 쪼개지는 파장대 고정
 
-          clearcoat:          1.0,               // 고광택 하이글로시 유리막 코팅
+          clearcoat:          1.0,               
           clearcoatRoughness: 0.0
         });
       });
@@ -227,14 +242,8 @@ const animate = () => {
     follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
   }
 
-  // HTML 변수 업데이트는 유지하되, 캔버스 중복 드로잉 제거하여 렌더링 부하 방지
-  if (landing) {
-    const rect = landing.getBoundingClientRect();
-    const x = ((pointer.x - rect.left) / Math.max(rect.width,  1)) * 100;
-    const y = ((pointer.y - rect.top)  / Math.max(rect.height, 1)) * 100;
-    landing.style.setProperty('--pointer-x', `${clamp01(x / 100) * 100}%`);
-    landing.style.setProperty('--pointer-y', `${clamp01(y / 100) * 100}%`);
-  }
+  updateLandingVars();
+  if (landingCanvasCtrl) landingCanvasCtrl.draw();
 
   if (threeRenderer && threeScene && threeCamera) {
     if (modelAnchor) {
@@ -295,6 +304,7 @@ const initAll = () => {
   if (window.__threeInitialized) return; 
   window.__threeInitialized = true;
 
+  landingCanvasCtrl = setupLandingCanvas();
   setupDragEvents(); 
 
   highlightElements.forEach((el) => {
@@ -329,5 +339,6 @@ if (document.readyState === 'loading') {
 }
 
 window.addEventListener('resize', () => {
+  if (landingCanvasCtrl) landingCanvasCtrl.resize();
   resizeThree();
 });
