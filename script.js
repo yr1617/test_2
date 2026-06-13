@@ -12,7 +12,6 @@ const modelCanvas    = document.querySelector('#model-canvas');
 const follower        = document.querySelector('.cursor-follower');
 const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li, .project-card-item');
 
-// 가짜 별 레이어 무력화 함수 안전 구동
 const eliminateFakeModels = () => {
   const fakeIds = ['#crystal-fallback', '#codex-3d', '.fallback-layer', '.crystal-backup'];
   fakeIds.forEach(selector => {
@@ -92,6 +91,50 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
+    🌈 GENERATE HIGH-CONTRAST PRISM ENVMAP
+════════════════════════════════════════ */
+// 무지개빛 분산과 쨍한 하이라이트를 유리에 강제로 맺히게 만드는 고대비 광학 생성기
+const generatePrismEnvMap = (renderer) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+
+  // 베이스는 투명 유리를 극대화할 칠흑색
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, 512, 256);
+
+  // 레퍼런스 특유의 쨍한 백색 하이라이트선 배치
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(100, 40, 40, 180);
+  ctx.fillRect(380, 40, 40, 180);
+
+  // 모서리 굴절면에 쪼개져 들어갈 선명한 스펙트럼 네온 그라데이션 라인 주입
+  const gradient = ctx.createLinearGradient(180, 0, 340, 0);
+  gradient.addColorStop(0.0, 'rgba(0,0,0,0)');
+  gradient.addColorStop(0.2, '#ff0055'); // 강렬한 자홍
+  gradient.addColorStop(0.4, '#00ffcc'); // 서늘한 시안 민트
+  gradient.addColorStop(0.6, '#ffaa00'); // 영롱한 골드 오렌지
+  gradient.addColorStop(0.8, '#0066ff'); // 딥 블루
+  gradient.addColorStop(1.0, 'rgba(0,0,0,0)');
+  
+  ctx.fillStyle = gradient;
+  ctx.fillRect(160, 20, 190, 216);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.mapping = THREE.EquirectangularReflectionMapping;
+
+  const pmremGenerator = new THREE.PMREMGenerator(renderer);
+  pmremGenerator.compileEquirectangularShader();
+  const renderTarget = pmremGenerator.fromEquirectangular(texture);
+
+  pmremGenerator.dispose();
+  texture.dispose();
+
+  return renderTarget.texture;
+};
+
+/* ════════════════════════════════════════
     THREE.JS ENGINE
 ════════════════════════════════════════ */
 let threeRenderer = null;
@@ -133,7 +176,7 @@ const initThree = () => {
 
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
-    alpha:       true, 
+    alpha:       true, // 웹사이트 배경 투과 활성화
     antialias:   true,
     powerPreference: 'high-performance'
   });
@@ -142,22 +185,22 @@ const initThree = () => {
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 1.4; 
+  threeRenderer.toneMappingExposure = 1.6; // 프리즘 선이 선명하게 튀어나오도록 노출 강하게 상향
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 💡 시커먼 흑화를 걷어내고 서늘하고 쨍한 하이라이트를 만들어줄 메인 백색광선 조명
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6); 
+  // 유리에 투과 및 프리즘 반사를 맺히게 할 특수 환경 맵 주입
+  const prismEnv = generatePrismEnvMap(threeRenderer);
+  threeScene.environment = prismEnv;
+
+  // 조명 스펙트럼 세팅
+  const ambient = new THREE.AmbientLight(0xffffff, 0.5); 
   threeScene.add(ambient);
 
-  const sunLight = new THREE.DirectionalLight(0xffffff, 4.0); 
-  sunLight.position.set(4, 6, 3);
+  const sunLight = new THREE.DirectionalLight(0xffffff, 3.5); 
+  sunLight.position.set(2, 5, 3);
   threeScene.add(sunLight);
-
-  const backLight = new THREE.DirectionalLight(0xffffff, 2.5); 
-  backLight.position.set(-4, -4, -2);
-  threeScene.add(backLight);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -191,25 +234,24 @@ const initThree = () => {
           else child.material.dispose();
         }
 
-        // 💎 [시커먼 불투명 흑화 전면 해결] 
-        // 뒤가 깨끗하게 비치는 완전 무색투명 '광학 유리 보석' 포뮬러
+        // 💎 [레퍼런스 완벽 매칭 정석 유리 재질]
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0xffffff,          // ⚠️ 완전한 순수 무색 백색 고정 (시커먼 색상 절대 배제)
+          color:              0xffffff,          // 순수 투명 베이스
           metalness:          0.0,               
-          roughness:          0.0,               // 극강의 매끄러운 굴절면 생성
+          roughness:          0.0,               // 거울면 폴리싱
           transparent:        true,              
           side:               THREE.FrontSide,   
           depthWrite:         false,
 
-          // ✨ 에어로젤/시커먼 플라스틱 탈출 핵심 속성
-          transmission:       1.0,               // 불투명도 대신 진짜 투과(Transmission) 기능을 100% 켭니다.
-          ior:                1.5,               // 유리알 고유 굴절률로 뒷배경 투명 투과 보장
-          thickness:          1.0,               // 유리 두께감 부여로 각진 모서리에만 음영 밀집
+          // ✨ 회색 플라스틱 현상 완전 타파 속성
+          transmission:       1.0,               // 100% 완벽한 광학 투과로 뒤쪽 요소가 그대로 뚫려 보임
+          ior:                2.0,               // 높은 굴절률로 각진 테두리에 극단적인 명암 대비 확보
+          thickness:          1.8,               // 굴절 두께를 주어 입체감 극대화
 
-          // 🌈 회전할 때마다 레퍼런스처럼 모서리에 서늘한 오로라 광선만 맺히게 하는 분산 효과
+          // 🌈 강제로 빛을 쪼개어 서늘하고 날카로운 무지갯빛 테두리 라인을 형성
           iridescence:        1.0,               
-          iridescenceIOR:     2.4,               
-          iridescenceThicknessRange: [200, 400], 
+          iridescenceIOR:     2.5,               
+          iridescenceThicknessRange: [250, 450], 
 
           clearcoat:          1.0,               
           clearcoatRoughness: 0.0
@@ -220,7 +262,7 @@ const initThree = () => {
       modelAnchor.add(model);
       threeScene.add(modelAnchor);
 
-      eliminateFakeModels(); // 로딩 끝나면 가짜 레이어 완벽 실종 처리
+      eliminateFakeModels(); 
       hideSiteLoader();
     },
     undefined,
