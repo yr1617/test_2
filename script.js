@@ -12,7 +12,7 @@ const modelCanvas    = document.querySelector('#model-canvas');
 const follower        = document.querySelector('.cursor-follower');
 const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li, .project-card-item');
 
-// 🚨 [HTML 가짜 레이어 안전하게 제거] 문법 에러 없는 정석 방식
+// 가짜 별 레이어 무력화 함수 안전 구동
 const eliminateFakeModels = () => {
   const fakeIds = ['#crystal-fallback', '#codex-3d', '.fallback-layer', '.crystal-backup'];
   fakeIds.forEach(selector => {
@@ -142,22 +142,22 @@ const initThree = () => {
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 1.1; 
+  threeRenderer.toneMappingExposure = 1.4; 
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 쨍하고 투명한 반사선을 만들기 위한 조명 밸런스
-  const ambient = new THREE.AmbientLight(0xffffff, 0.4); 
+  // 💡 시커먼 흑화를 걷어내고 서늘하고 쨍한 하이라이트를 만들어줄 메인 백색광선 조명
+  const ambient = new THREE.AmbientLight(0xffffff, 0.6); 
   threeScene.add(ambient);
 
-  const sunLight = new THREE.DirectionalLight(0xff00ff, 2.2); 
-  sunLight.position.set(3, 3, 2);
+  const sunLight = new THREE.DirectionalLight(0xffffff, 4.0); 
+  sunLight.position.set(4, 6, 3);
   threeScene.add(sunLight);
 
-  const subLight = new THREE.DirectionalLight(0x00ffff, 2.2); 
-  subLight.position.set(-3, -3, 2);
-  threeScene.add(subLight);
+  const backLight = new THREE.DirectionalLight(0xffffff, 2.5); 
+  backLight.position.set(-4, -4, -2);
+  threeScene.add(backLight);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -191,20 +191,25 @@ const initThree = () => {
           else child.material.dispose();
         }
 
-        // 💎 뒷배경이 선명하게 투과되는 다이아몬드 크리스탈 재질
+        // 💎 [시커먼 불투명 흑화 전면 해결] 
+        // 뒤가 깨끗하게 비치는 완전 무색투명 '광학 유리 보석' 포뮬러
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0x121216,          // 어두운 베이스로 투명감 확보
+          color:              0xffffff,          // ⚠️ 완전한 순수 무색 백색 고정 (시커먼 색상 절대 배제)
           metalness:          0.0,               
-          roughness:          0.01,              
+          roughness:          0.0,               // 극강의 매끄러운 굴절면 생성
           transparent:        true,              
-          opacity:            0.45,              // 뒷배경 요소들이 완전히 투과되어 비치는 세팅
           side:               THREE.FrontSide,   
           depthWrite:         false,
 
-          // 🌈 각진 경계선에만 얇고 선명하게 오로라빛을 응축
+          // ✨ 에어로젤/시커먼 플라스틱 탈출 핵심 속성
+          transmission:       1.0,               // 불투명도 대신 진짜 투과(Transmission) 기능을 100% 켭니다.
+          ior:                1.5,               // 유리알 고유 굴절률로 뒷배경 투명 투과 보장
+          thickness:          1.0,               // 유리 두께감 부여로 각진 모서리에만 음영 밀집
+
+          // 🌈 회전할 때마다 레퍼런스처럼 모서리에 서늘한 오로라 광선만 맺히게 하는 분산 효과
           iridescence:        1.0,               
-          iridescenceIOR:     2.3,               
-          iridescenceThicknessRange: [200, 420], 
+          iridescenceIOR:     2.4,               
+          iridescenceThicknessRange: [200, 400], 
 
           clearcoat:          1.0,               
           clearcoatRoughness: 0.0
@@ -215,7 +220,7 @@ const initThree = () => {
       modelAnchor.add(model);
       threeScene.add(modelAnchor);
 
-      eliminateFakeModels(); // 로드 완료 시 가짜 레이어 완벽 제거
+      eliminateFakeModels(); // 로딩 끝나면 가짜 레이어 완벽 실종 처리
       hideSiteLoader();
     },
     undefined,
@@ -320,7 +325,7 @@ const initAll = () => {
 
   landingCanvasCtrl = setupLandingCanvas();
   setupDragEvents(); 
-  eliminateFakeModels(); // 시작 시점에 가짜 레이어 일차 차단
+  eliminateFakeModels(); 
 
   highlightElements.forEach((el) => {
     el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
