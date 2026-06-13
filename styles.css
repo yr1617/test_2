@@ -1093,3 +1093,37 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
     min-height: 100vh;
     overflow: hidden !important;
 }
+/* 1. 3D 모델 상자 위치를 타이틀의 세로 중심과 완벽하게 동기화 */
+.landing-display-shell {
+    position: absolute !important;
+    top: 50% !important; /* 상하 정중앙 */
+    right: 0 !important; /* 우측 정렬 유지 */
+    transform: translateY(-50%) !important; /* 정확한 세로 매칭 */
+    width: 50vw !important; 
+    height: 600px !important; 
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 1;
+    overflow: visible !important;
+    pointer-events: auto;
+}
+
+#landing-display {
+    width: 600px !important;
+    height: 600px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* 2. 타이틀을 오른쪽(모델 쪽)으로 더 이동시키고, 버튼과의 간격 확보 */
+.landing-title-area {
+    margin-left: 80px !important; /* 타이틀 전체를 오른쪽으로 밀어서 모델과의 공백 최소화 */
+}
+
+.landing-title {
+    margin-bottom: 40px !important; /* 타이틀 글자와 아래 버튼 사이의 간격을 널찍하게 벌림 */
+}
