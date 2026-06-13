@@ -104,49 +104,49 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    🔥 블렌더 뷰포트 환경 재현: 고대비 스튜디오 맵 생성
+    🔥 상시 화사한 반사를 위한 고대비 스튜디오 생성
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
-  // 블렌더 특유의 어두운 회색/검은색 기본 베이스 공간 설정
-  const roomGeo = new THREE.SphereGeometry(50, 16, 16);
-  const roomMat = new THREE.MeshBasicMaterial({ color: 0x050508, side: THREE.BackSide });
+  // 완전히 어둡게 묻히지 않도록 기본 공간 톤을 미세하게 업그레이드
+  const roomGeo = new THREE.SphereGeometry(60, 16, 16);
+  const roomMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0f, side: THREE.BackSide });
   const room = new THREE.Mesh(roomGeo, roomMat);
   scene.add(room);
 
-  // 1. 상단 초강력 하이라이트 광판 (엣지에 흰색 선을 맺히게 함)
+  // 1. 상단 메인 하이라이트 대형 광판 (마우스가 없어도 은빛 라인을 고정)
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(60, 2, 60),
+    new THREE.BoxGeometry(80, 4, 80),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  topLight.position.set(0, 25, 0);
+  topLight.position.set(0, 30, -5);
   scene.add(topLight);
 
-  // 2. 전면 우측 고대비 반사판 (블렌더 구형 반사 형태 재현)
+  // 2. 전면 우측 고대비 반사 구체 (블렌더의 전면 하이라이트 재현)
   const frontRight = new THREE.Mesh(
-    new THREE.SphereGeometry(12, 16, 16),
+    new THREE.SphereGeometry(16, 32, 32),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  frontRight.position.set(20, 10, 20);
+  frontRight.position.set(25, 15, 25);
   scene.add(frontRight);
 
-  // 3. 좌측면 세로 소프트 박스 (메탈 굴곡면 대비용)
+  // 3. 좌측면 전반을 채워줄 와이드 세로 반사판 (어두운 면을 기본적으로 화사하게 채움)
   const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(1, 40, 25),
-    new THREE.MeshBasicMaterial({ color: 0xddddff, toneMapped: false })
+    new THREE.BoxGeometry(2, 50, 40),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  leftPanel.position.set(-25, 5, -5);
+  leftPanel.position.set(-30, 8, 0);
   scene.add(leftPanel);
 
-  // 4. 하단 은은한 반사 바닥
-  const bottomPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(60, 1, 60),
-    new THREE.MeshBasicMaterial({ color: 0x222222, toneMapped: false })
+  // 4. 후면 백라이트 스튜디오 판 (실루엣을 맑게 띄워줌)
+  const backPanel = new THREE.Mesh(
+    new THREE.BoxGeometry(50, 50, 2),
+    new THREE.MeshBasicMaterial({ color: 0x666677, toneMapped: false })
   );
-  bottomPanel.position.set(0, -25, 0);
-  scene.add(bottomPanel);
+  backPanel.position.set(0, 10, -35);
+  scene.add(backPanel);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
@@ -179,25 +179,25 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   
-  // ⚡ 블렌더 실시간 뷰포트 느낌의 고대비 톤매핑 세팅
+  // ⚡ 블렌더 실시간 리얼 뷰포트 대비감 정립
   window.threeRenderer.toneMapping      = THREE.LinearToneMapping; 
-  window.threeRenderer.toneMappingExposure = 2.0; 
+  window.threeRenderer.toneMappingExposure = 2.4; // 기본 노출을 더 환하게 업업!
 
-  // 입체적인 메탈 덩어리감을 극대화하는 외곽 라이트 배치
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 8.0);
-  dirLight1.position.set(10, 20, 15); 
+  // 기본 라이팅 파워를 훨씬 강렬하게 세팅 (마우스 없을 때 어두움 방지)
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 14.0);
+  dirLight1.position.set(15, 25, 20); 
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 5.0);
-  dirLight2.position.set(-15, -5, 10); 
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 8.0);
+  dirLight2.position.set(-20, 0, 15); 
   window.threeScene.add(dirLight2);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
+  const ambientLight = new THREE.AmbientLight(0xffffff, 2.5); // 전체 음영 베이스를 화사하게 셋업
   window.threeScene.add(ambientLight);
 
-  // ⚡ 카메라를 살짝 더 가깝게 당겨 크기 유실 보완 (5.5 -> 4.8)
+  // 위아래 늘어난 캔버스 공간에 맞춰 카메라 시야 범위 최적화
   window.threeCamera = new THREE.PerspectiveCamera(23, W / H, 0.1, 100);
-  window.threeCamera.position.set(0, 0, 4.8);
+  window.threeCamera.position.set(0, 0, 5.0);
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
@@ -216,13 +216,13 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // ⚡ 완전히 주변 매핑을 깨끗하게 거울처럼 거두어들이는 수은 크롬 재질 (Roughness 최소화)
+      // ⚡ 완벽한 거울 광택 수은 크롬 재질 (주변 환경 맵 강도 극대화)
       const chromeSilverMat = new THREE.MeshStandardMaterial({
         color: 0xffffff,          
         metalness: 1.0,           
-        roughness: 0.005,         // 거칠기를 사실상 0에 가깝게 내려 완벽한 고대비 거울면 형성
-        emissive: 0x000000,
-        envMapIntensity: 5.0,     // 가상 스튜디오 반사 광판의 강도를 폭발적으로 상향
+        roughness: 0.002,         // 매끄러움을 최고치로 끌어올려 맑은 반사광 생성
+        emissive: 0x050505,
+        envMapIntensity: 6.5,     // 반사판을 거울처럼 쨍하게 반사시키는 강도 상향 조정
         side: THREE.DoubleSide
       });
 
@@ -234,12 +234,12 @@ const initThree = () => {
         }
       });
 
-      // 요청하신 매력적이고 자연스럽게 누워있는 입체 각도 완성
+      // 자연스럽고 스타일리시하게 누워있는 정제된 각도
       model.rotation.x = 1.20;  
       model.rotation.y = 0.50;  
       model.rotation.z = -0.30; 
 
-      // ⚡ [크기 대폭 확장] 기존 2.0에서 2.7로 바운딩 타겟 스케일을 키워 작아진 느낌을 완벽 복구
+      // ⚡ 크기 축소 없이, 늘어난 캔버스를 꽉 채우도록 안정화 배치
       const BOUNDS = 2.7; 
       const box    = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
