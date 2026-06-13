@@ -907,3 +907,12 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   /* ★핵심: 340px로 붕 떠 있던 카드 전체 높이를 280px로 줄여서 썸네일 위 여백 축소 */
   min-height: 280px !important; 
 }
+/* 모달창 내부의 실제 컨텐츠, 버튼, 닫기 영역에서 마우스 클릭/드래그 무조건 허용 */
+#folder-modal, .modal-backdrop, .modal-file-list {
+  pointer-events: auto !important;
+}
+
+/* 혹시나 마우스 포인터 가상 레이어가 클릭을 방해하고 있다면 뚫어버리기 */
+.cursor-follower {
+  pointer-events: none !important;
+}
