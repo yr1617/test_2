@@ -46,7 +46,7 @@ const pointer = {
 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
-// 내부 모션용 회전 상태 변수
+// 모션 상태 각도 제어 변수
 const baseRotation = { x: 0, y: 0 }; 
 const rotState     = { x: 0, y: 0 };
 
@@ -111,7 +111,6 @@ const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
-  // 크롬 금속 굴곡면에 강한 흰색 하이라이트 선을 맺히게 해줄 고휘도 조명판 커스텀 배치
   const topLight = new THREE.Mesh(
     new THREE.BoxGeometry(100, 10, 100),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -171,19 +170,19 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  window.threeRenderer.toneMappingExposure = 2.5; // 밝기를 끌어올려 메탈감을 화사하게 부스팅
+  window.threeRenderer.toneMappingExposure = 2.4; 
 
-  // 일어선 정면을 강하게 때려줄 스튜디오 광원 추가 배치
+  // 세워진 정면을 입체적으로 강조할 스튜디오 광원 추가 배치
   const dirLight1 = new THREE.DirectionalLight(0xffffff, 9.0);
-  dirLight1.position.set(0, 15, 20); // 정면 상단 집중 조명
+  dirLight1.position.set(0, 15, 20); 
   window.threeScene.add(dirLight1);
 
   const dirLight2 = new THREE.DirectionalLight(0xffffff, 6.0);
-  dirLight2.position.set(-15, 5, 10); // 좌측 보조광
+  dirLight2.position.set(-15, 5, 10); 
   window.threeScene.add(dirLight2);
 
   const dirLight3 = new THREE.DirectionalLight(0xffffff, 6.0);
-  dirLight3.position.set(15, 5, 10); // 우측 보조광
+  dirLight3.position.set(15, 5, 10); 
   window.threeScene.add(dirLight3);
 
   const ambientLight = new THREE.AmbientLight(0xffffff, 2.0); 
@@ -208,12 +207,12 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // ⚡ [메탈 질감 대폭 강화] 액체 크롬처럼 맑고 쨍하게 반사하는 진짜 은빛 금속 재질 강제 조율
+      // 맑고 선명하게 주위 환경을 반사하는 크롬 실버 메탈 질감 세팅
       const chromeSilverMat = new THREE.MeshStandardMaterial({
-        color: 0xffffff,          // 탁한 회색을 걷어낸 완전한 은빛 순백색 베이스
-        metalness: 1.0,           // 100% 하드 메탈릭 성질 지정
-        roughness: 0.05,          // 거칠기를 완전 낮춰 주변 조명을 거울처럼 쨍하게 반사하게 만듦
-        emissive: 0x222222,       // 어두운 뒷배경 공간에서도 은은하게 속광이 돌도록 안전장치 부여
+        color: 0xffffff,          
+        metalness: 1.0,           
+        roughness: 0.05,          // 거칠기를 극도로 낮춰 거울처럼 광택이 나게 빌드
+        emissive: 0x222222,       
         side: THREE.DoubleSide
       });
 
@@ -225,7 +224,7 @@ const initThree = () => {
         }
       });
 
-      // ⚡ [핵심 교정] 원본 파일 자체의 누워있는 근본 축(Z축 방향)을 X축 기준 90도 회전시켜 똑바로 세웁니다.
+      // 원본 오브젝트 뼈대 축이 누워있는 문제를 X축 90도 회전으로 정면 강제 교정
       model.rotation.x = Math.PI / 2; 
 
       const BOUNDS = 2.0;
@@ -240,7 +239,6 @@ const initThree = () => {
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
 
-      // 마우스 반응 및 회전 링커 역할을 해줄 바깥 앵커 그룹 생성
       window.modelAnchor = new THREE.Group();
       window.modelAnchor.add(model);
       window.threeScene.add(window.modelAnchor);
@@ -256,3 +254,385 @@ const initThree = () => {
       console.warn('GLB 로드 실패', err);
       hideSiteLoader();
     }
+  );
+};
+
+const hideSiteLoader = () => {
+  const siteLoader = document.querySelector('#site-loader');
+  if (siteLoader) {
+    setTimeout(() => siteLoader.classList.add('is-loaded'), 500);
+  }
+};
+
+const resizeThree = () => {
+  if (!window.threeRenderer || !window.threeCamera) return;
+  const shell = landingDisplay || { offsetWidth: window.innerWidth, offsetHeight: window.innerHeight };
+  window.threeRenderer.setSize(shell.offsetWidth, shell.offsetHeight);
+  window.threeCamera.aspect = shell.offsetWidth / shell.offsetHeight;
+  window.threeCamera.updateProjectionMatrix();
+};
+
+/* ════════════════════════════════════════
+    SCROLL INDICATOR
+════════════════════════════════════════ */
+const buildSectionMap = () => {
+  navLinks.forEach(link => {
+    const id = link.getAttribute('data-target');
+    const el = document.getElementById(id);
+    if (el) sections.push({ link, el, id, progress: link.querySelector('.nav-progress') });
+  });
+};
+
+const updateNavProgress = () => {
+  const scrollY     = window.scrollY;
+  const winH        = window.innerHeight;
+  const docH        = document.documentElement.scrollHeight;
+  const headerH      = 92;
+
+  let activeIdx = -1;
+  let maxCoverage = -1;
+
+  sections.forEach((sec, i) => {
+    const rect  = sec.el.getBoundingClientRect();
+    const top   = rect.top + scrollY - headerH;
+    const bot   = top + rect.height;
+
+    const visTop  = Math.max(scrollY, top);
+    const visBot  = Math.min(scrollY + winH, bot);
+    const overlap = Math.max(0, visBot - visTop);
+    const coverage = overlap / Math.max(rect.height, 1);
+
+    if (coverage > maxCoverage) {
+      maxCoverage = coverage;
+      activeIdx   = i;
+    }
+  });
+
+  const isAtBottom = (scrollY + winH >= docH - 8);
+
+  sections.forEach((sec, i) => {
+    if (i !== activeIdx) {
+      sec.progress.style.setProperty('--nav-p', '0');
+      sec.link.classList.remove('is-active');
+      return;
+    }
+
+    sec.link.classList.add('is-active');
+
+    const rect     = sec.el.getBoundingClientRect();
+    const secTop   = rect.top + scrollY - headerH;
+    const secH     = rect.height;
+
+    const scrolledInSection = scrollY - secTop;
+    const totalScrollableRange = secH - (i === sections.length - 1 ? winH - headerH : 100);
+    let raw = totalScrollableRange > 0 ? scrolledInSection / totalScrollableRange : 0;
+    
+    if (scrolledInSection + winH >= secH + 80) raw = 1.0;
+    if (isAtBottom && i === sections.length - 1) raw = 1.0;
+
+    sec.progress.style.setProperty('--nav-p', clamp01(raw).toFixed(4));
+  });
+};
+
+/* ════════════════════════════════════════
+    MAIN ANIMATION LOOP
+════════════════════════════════════════ */
+let clock = 0;
+
+const animate = () => {
+  window.animFrameId = requestAnimationFrame(animate);
+  clock = Date.now() * 0.001;
+
+  pointer.x += (pointer.tx - pointer.x) * 0.12;
+  pointer.y += (pointer.ty - pointer.y) * 0.12;
+
+  if (follower) {
+    follower.style.left = `${pointer.x}px`;
+    follower.style.top  = `${pointer.y}px`;
+  }
+
+  updateLandingVars();
+  if (landingCanvasCtrl) landingCanvasCtrl.draw();
+
+  if (window.threeRenderer && window.threeScene && window.threeCamera) {
+    // ⚡ [Null 에러 방지 안전장치] window.modelAnchor가 확실히 로드 완료되었을 때만 로직을 실행하도록 수정
+    if (window.modelAnchor) {
+      let targetX = 0;
+      let targetY = 0;
+
+      if (isHoveringModel) {
+        // 1. 마우스가 박스 내부에 들어왔을 때 마우스 반응 모션 활성화
+        targetX = 0 + (-mouse.y * 0.25);
+        targetY = 0 + (mouse.x * 0.45);
+        
+        rotState.x += (targetX - rotState.x) * 0.06;
+        rotState.y += (targetY - rotState.y) * 0.06;
+      } else {
+        // 2. 마우스가 영역을 벗어났을 때 스스로 세련되게 무한 자전 회전
+        rotState.x += (0 - rotState.x) * 0.03; 
+        rotState.y += 0.005; 
+      }
+
+      window.modelAnchor.rotation.x = rotState.x;
+      window.modelAnchor.rotation.y = rotState.y;
+      
+      // 우아하게 떠 있는 공중 부양 모드
+      window.modelAnchor.position.y = Math.sin(clock * 0.6) * 0.02; 
+    }
+    window.threeRenderer.render(window.threeScene, window.threeCamera);
+  }
+};
+
+/* ════════════════════════════════════════
+    HOVER & POINTER EVENTS
+════════════════════════════════════════ */
+const setupHoverEvents = () => {
+  window.addEventListener('mousemove', (e) => {
+    pointer.tx = e.clientX;
+    pointer.ty = e.clientY;
+    
+    if (isHoveringModel) {
+      const winW = window.innerWidth || 1;
+      const winH = window.innerHeight || 1;
+      mouse.x = (e.clientX / winW) * 2 - 1;
+      mouse.y = -(e.clientY / winH) * 2 + 1;
+    }
+  }, { passive: true });
+
+  const displayShell = document.querySelector('.landing-display-shell');
+  if (displayShell) {
+    displayShell.addEventListener('pointerenter', () => { isHoveringModel = true; });
+    displayShell.addEventListener('pointerleave', () => { isHoveringModel = false; });
+  }
+};
+
+/* ════════════════════════════════════════
+    폴더 GUI 데이터 및 인터랙션
+════════════════════════════════════════ */
+const FOLDER_DATA = {
+  academic: {
+    title: '교과 프로젝트 경험',
+    path:  '~/archive/academic/',
+    items: [
+      { text: '학생 마음 건강 콘텐츠 공모전, 포스터 부문 참여', highlight: false },
+      { text: '포토샵 아트워크 & 브랜딩 굿즈 제작 프로젝트', highlight: false },
+      { text: '멜론 광고 영상 제작 프로젝트 [공유하는 마음]', highlight: false },
+      { text: '맛집 지도 서비스 제작 프로젝트 [MZ]', highlight: true },
+      { text: '그래픽 포스터 제작 프로젝트 [모디곰 BI 포스터]', highlight: true },
+      { text: '학교 아이덴티티 반영 패턴디자인 제작 프로젝트', highlight: false },
+      { text: '흥부전 픽토그램 디자인 프로젝트', highlight: false },
+      { text: 'GUI 스타일별 아이콘 제작 프로젝트', highlight: true },
+      { text: 'OTT 서비스 디자인 시스템 컴포넌트 및 디자인 시스템 제작 프로젝트', highlight: true },
+      { text: '패션 종합 어플리케이션 [MFF] 창업 계획서 작성 프로젝트', highlight: false },
+    ]
+  },
+  club: {
+    title: '교내 활동 · 동아리 활동',
+    path:  '~/archive/club/',
+    items: [
+      { text: '급식 티켓팅 서비스 제작 프로젝트 [급식 패스]', highlight: true },
+      { text: '미림 해커톤 / 컬러워크 기록 서비스 제작 프로젝트 [투데인트]', highlight: true },
+      { text: 'AI ESG 교육 이수', highlight: false },
+      { text: 'JS 스터디 홍보 게시물 제작', highlight: true },
+    ]
+  },
+  personal: {
+    title: '개인 프로젝트 경험',
+    path:  '~/archive/personal/',
+    items: [
+      { text: '컵에 끼우는 화상 방지용 실리콘 차단물로 창업 아이디어 경진 대회 참여', highlight: false },
+      { text: '(진행중) 하루 한번 면접 질문 서비스 제작 프로젝트 [모디곰]', highlight: true },
+    ]
+  },
+  books: {
+    title: '독서 경험',
+    path:  '~/archive/books/',
+    items: [
+      { text: '< 라면집도 디자이너가 하면 다르다 > — 강범규', highlight: true },
+      { text: '< 디자인 구구단 > — 에이핫', highlight: false },
+      { text: '< (UX/UI 디자이너를 위한) 실무 피그마 > — 클레어정', highlight: true },
+      { text: '< (비전공자를 위한 이해할 수 있는) IT 지식 > — 최원영', highlight: false },
+      { text: '< 1일 1로그 100일 완성 IT 지식 > — 브라이언 W. 커니핸', highlight: false },
+      { text: '< 폰트의 비밀 > — 고바야시 아키라', highlight: true },
+      { text: '< 갱부 > — 나쓰메 소세키', highlight: false },
+    ]
+  },
+  cert: {
+    title: '자격취득내용',
+    path:  '~/archive/cert/',
+    items: [
+      { text: 'GTQ 1급', highlight: false },
+      { text: 'ITQ 한글 A급, PPT C급', highlight: false },
+    ]
+  },
+  awards: {
+    title: '수상 이력',
+    path:  '~/archive/awards/',
+    items: [
+      { text: '신입생 대표 선서, 학교장 장학금', highlight: true },
+      { text: '1학년 1학기 일본어 교과우수상 수상', highlight: false },
+      { text: '피그마 재즈 대상 수상', highlight: true },
+      { text: 'AI ESG 교육 이수 수료증', highlight: false },
+    ]
+  }
+};
+
+const setupFolderGUI = () => {
+  const grid       = document.getElementById('desktop-grid');
+  const modal      = document.getElementById('folder-modal');
+  const modalClose = document.getElementById('modal-close');
+  const modalBack  = document.getElementById('modal-backdrop');
+  const modalTitle = document.getElementById('modal-title');
+  const modalPath  = document.getElementById('modal-path');
+  const modalBody  = document.getElementById('modal-body');
+
+  if (!grid || !modal) return;
+
+  let selectedItem = null;
+
+  const openModal = (folderKey) => {
+    const data = FOLDER_DATA[folderKey];
+    if (!data) return;
+
+    modalTitle.textContent = data.title;
+    modalPath.textContent  = data.path;
+
+    const sectionLabel = document.createElement('p');
+    sectionLabel.className   = 'modal-section-title';
+    sectionLabel.textContent = 'FILES';
+
+    const list = document.createElement('ul');
+    list.className = 'modal-file-list';
+
+    data.items.forEach(item => {
+      const li    = document.createElement('li');
+      li.className = 'modal-file-item' + (item.highlight ? ' is-highlight' : '');
+
+      const icon  = document.createElement('span');
+      icon.className   = 'file-icon';
+      icon.textContent = item.highlight ? '★' : '›';
+
+      const text  = document.createElement('span');
+      text.textContent = item.text;
+
+      li.appendChild(icon);
+      li.appendChild(text);
+      list.appendChild(li);
+    });
+
+    modalBody.innerHTML = '';
+    modalBody.appendChild(sectionLabel);
+    modalBody.appendChild(list);
+
+    modal.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+    isModalOpen = true; 
+  };
+
+  const closeModal = () => {
+    modal.classList.remove('is-open');
+    document.body.style.overflow = '';
+    isModalOpen = false; 
+  };
+
+  grid.addEventListener('click', (e) => {
+    const item = e.target.closest('.folder-item');
+    if (!item) {
+      if (selectedItem) {
+        selectedItem.classList.remove('is-selected');
+        selectedItem = null;
+      }
+      return;
+    }
+
+    if (selectedItem && selectedItem !== item) {
+      selectedItem.classList.remove('is-selected');
+    }
+    
+    item.classList.add('is-selected');
+    selectedItem = item;
+  });
+
+  grid.addEventListener('dblclick', (e) => {
+    const item = e.target.closest('.folder-item');
+    if (!item) return;
+    
+    item.classList.add('is-opening');
+    setTimeout(() => item.classList.remove('is-opening'), 200);
+    openModal(item.dataset.folder);
+  });
+
+  grid.addEventListener('keydown', (e) => {
+    const item = e.target.closest('.folder-item');
+    if (!item) return;
+    if (e.key === 'Enter') openModal(item.dataset.folder);
+    if (e.key === ' ')     item.classList.toggle('is-selected');
+  });
+
+  if (modalClose) modalClose.addEventListener('click', closeModal);
+  if (modalBack) modalBack.addEventListener('click',  closeModal);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+  });
+};
+
+/* ════════════════════════════════════════
+    SCROLL REVEAL
+════════════════════════════════════════ */
+const setupReveal = () => {
+  const cards = document.querySelectorAll('.reveal-card');
+  if (!cards.length) return;
+  const obs = new IntersectionObserver(
+    (entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          obs.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
+  );
+  cards.forEach(c => obs.observe(c));
+};
+
+/* ════════════════════════════════════════
+    INIT ALL
+════════════════════════════════════════ */
+const initAll = () => {
+  landingCanvasCtrl = setupLandingCanvas();
+  setupHoverEvents();
+  eliminateFakeModels();
+  buildSectionMap();
+  setupReveal();
+  setupFolderGUI();
+
+  initThree();
+  animate();
+
+  window.addEventListener('scroll', () => {
+    updateNavProgress();
+
+    const spotlight = document.querySelector('.page-spotlight');
+    if (spotlight) {
+      const px = (pointer.x / window.innerWidth)  * 100;
+      const py = (pointer.y / window.innerHeight) * 100;
+      spotlight.style.setProperty('--page-pointer-x', `${px}%`);
+      spotlight.style.setProperty('--page-pointer-y', `${py}%`);
+    }
+  }, { passive: true });
+
+  updateNavProgress();
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAll);
+} else {
+  initAll();
+}
+
+window.addEventListener('resize', () => {
+  if (landingCanvasCtrl) landingCanvasCtrl.resize();
+  resizeThree();
+  updateNavProgress();
+});
