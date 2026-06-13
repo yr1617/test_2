@@ -46,8 +46,9 @@ const pointer = {
 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
-const baseRotation = { x: 0.3, y: -0.5 }; 
-const rotState     = { x: 0.3, y: -0.5 };
+// ⚡ [교정] 모델링이 하늘로 누워있지 않고 사용자를 똑바로 보도록 기본 각도를 정면(0, 0)으로 셋팅
+const baseRotation = { x: 0, y: 0 }; 
+const rotState     = { x: 0, y: 0 };
 
 let isHoveringModel = false;
 let isModalOpen = false; 
@@ -104,54 +105,41 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    [최종 해결] 실버 메탈을 하얗고 쨍하게 반사시키는 가상 돔 스튜디오
+    가상 돔 조명 생성
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
-  
-  // 1. 우주 암흑 공간이 아닌, 사방이 밝은 스튜디오 룸 형태로 배경색을 강제 지정합니다.
-  // 이 밝은 미색/흰색이 메탈 표면에 반사되어 차가운 실버 톤을 만듭니다.
-  scene.background = new THREE.Color(0xffffff);
+  scene.background = null;
 
-  // 2. 금속의 꺾이는 모서리에 쨍한 칼각 하이라이트를 맺히게 해줄 고휘도 조명 기둥들 배치
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(90, 8, 90),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
+    new THREE.BoxGeometry(60, 5, 60),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  topLight.position.set(0, 30, 0);
+  topLight.position.set(0, 15, 0);
   scene.add(topLight);
 
   const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(8, 50, 50),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
+    new THREE.BoxGeometry(2, 30, 30),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  leftPanel.position.set(-25, 15, 0);
+  leftPanel.position.set(-15, 5, 0);
   scene.add(leftPanel);
 
   const rightPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(8, 50, 50),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
+    new THREE.BoxGeometry(2, 30, 30),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
-  rightPanel.position.set(25, 15, 0);
+  rightPanel.position.set(15, 5, 0);
   scene.add(rightPanel);
 
-  // 정면에서 메탈릭 질감을 하얗고 선명하게 밝혀줄 전면 대형 소프트박스
-  const frontPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(50, 50, 8),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
-  );
-  frontPanel.position.set(0, 15, 25);
-  scene.add(frontPanel);
-
-  // 3. 이 밝은 스튜디오 공간을 360도 환경 맵 텍스처로 구워내어 메탈에 주입합니다.
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
   const rt = pmrem.fromScene(scene);
   pmrem.dispose();
-  
   rt.texture.mapping = THREE.CubeReflectionMapping;
   return rt.texture;
 };
+
 /* ════════════════════════════════════════
     THREE.JS ENGINE MAIN
 ════════════════════════════════════════ */
@@ -177,15 +165,16 @@ const initThree = () => {
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
   window.threeRenderer.toneMappingExposure = 2.0; 
 
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 6.0);
+  // 메탈의 덩어리감과 하이라이트를 위해 직사광 조명 강도를 실버 톤에 맞춰 상향
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 7.0);
   dirLight1.position.set(5, 12, 8);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 4.0);
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 4.5);
   dirLight2.position.set(-5, -5, 5);
   window.threeScene.add(dirLight2);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
+  const ambientLight = new THREE.AmbientLight(0xffffff, 2.0); 
   window.threeScene.add(ambientLight);
 
   window.threeCamera = new THREE.PerspectiveCamera(23, W / H, 0.1, 100);
@@ -207,11 +196,12 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-const chromeSilverMat = new THREE.MeshStandardMaterial({
-        color: 0xffffff,          // 순수한 실버 베이스 (어두운 기운 제거)
-        metalness: 1.0,           // 100% 완전한 금속 성질 리얼 메탈화
-        roughness: 0.12,          // 표면 반사광을 은은하고 쨍하게 다듬음
-        envMapIntensity: 3.5,     // 주변 환경 광원을 받아서 반사하는 강도 세팅
+      // ⚡ [재질 변경] 어두운 투명 캔버스 뒤에서도 스스로 화사한 은빛 서리를 머금는 리얼 실버 메탈릭 설정
+      const chromeSilverMat = new THREE.MeshStandardMaterial({
+        color: 0xdddddd,          // 순수 실버 메인 톤
+        metalness: 0.95,          // 완벽한 리얼 금속 성질 부여
+        roughness: 0.15,          // 표면 반사광을 고급스럽게 살짝 깨뜨림
+        emissive: 0x444444,       // ★ 핵심: 주변이 암흑이어도 스스로 은은한 은빛을 내뿜어 까맣게 죽는 현상 방지
         side: THREE.DoubleSide
       });
 
@@ -239,6 +229,7 @@ const chromeSilverMat = new THREE.MeshStandardMaterial({
       window.modelAnchor.add(model);
       window.threeScene.add(window.modelAnchor);
 
+      // 정면 배치 반영
       window.modelAnchor.rotation.x = baseRotation.x;
       window.modelAnchor.rotation.y = baseRotation.y;
 
@@ -352,8 +343,9 @@ const animate = () => {
 
   if (window.threeRenderer && window.threeScene && window.threeCamera) {
     if (window.modelAnchor) {
-      const targetX = baseRotation.x + (-mouse.y * 0.12);
-      const targetY = baseRotation.y + (mouse.x * 0.35);
+      // ⚡ [교정] 누워있던 축을 정면(0)으로 완전히 맞추고, 마우스 무빙 각도 최적화
+      const targetX = 0 + (-mouse.y * 0.22);
+      const targetY = 0 + (mouse.x * 0.40);
 
       rotState.x += (targetX - rotState.x) * 0.05;
       rotState.y += (targetY - rotState.y) * 0.05;
