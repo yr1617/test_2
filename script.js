@@ -51,7 +51,7 @@ const pointer = {
 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
-// [회전 복원] 원래 모델이 가지고 있던 비스듬하고 이쁜 기본 기울기 각도 세팅
+// [원상복구 완결] 원래 사용하시던 비스듬하게 가장 이쁜 기본 기울기 각도값
 const baseRotation = { x: 0.3, y: -0.5 }; 
 const rotState     = { x: 0.3, y: -0.5 };
 
@@ -110,7 +110,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    [재질 교정] 완벽한 거울빛 크롬 반사를 만들어줄 내부 환경 스튜디오 맵
+    [재질 개선] 탁한 현상을 방지하는 스튜디오 반사 맵 생성
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
@@ -168,18 +168,17 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping;
-  window.threeRenderer.toneMappingExposure = 1.8;
+  window.threeRenderer.toneMappingExposure = 2.0; 
 
-  // 크롬 메탈릭 질감을 살려줄 밝은 방향성 조명 배치
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 5.0);
-  dirLight1.position.set(5, 10, 7);
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 5.5);
+  dirLight1.position.set(5, 12, 8);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 3.0);
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 3.5);
   dirLight2.position.set(-5, -5, 5);
   window.threeScene.add(dirLight2);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.4); 
   window.threeScene.add(ambientLight);
 
   window.threeCamera = new THREE.PerspectiveCamera(23, W / H, 0.1, 100);
@@ -201,12 +200,12 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      /* ── [크롬 실버 재질 교정] 메탈 수치를 최대로 올리고 반사 강도를 증폭하여 완벽한 크롬 구현 ── */
+      /* ── 크롬 실버 재질 정의 (메탈릭 100% + 주변 스튜디오 반사광 증폭) ── */
       const chromeSilverMat = new THREE.MeshStandardMaterial({
-        color: 0xdddddd,
-        metalness: 1.0,          // 은빛 크롬 금속성 100%
-        roughness: 0.02,         // 표면을 매끄럽게 깎아 주변 환경 거울 반사 유도
-        envMapIntensity: 3.5,    // 반사광 강도를 대폭 올려 쨍하게 표현
+        color: 0xeeeeee,
+        metalness: 1.0,          // 은빛 메탈릭 질감 100%
+        roughness: 0.02,         // 표면 거칠기를 최소화하여 반사 선명도 확보
+        envMapIntensity: 4.0,    // 반사광 강도를 대폭 올려 화사하게 고정
         side: THREE.DoubleSide
       });
 
@@ -234,7 +233,7 @@ const initThree = () => {
       window.modelAnchor.add(model);
       window.threeScene.add(window.modelAnchor);
 
-      // 원래 디자인하셨던 비스듬한 시그니처 각도로 고정 초기화
+      // 원래 이쁘게 비스듬히 누워있던 순정 기본 각도 고정
       window.modelAnchor.rotation.x = baseRotation.x;
       window.modelAnchor.rotation.y = baseRotation.y;
 
@@ -338,7 +337,7 @@ const animate = () => {
   pointer.x += (pointer.tx - pointer.x) * 0.12;
   pointer.y += (pointer.ty - pointer.y) * 0.12;
 
-  /* ── [누락 교정] 마우스 움직임에 따라 연두색 가짜 원이 좌표값 그대로 매끄럽게 쫓아가도록 수정 ── */
+  // #DBFF86 미니 커서 엘리먼트 위치 업데이트 연산
   if (follower) {
     follower.style.left = `${pointer.x}px`;
     follower.style.top  = `${pointer.y}px`;
@@ -349,9 +348,9 @@ const animate = () => {
 
   if (window.threeRenderer && window.threeScene && window.threeCamera) {
     if (window.modelAnchor) {
-      // [인터랙션 복원] 멋대로 360도 도는 자전 대신, 비스듬히 기울어진 채 마우스 따라 좌우로 묵직하게 움직이는 원래 댐핑 로직
-      const targetX = baseRotation.x + (-mouse.y * 0.15);
-      const targetY = baseRotation.y + (mouse.x * 0.4);
+      // 원래 코드가 가지고 있던 비스듬하게 누운 축 기준의 묵직한 마우스 무브 댐핑 인터랙션
+      const targetX = baseRotation.x + (-mouse.y * 0.12);
+      const targetY = baseRotation.y + (mouse.x * 0.35);
 
       rotState.x += (targetX - rotState.x) * 0.05;
       rotState.y += (targetY - rotState.y) * 0.05;
@@ -359,7 +358,6 @@ const animate = () => {
       window.modelAnchor.rotation.x = rotState.x;
       window.modelAnchor.rotation.y = rotState.y;
       
-      // 잔잔한 위아래 공중 부양 모션
       window.modelAnchor.position.y = Math.sin(clock * 0.6) * 0.02; 
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
@@ -385,7 +383,7 @@ const setupHoverEvents = () => {
 };
 
 /* ════════════════════════════════════════
-    폴더 GUI 인터랙션 (원본 데이터 100% 매핑 보존)
+    폴더 GUI 인터랙션
 ════════════════════════════════════════ */
 const FOLDER_DATA = {
   academic: {
@@ -495,122 +493,3 @@ const setupFolderGUI = () => {
 
       li.appendChild(icon);
       li.appendChild(text);
-      list.appendChild(li);
-    });
-
-    modalBody.innerHTML = '';
-    modalBody.appendChild(sectionLabel);
-    modalBody.appendChild(list);
-
-    modal.classList.add('is-open');
-    document.body.style.overflow = 'hidden';
-    isModalOpen = true; 
-  };
-
-  const closeModal = () => {
-    modal.classList.remove('is-open');
-    document.body.style.overflow = '';
-    isModalOpen = false; 
-  };
-
-  grid.addEventListener('click', (e) => {
-    const item = e.target.closest('.folder-item');
-    if (!item) {
-      if (selectedItem) {
-        selectedItem.classList.remove('is-selected');
-        selectedItem = null;
-      }
-      return;
-    }
-
-    if (selectedItem && selectedItem !== item) {
-      selectedItem.classList.remove('is-selected');
-    }
-    
-    item.classList.add('is-selected');
-    selectedItem = item;
-  });
-
-  grid.addEventListener('dblclick', (e) => {
-    const item = e.target.closest('.folder-item');
-    if (!item) return;
-    
-    item.classList.add('is-opening');
-    setTimeout(() => item.classList.remove('is-opening'), 200);
-    openModal(item.dataset.folder);
-  });
-
-  grid.addEventListener('keydown', (e) => {
-    const item = e.target.closest('.folder-item');
-    if (!item) return;
-    if (e.key === 'Enter') openModal(item.dataset.folder);
-    if (e.key === ' ')     item.classList.toggle('is-selected');
-  });
-
-  modalClose.addEventListener('click', closeModal);
-  modalBack.addEventListener('click',  closeModal);
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
-  });
-};
-
-/* ════════════════════════════════════════
-    SCROLL REVEAL
-════════════════════════════════════════ */
-const setupReveal = () => {
-  const cards = document.querySelectorAll('.reveal-card');
-  if (!cards.length) return;
-  const obs = new IntersectionObserver(
-    (entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible');
-          obs.unobserve(entry.target);
-        }
-      });
-    },
-    { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
-  );
-  cards.forEach(c => obs.observe(c));
-};
-
-/* ════════════════════════════════════════
-    INIT ALL
-════════════════════════════════════════ */
-const initAll = () => {
-  landingCanvasCtrl = setupLandingCanvas();
-  setupHoverEvents();
-  eliminateFakeModels();
-  buildSectionMap();
-  setupReveal();
-  setupFolderGUI();
-
-  initThree();
-  animate();
-
-  window.addEventListener('scroll', () => {
-    updateNavProgress();
-
-    const spotlight = document.querySelector('.page-spotlight');
-    if (spotlight) {
-      const px = (pointer.x / window.innerWidth)  * 100;
-      const py = (pointer.y / window.innerHeight) * 100;
-      spotlight.style.setProperty('--page-pointer-x', `${px}%`);
-      spotlight.style.setProperty('--page-pointer-y', `${py}%`);
-    }
-  }, { passive: true });
-
-  updateNavProgress();
-};
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAll);
-} else {
-  initAll();
-}
-
-window.addEventListener('resize', () => {
-  if (landingCanvasCtrl) landingCanvasCtrl.resize();
-  resizeThree();
-  updateNavProgress();
-});
