@@ -196,30 +196,22 @@ const initThree = () => {
         clearcoatRoughness: 0.0
       });
 
-      // 🛠️ 모든 메쉬들을 배열에 담아 구조 파악
-      const allMeshes = [];
+      // 🛠️ 파일 내부의 모든 메쉬들을 순서대로 수집합니다.
+      const meshes = [];
       model.traverse((child) => {
         if (child.isMesh) {
-          allMeshes.push(child);
-          // 디버깅용 로그: F12 개발자 도구에서 메쉬들의 진짜 이름과 순서를 볼 수 있게 합니다.
-          console.log(`[Mesh Found] Index: ${allMeshes.length - 1}, Name: ${child.name}`);
+          meshes.push(child);
         }
       });
 
-      // 💥 [오더 반영 완료] 
-      // 이상한 못생긴 외곽선 메쉬(보통 이름에 'outer', 'guide'가 들어가거나 배열의 뒤쪽에 배치됨)를 찾아내 지웁니다.
-      allMeshes.forEach((mesh, index) => {
-        const meshName = mesh.name.toLowerCase();
-        
-        // 1. 이름 검사: 외곽 레이어나 가이드용 못생긴 녀석인지 판별
-        const isUglyShell = meshName.includes('outer') || meshName.includes('guide') || meshName.includes('wire') || meshName.includes('hull');
-        
-        // 2. 인덱스 검사: 만약 메쉬가 2개 이상 겹쳐있고 이름으로 분기가 안 된다면, 0번(알맹이 진짜 별)만 살리고 나머지는 다 끕니다.
-        if (isUglyShell || (allMeshes.length > 1 && index !== 0)) {
-          mesh.visible = false; // 못생긴 껍데기 메쉬 완전 제거!
+      // 💥 [예린님 긴급 오더 반영] 
+      // 그동안 남아있던 못생긴 녀석이 바로 0번(첫 번째) 메쉬였습니다!
+      // 0번 메쉬는 무조건 보이지 않게 끄고, 1번(두 번째 이후) 진짜 본체 별들만 완벽하게 살려냅니다.
+      meshes.forEach((mesh, index) => {
+        if (index === 0) {
+          mesh.visible = false; // 못생긴 투박한 껍데기 완전 격리 및 지우기
         } else {
-          // 원래 존재해야 하는 멀쩡한 알맹이 별 메쉬만 영롱한 재질 적용 후 유지
-          mesh.visible = true;
+          mesh.visible = true;  // 진짜 본체 예쁜 별만 활성화
           mesh.material = crystalMaterial;
           mesh.castShadow = false;
           mesh.receiveShadow = false;
