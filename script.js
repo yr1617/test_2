@@ -63,6 +63,7 @@ const setupLandingCanvas = () => {
     state.height = rect.height;
     state.dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     
+    // ✨ [오타 박멸] 스크립트를 폭파시키던 원흉인 landingCanvasCanvas 오타를 완벽히 청소했습니다.
     landingCanvas.width = Math.max(1, Math.floor(rect.width * state.dpr));
     landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
     
@@ -165,9 +166,9 @@ const initThree = () => {
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
   loader.setDRACOLoader(draco);
 
-  // ⚡ 강력한 난수 쿼리를 붙여 브라우저의 404 캐시 기억을 무조건 분쇄하고 강제 로드합니다.
+  // 캐시 고집을 부수기 위해 고유 랜덤 스트링을 빌려 원본 파일을 호출합니다.
   loader.load(
-    `./modeling.glb?cache-bust=${Math.random()}`,
+    `./modeling.glb?cache-entry=${Math.random()}`,
     (gltf) => {
       if(!gltf || !gltf.scene) {
         hideSiteLoader();
@@ -178,7 +179,7 @@ const initThree = () => {
       const model = gltf.scene;
       let rawPositions = [];
 
-      // 🛠️ [강제 병합 연산] 6개 조각의 모든 버텍스 데이터를 추출해 하나의 껍데기로 용접
+      // 🔨 [강제 압축 용접 연산] 분리된 6개의 파편 데이터를 메모리 안에서 철저히 단일 배열로 합칩니다.
       model.updateMatrixWorld(true);
       model.traverse((child) => {
         if (child.isMesh && child.geometry) {
@@ -187,7 +188,7 @@ const initThree = () => {
           
           for (let i = 0; i < posAttr.count; i++) {
             localPos.fromBufferAttribute(posAttr, i);
-            localPos.applyMatrix4(child.matrixWorld); // 각기 따로 놀던 로컬 축을 월드 기준으로 일치시킴
+            localPos.applyMatrix4(child.matrixWorld); 
             rawPositions.push(localPos.x, localPos.y, localPos.z);
           }
         }
@@ -198,12 +199,12 @@ const initThree = () => {
         return;
       }
 
-      // 완전히 합쳐진 단일 기하학 객체 생성
+      // 완벽히 결합된 통짜 지오메트리 껍데기 선언
       const mergedGeometry = new THREE.BufferGeometry();
       mergedGeometry.setAttribute('position', new THREE.Float32BufferAttribute(rawPositions, 3));
       mergedGeometry.computeVertexNormals(); 
 
-      // 💎 지지직거리는 내부 간섭이 완벽하게 제거된 고투명 크리스탈 글래스 재질
+      // 💎 지지직대는 가섭이 100% 원천 봉쇄된 정갈한 투명 크리스탈 글래스 재질
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
@@ -212,7 +213,7 @@ const initThree = () => {
         opacity: 0.45,               
         transmission: 0.95,          
         ior: 1.5,                  
-        side: THREE.FrontSide, // 바깥면만 렌더링하여 내부 면들끼리 부딪쳐 깨지는 노이즈 원천 봉쇄
+        side: THREE.FrontSide, // 바깥 표면 외 내부 겹침 면의 렌더링을 차단하여 노이즈 원천 제거
         depthWrite: true,      
         depthTest: true,
         iridescence: 0.85,           
@@ -224,7 +225,7 @@ const initThree = () => {
 
       const mergedMesh = new THREE.Mesh(mergedGeometry, crystalMaterial);
 
-      // 전체 대칭 별 레이아웃 바운드 정렬
+      // 대칭 별 오브젝트 정중앙 위치 보정 및 배율 안정화
       const IDEAL_LAYOUT_BOUNDS = 2.4; 
       const box = new THREE.Box3().setFromObject(mergedMesh);
       const centre = new THREE.Vector3();
@@ -282,4 +283,101 @@ const animate = () => {
   pointer.y += (pointer.ty - pointer.y) * 0.08;
 
   if (follower) {
-    follower.style.transform = `translate3d(${pointer.x}px,
+    follower.style.transform = `translate3d(${pointer.x}px,${pointer.y}px,0) translate(-50%,-50%)`;
+  }
+
+  updateLandingVars();
+  if (landingCanvasCtrl) landingCanvasCtrl.draw();
+
+  if (window.threeRenderer && window.threeScene && window.threeCamera) {
+    if (window.modelAnchor) {
+      if (!rotationState.isDragging) {
+        modelAutoRotY += 0.003;
+        rotationState.targetY += 0.003;
+      }
+
+      rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
+      rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
+
+      window.modelAnchor.rotation.x = Math.PI / 6 + rotationState.currentX;
+      window.modelAnchor.rotation.y = rotationState.currentY;
+
+      window.modelAnchor.position.y = Math.sin(Date.now() * 0.001) * 0.006;
+    }
+    window.threeRenderer.render(window.threeScene, window.threeCamera);
+  }
+};
+
+/* ════════════════════════════════════════
+    DRAG & MOUSE EVENTS
+════════════════════════════════════════ */
+const setupDragEvents = () => {
+  if (!landingDisplay) return;
+
+  landingDisplay.addEventListener('pointerdown', (e) => {
+    rotationState.isDragging = true;
+    rotationState.previousMouseX = e.clientX;
+    rotationState.previousMouseY = e.clientY;
+  });
+
+  window.addEventListener('pointermove', (e) => {
+    pointer.tx = e.clientX;
+    pointer.ty = e.clientY;
+
+    if (!rotationState.isDragging || !window.modelAnchor) return;
+
+    const deltaX = e.clientX - rotationState.previousMouseX;
+    const deltaY = e.clientY - rotationState.previousMouseY;
+
+    rotationState.targetY += deltaX * 0.008;
+    rotationState.targetX += deltaY * 0.008;
+
+    rotationState.previousMouseX = e.clientX;
+    rotationState.previousMouseY = e.clientY;
+  });
+
+  window.addEventListener('pointerup', () => {
+    rotationState.isDragging = false;
+  });
+};
+
+const initAll = () => {
+  landingCanvasCtrl = setupLandingCanvas();
+  setupDragEvents(); 
+  eliminateFakeModels(); 
+
+  highlightElements.forEach((el) => {
+    el.addEventListener('mouseenter', () => el.classList.add('is-hovered'));
+    el.addEventListener('mouseleave', () => el.classList.remove('is-hovered'));
+  });
+
+  const revealCards = document.querySelectorAll('.reveal-card');
+  if (revealCards.length) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
+    );
+    revealCards.forEach(card => observer.observe(card));
+  }
+
+  initThree();
+  animate();
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAll);
+} else {
+  initAll();
+}
+
+window.addEventListener('resize', () => {
+  if (landingCanvasCtrl) landingCanvasCtrl.resize();
+  resizeThree();
+});
