@@ -103,47 +103,49 @@ const initThree = () => {
   const W = shell.offsetWidth;
   const H = shell.offsetHeight;
 
+  // 💎 렌더러가 투명 유리의 뒤 배경 굴절을 정상 추적하도록 강제 세팅
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
     alpha:       true,
     antialias:   true,
     powerPreference: 'high-performance',
+    premultipliedAlpha: false
   });
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   threeRenderer.setSize(W, H);
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 1.2; 
+  threeRenderer.toneMappingExposure = 1.4; // 대비감을 위해 노출을 더 끌어올림
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 💡 노이즈를 내던 가상 스튜디오(PMREM) 코드를 지우고, 맑은 실물 네온 조명을 배치했습니다.
-  const ambient = new THREE.AmbientLight(0xffffff, 0.15); 
+  // 💡 레퍼런스 특유의 칼 같은 명암비와 투명 굴절을 만들기 위한 고광도 조명 배치
+  const ambient = new THREE.AmbientLight(0xffffff, 0.1); 
   threeScene.add(ambient);
 
-  // 1. 우측 상단 : 오로라 핑크 빔 (유리 각면을 타지 않고 영롱하게 비춰줌)
-  const neonPink = new THREE.DirectionalLight(0xff00aa, 2.5);
-  neonPink.position.set(3, 4, 2);
-  threeScene.add(neonPink);
+  // 강렬한 화이트 정면광 (유리 표면에 쨍한 하이라이트를 맺히게 함)
+  const mainWhite = new THREE.DirectionalLight(0xffffff, 3.5);
+  mainWhite.position.set(1, 3, 4);
+  threeScene.add(mainWhite);
 
-  // 2. 좌측 하단 : 시아노 민트 청록 빔 (무지개빛 대비 형성)
-  const neonMint = new THREE.DirectionalLight(0x00f5ff, 2.2);
-  neonMint.position.set(-3, -3, 2);
-  threeScene.add(neonMint);
+  // 좌측 사이드 청록색 광원
+  const neonCyan = new THREE.DirectionalLight(0x00ffff, 2.5);
+  neonCyan.position.set(-4, -1, 2);
+  threeScene.add(neonCyan);
 
-  // 3. 정면 측면 : 윤곽선과 투명도를 살려줄 화이트 림 라이트
-  const frontRim = new THREE.DirectionalLight(0xffffff, 1.5);
-  frontRim.position.set(0, 2, 4);
-  threeScene.add(frontRim);
+  // 우측 사이드 자홍색(마젠타) 광원
+  const neonMagenta = new THREE.DirectionalLight(0xff00ff, 2.5);
+  neonMagenta.position.set(4, 1, 2);
+  threeScene.add(neonMagenta);
 
-  // 4. 후면 : 유리의 뒤가 맑게 뚫려 보이도록 뒤에서 쏴주는 조명
-  const backLight = new THREE.DirectionalLight(0x9955ff, 2.0);
-  backLight.position.set(0, 0, -4);
-  threeScene.add(backLight);
+  // 유리를 뒤에서 관통해 맑게 뚫어줄 후면 백라이트
+  const backRim = new THREE.DirectionalLight(0xffffff, 2.0);
+  backRim.position.set(0, 0, -4);
+  threeScene.add(backRim);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -184,24 +186,25 @@ const initThree = () => {
           }
         }
 
-        // 💎 노이즈 없이 맑고, 모서리마다 네온색 무지개가 뿜어져 나오는 리얼 크리스탈 재질
+        // 💎 레퍼런스(reference1.png)의 완벽한 프리즘 유리 재현 공공식
         child.material = new THREE.MeshPhysicalMaterial({
           color:              0xffffff,          
           metalness:          0.0,               
-          roughness:          0.0,               // 완전 깨끗한 노노이즈 거울 표면
+          roughness:          0.0,               // 극도의 투명함을 위한 매끄러움
           transparent:        true,
-          transmission:       0.95,              // 속이 투명하게 비치는 필터
-          ior:                1.5,               // 유리 굴절
-          thickness:          1.0,               
-          side:               THREE.DoubleSide,  // 안쪽면까지 빛이 통과하도록 양면 렌더링
-          depthWrite:         true,
+          transmission:       1.0,               // 100% 뒤 배경이 완벽하게 투과됨
+          ior:                2.4,               // 다이아몬드급 고굴절로 주변 배경을 왜곡시킴
+          thickness:          1.5,               // 유리 두께감 부여
+          side:               THREE.DoubleSide,  
+          depthWrite:         false,             // 투명 재질끼리 겹쳤을 때 뒤가 잘 보이도록 마스킹 해제
 
-          // 🌈 네온 조명을 받아서 무지개 펄을 일으키는 핵심 공정
+          // 🌈 레퍼런스 속 모서리가 오색 무지개로 갈라지는 핵심 광학 효과
+          dispersion:         5.0,               // 빛을 빨/초/파랑으로 쪼개주는 분산값 활성화
+          
           clearcoat:          1.0,
           clearcoatRoughness: 0.0,
-          iridescence:        1.0,               // 프리즘 광택 최대화
-          iridescenceIOR:     1.7,               
-          iridescenceThicknessRange: [200, 400]  // 핑크와 민트가 뚜렷하게 나뉘는 두께 범위
+          iridescence:        0.8,               // 표면 오로라 막 효과 추가
+          iridescenceIOR:     1.5
         });
       });
 
