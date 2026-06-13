@@ -877,68 +877,32 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   .reveal-card { opacity: 1; transform: none; }
 }
 /* ════════════════════════════════════════
-    [완벽 종결] 카드 내부 위아래 여백 완전 압축
+    [진짜 여백 축소] 아래 정렬 유지 + 위쪽 여백만 삭제
 ════════════════════════════════════════ */
 
-/* 1. 유형 카드 (01, 02, 03) 내부 위아래 여백 최소화 */
+/* 1. 상단 유형 카드 (.project-card) 여백 축소 */
 .project-card {
-  /* 바닥에 붙어있던 텍스트를 위로 완전히 밀착 */
-  justify-content: flex-start !important; 
-  /* 천장과 바닥 패딩을 최소한의 여백만 남기고 싹 날립니다 */
-  padding-top: 16px !important; 
-  padding-bottom: 8px !important; 
-  /* 카드가 내용물 크기에 딱 맞게 줄어들도록 최소 높이 제거 */
-  min-height: auto !important; 
-}
-
-/* 01, 02 숫자 위치 미세 조정 */
-.project-index {
-  top: 12px !important;
-}
-
-/* 2. 메인 프로젝트 카드 (주요 프로젝트) 내부 위아래 여백 최소화 */
-.main-project-card {
-  /* 내용물을 위로 완전히 밀착 */
-  justify-content: flex-start !important;
-  /* 천장과 바닥 패딩 최소화 */
-  padding-top: 8px !important; 
-  padding-bottom: 8px !important;
-  /* 최소 높이 제거 */
-  min-height: auto !important;
-}
-/* ════════════════════════════════════════
-    [최종 교정] 유압프레스 해제 및 상하 여백 밸런스 정돈
-════════════════════════════════════════ */
-
-/* 1. 상단 유형 카드 (01, 02, 03) 내부 여백 최적화 */
-.project-card {
-  /* 원본 구조인 바닥 정렬과 원래 높이(420px)를 철저히 보존하여 찌그러짐 방지 */
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: flex-end !important;
-  min-height: 420px !important;
-
-  /* 기존 100px였던 천장 여백을 60px로 자연스럽게 줄여 윗공백 해결 */
-  padding-top: 60px !important;
-  /* 바닥 여백도 글자가 답답하지 않게 24px로 슬림하게 조정 */
-  padding-bottom: 24px !important;
-}
-
-
-/* 2. 하단 메인 프로젝트 카드 (주요 프로젝트) 내부 여백 최적화 */
-.main-project-grid .main-project-card {
-  /* 원래 높이(340px)와 정렬 구조 완벽 유지 */
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: flex-end !important;
-  min-height: 340px !important;
+  /* 아래 정렬은 그대로 유지 */
+  justify-content: flex-end !important; 
   
-  /* 사방 16px 패딩에서 상하 밸런스를 미세조정하여 썸네일 위쪽의 붕 뜨는 공백 완화 */
-  padding: 10px 16px 14px 16px !important;
-  gap: 10px !important;
+  /* 기존 100px였던 천장 여백을 40px로 깎아서 훵한 느낌 제거 */
+  padding-top: 40px !important; 
+  /* 바닥 여백도 자연스럽게 살짝 정돈 */
+  padding-bottom: 28px !important; 
+  
+  /* ★핵심: 420px로 고정되어 여백을 만들던 카드 전체 높이를 320px로 줄임 */
+  min-height: 320px !important; 
 }
 
-/* 썸네일 이미지 박스가 카드 최상단에 자연스럽게 맺히도록 유도 */
-.main-project-card .project-thumb {
-  margin-top: 0 !important;
+
+/* 2. 하단 메인 프로젝트 카드 (.main-project-card) 여백 축소 */
+.main-project-grid .main-project-card {
+  /* 아래 정렬 그대로 유지 */
+  justify-content: flex-end !important;
+  
+  /* 내부 패딩을 콤팩트하게 조정 */
+  padding: 12px 16px 16px 16px !important;
+  
+  /* ★핵심: 340px로 붕 떠 있던 카드 전체 높이를 280px로 줄여서 썸네일 위 여백 축소 */
+  min-height: 280px !important; 
 }
