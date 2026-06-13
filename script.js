@@ -13,7 +13,7 @@ const crystalFallback = document.querySelector('#crystal-fallback');
 const follower        = document.querySelector('.cursor-follower');
 const highlightElements = document.querySelectorAll('.point-highlight, .reveal-card li, .project-card-item');
 
-// 🚨 [가짜 모델링 원천 차단] 시작하자마자 가짜 폴백 레이어를 무조건 숨깁니다.
+// 시작하자마자 가짜 모델링 레이어는 확실하게 숨깁니다.
 if (crystalFallback) {
   crystalFallback.style.display = 'none';
 }
@@ -119,38 +119,37 @@ const initThree = () => {
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 1.3; 
+  threeRenderer.toneMappingExposure = 1.2; 
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 💡 [초강력 무지개 대비 조명] 외부 파일 로딩 없이 오직 순수 내부 빛으로만 유리를 꺾습니다.
-  const ambient = new THREE.AmbientLight(0xffffff, 0.05); 
+  // 💡 [조명 조합] 검은 무덤을 탈출하기 위해 사방에 컬러 네온 조명을 짱짱하게 배치
+  const ambient = new THREE.AmbientLight(0xffffff, 0.3); 
   threeScene.add(ambient);
 
-  // 1. 칼 같은 명암 각을 잡아줄 메인 화이트 탑 라이트
-  const sunLight = new THREE.DirectionalLight(0xffffff, 3.5);
-  sunLight.position.set(1, 4, 3);
+  // 1. 메인 정면 화이트광 (각면 슬라이스 윤곽선 확보)
+  const sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
+  sunLight.position.set(1, 3, 4);
   threeScene.add(sunLight);
 
-  // 2. 프리즘을 뿜어낼 청록색 왼쪽 광원
-  const cyanLight = new THREE.DirectionalLight(0x00ffff, 3.0);
-  cyanLight.position.set(-4, -1, 2);
+  // 2. 프리즘을 터트려줄 왼쪽 형광 민트광
+  const cyanLight = new THREE.DirectionalLight(0x00ffff, 4.0);
+  cyanLight.position.set(-4, -2, 2);
   threeScene.add(cyanLight);
 
-  // 3. 프리즘 대비를 극대화할 자홍색 오른쪽 광원
-  const magentaLight = new THREE.DirectionalLight(0xff00ff, 3.0);
-  magentaLight.position.set(4, 1, 2);
+  // 3. 반대편 대비를 줄 오른쪽 네온 마젠타광
+  const magentaLight = new THREE.DirectionalLight(0xff00ff, 4.0);
+  magentaLight.position.set(4, 2, 2);
   threeScene.add(magentaLight);
 
-  // 4. 유리가 탁하지 않고 맑게 통과되게 뒤에서 밀어주는 백라이트
-  const backLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  // 4. 어두운 배경과의 경계선을 뚫어줄 후면 화이트 림라이트
+  const backLight = new THREE.DirectionalLight(0xffffff, 2.0);
   backLight.position.set(0, 0, -4);
   threeScene.add(backLight);
 
-  // 외부 HDR 에러 우회용 모델 다이렉트 로딩
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
@@ -190,24 +189,22 @@ const initThree = () => {
           }
         }
 
-        // 💎 [레퍼런스 복사 완료] 허연 느낌을 완벽하게 압축한 고굴절 크리스탈 유리 공식
+        // 💎 [암흑/하얗게 타는 현상 완전 해결] 정석 투명 크리스탈 재질 세팅
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0x111622,          // ⚠️ 완전 흰색 대신 딥 블루/그레이를 기저에 깔아 하얗게 뜨는 현상을 완벽 차단합니다.
-          metalness:          0.1,               
-          roughness:          0.0,               // 잔기스 없는 맑은 유리 표면
-          transparent:        true,
-          transmission:       0.95,              // 뒤쪽 배경과 오로라 조명이 95% 투과됨
-          ior:                2.2,               // 보석급 초고굴절로 명암비 확보
-          thickness:          1.5,               // 입체적인 굴절 두께감
-          side:               THREE.FrontSide,   // ⚠️ 양면 연산을 켜면 내부가 뭉개지므로, 앞면만 깔끔하게 렌더링
+          color:              0xffffff,          // 순수 화이트 바탕으로 복귀
+          metalness:          0.2,               // 하이라이트 선을 쨍하게 만들기 위한 금속성 기운
+          roughness:          0.0,               // 잡티 없이 깨끗한 거울 표면
+          transparent:        true,              // 투명 모드 활성화
+          opacity:            0.35,              // ⚠️ 변수 에러가 많은 transmission 대신 완벽히 통제되는 투명도 고정
+          side:               THREE.DoubleSide,  // 뒤쪽 꺾이는 면들까지 전부 투명하게 겹쳐 보이도록 처리
           depthWrite:         true,
 
-          // 🌈 네온 조명들과 반응하여 칼날 같은 프리즘 선을 만드는 오로라 광택막
+          // 🌈 껍데기에 오로라 필름막을 입혀 모서리마다 무지갯빛 선 유도
           iridescence:        1.0,               
-          iridescenceIOR:     1.8,               
-          iridescenceThicknessRange: [150, 450], // 마젠타와 시안 색이 가장 화려하게 나뉘는 두께 범위
+          iridescenceIOR:     1.7,               
+          iridescenceThicknessRange: [200, 450], 
 
-          clearcoat:          1.0,               
+          clearcoat:          1.0,               // 광택 코팅막 한 겹 추가
           clearcoatRoughness: 0.0
         });
       });
