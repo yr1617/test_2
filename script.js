@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    DOM ELEMENT REFS (절대 구조 변경 없음)
+    DOM ELEMENT REFS (절대 수정 금지)
 ════════════════════════════════════════ */
 const landing        = document.querySelector('.landing');
 const landingCanvas  = document.querySelector('.landing-canvas');
@@ -26,7 +26,7 @@ const eliminateFakeModels = () => {
 };
 
 /* ════════════════════════════════════════
-    INTERACTION STATE (절대 구조 변경 없음)
+    INTERACTION STATE (절대 수정 금지)
 ════════════════════════════════════════ */
 const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, tx: window.innerWidth * 0.5, ty: window.innerHeight * 0.5 };
 
@@ -41,7 +41,7 @@ let modelAutoRotY = 0;
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
 /* ════════════════════════════════════════
-    LANDING CANVAS BACKGROUND (절대 구조 변경 없음)
+    LANDING CANVAS BACKGROUND (절대 수정 금지)
 ════════════════════════════════════════ */
 const setupLandingCanvas = () => {
   if (!landing || !landingCanvas) return null;
@@ -91,27 +91,20 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE (정밀 튜닝 세팅)
+    THREE.JS ENGINE (정밀 보정 세팅)
 ════════════════════════════════════════ */
-let threeRenderer = null;
-let threeScene    = null;
-let threeCamera   = null;
-let modelAnchor   = null; 
-let animFrameId   = null;
-
-// 🌟 [수정] 인공적 얼룩 제거, 매끄럽고 선명한 고광택 거울 하이라이트용 그라데이션 환경맵
 const generateFakeEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   const geo = new THREE.BoxGeometry(4, 4, 4);
   
-  // 무채색 중심의 뚜렷한 대비를 주어 크리스탈 에지에 칼날 같은 하이라이트 형성
+  // 무채색 중심의 뚜렷한 대비판으로 정밀 튜닝하여 거울 하이라이트 면 형성
   const mats = [
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // Right
-    new THREE.MeshBasicMaterial({ color: 0x111113, side: THREE.BackSide }), // Left
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), // Top
-    new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }), // Bottom
-    new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.BackSide }), // Front
-    new THREE.MeshBasicMaterial({ color: 0x1a1a1e, side: THREE.BackSide })  // Back
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x15151c, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0xdddddd, side: THREE.BackSide }), 
+    new THREE.MeshBasicMaterial({ color: 0x1f1f24, side: THREE.BackSide })  
   ];
   const box = new THREE.Mesh(geo, mats);
   scene.add(box);
@@ -146,36 +139,39 @@ const initThree = () => {
   threeRenderer = new THREE.WebGLRenderer({
     canvas:      modelCanvas,
     alpha:       true, 
-    antialias:   true
+    antialias:   true,
+    premultipliedAlpha: false // 🔥 [수정] 배경 투과 시 알파 연산이 뭉개져 투명 유리가 하얗게 타버리는 버그 방지
   });
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   threeRenderer.setSize(W, H);
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  // 🌟 [수정] ACES Filmic 고대비 톤맵 바인딩
+  // ACES Filmic 고대비 톤맵 바인딩
   threeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-  threeRenderer.toneMappingExposure = 1.2; 
+  threeRenderer.toneMappingExposure = 1.0; 
 
-  threeCamera = new THREE.PerspectiveCamera(38, W / H, 0.1, 100);
-  threeCamera.position.set(0, 0, 4.8); 
+  // 🌟 [수정] 카메라 한계선을 극단적으로 벌려 앞면/좌우가 잘려 나가는 버그 완벽 수정
+  // near를 렌즈 바로 앞(0.01)까지 당기고, FOV(시야각)를 살짝 넓혀 메쉬가 캔버스 밖으로 탈출하지 못하도록 고정합니다.
+  threeCamera = new THREE.PerspectiveCamera(42, W / H, 0.01, 1000);
+  threeCamera.position.set(0, 0, 5.0); // 카메라 거리를 약간 뒤로 물려 잘림 원천 차단
 
   const envTexture = generateFakeEnvironment(threeRenderer);
   threeScene.environment = envTexture;
 
-  // 🌟 [수정] 투명 유리에 영롱한 색상을 통과시켜 줄 오로라 프리즘 광원 튜닝
-  const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+  // 오로라 크리스탈 프리즘 투과 광원 튜닝
+  const ambient = new THREE.AmbientLight(0xffffff, 0.5);
   threeScene.add(ambient);
 
   const keyLight1 = new THREE.DirectionalLight(0xffffff, 2.0);
   keyLight1.position.set(5, 10, 5);
   threeScene.add(keyLight1);
 
-  // 청록색과 자홍색 광원의 세기를 조절하여 유리 단면에 무지개빛이 맺히도록 투사
-  const keyLight2 = new THREE.DirectionalLight(0x00f0ff, 2.5);
+  // 시안 및 마젠타 서브 조명으로 유리 단면에 굴절 무지개 색감 유도
+  const keyLight2 = new THREE.DirectionalLight(0x00f0ff, 2.0);
   keyLight2.position.set(-6, 3, 4);
   threeScene.add(keyLight2);
 
-  const keyLight3 = new THREE.DirectionalLight(0xff00b4, 2.5);
+  const keyLight3 = new THREE.DirectionalLight(0xff00b4, 2.0);
   keyLight3.position.set(6, -3, 4);
   threeScene.add(keyLight3);
 
@@ -197,33 +193,34 @@ const initThree = () => {
       
       const maxDim = Math.max(size.x, size.y, size.z);
       
-      // 🌟 [수정] 답답하게 작았던 크기 문제를 시원하게 해결 (기존 2.4 -> 3.6으로 정밀 상향)
-      const scale  = 3.6 / maxDim; 
+      // 🌟 [수정] 카메라 거리 보정과 밸런스를 맞춘 완벽한 크기 수치 정의 (사방 잘림 없는 최적의 크기)
+      const scale  = 3.2 / maxDim; 
       
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
 
       model.rotation.set(Math.PI / 2.3, 0, 0); 
 
-      // 🌟 [수정] 고광택 크리스탈 프리즘 물리 재질 정의 (요구사항 수치 정밀 반영)
+      // 🌟 [수정] 고광택 크리스탈 프리즘 정밀 물리 재질 세팅
       const crystalPrismMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
-        metalness: 0,                   // 크롬 느낌 완전 배제
-        roughness: 0,                   // 불투명 솜사탕/에어로젤 현상 원천 차단 (매끄러운 표면)
-        transmission: 1,                // 100% 완전 광학 투과율
+        metalness: 0,                   // 크롬 메탈성 차단
+        roughness: 0,                   // 매끄러운 고광택 표면 (탁한 현상 원천 제거)
+        transmission: 1,                // 100% 투과 연산 활성화
         transparent: true,
         opacity: 1,
-        ior: 1.45,                      // 굴절률 스펙 충족 (1.15 ~ 1.5)
-        thickness: 0.4,                 // 두께 스펙 충족 (0.3 ~ 0.5) -> 앞뒷면 겹침 깨짐 버그 해결
-        reflectivity: 1,                // 거울 같은 투명 고반사
-        side: THREE.DoubleSide,         // 🔥 [핵심] 앞뒷면 동시 렌더링으로 겹침 노이즈 완벽 제거!
+        ior: 1.42,                      // 스펙 충족 (1.15 ~ 1.5)
+        thickness: 0.35,                // 스펙 충족 (0.3 ~ 0.5)으로 면 뒤틀림 및 겹침 노이즈 최소화
+        reflectivity: 1,                // 거울 같은 고반사
+        side: THREE.DoubleSide,         // 앞뒷면을 모두 계산하여 뒷면이 뚫리거나 깨지는 현상 교정
+        depthWrite: true,               // 깊이 버퍼 기록 강제로 켜서 투명 메쉬 레이어 정렬 정상화
         envMap: envTexture,
-        envMapIntensity: 2.5
+        envMapIntensity: 2.8
       });
 
-      // 🌟 [수정] 하위 버전 안전성 검증을 거친 광학 색분산(Dispersion) RGB 연산 활성화
+      // Three.js 엔진 버전에서 지원하는 경우 광학 색분산 활성화
       if (typeof THREE.MeshPhysicalMaterial.prototype.dispersion !== 'undefined') {
-        crystalPrismMaterial.dispersion = 7.0; // 자연스럽고 쨍한 무지개빛 분리 효과 추가
+        crystalPrismMaterial.dispersion = 6.5; 
       }
 
       model.traverse((child) => {
@@ -267,7 +264,7 @@ const resizeThree = () => {
 };
 
 /* ════════════════════════════════════════
-    MAIN ANIMATION LOOP (절대 구조 변경 없음)
+    MAIN ANIMATION LOOP (절대 수정 금지)
 ════════════════════════════════════════ */
 const animate = () => {
   animFrameId = requestAnimationFrame(animate);
@@ -302,7 +299,7 @@ const animate = () => {
 };
 
 /* ════════════════════════════════════════
-    DRAG EVENTS & INTERACTION (절대 구조 변경 없음)
+    DRAG EVENTS & INTERACTION (절대 수정 금지)
 ════════════════════════════════════════ */
 const setupDragEvents = () => {
   if (!landingDisplay) return;
@@ -320,7 +317,7 @@ const setupDragEvents = () => {
     if (!rotationState.isDragging || !modelAnchor) return;
 
     const deltaX = e.clientX - rotationState.previousMouseX;
-    const deltaY = e.clientY - pointer.y; // 원래 인터랙션 연산 유지
+    const deltaY = e.clientY - pointer.y;
 
     rotationState.targetY += deltaX * 0.008;
     rotationState.targetX += (e.clientY - rotationState.previousMouseY) * 0.008;
@@ -335,7 +332,7 @@ const setupDragEvents = () => {
 };
 
 /* ════════════════════════════════════════
-    INITIALIZE (절대 구조 변경 없음)
+    INITIALIZE (절대 수정 금지)
 ════════════════════════════════════════ */
 const initAll = () => {
   if (window.__threeInitialized) return; 
