@@ -809,15 +809,12 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
    CUSTOM CURSOR
 ════════════════════════════════ */
 .cursor-follower {
-  position: fixed;
-  width: 20px;          /* 기존에 설정해 두신 크기 규격 */
-  height: 20px;
-  background: #ffffff;  /* 혹은 설정하신 커서 색상 */
-  border-radius: 50%;
-  pointer-events: none !important; /* 마우스 그래픽이 클릭을 방해하지 않도록 차단 */
+  /* 둥근 크기, 연두색 등 원래 적어두신 예쁜 스타일 디자인 코드는 "그대로 유지"하세요! */
   
-  /* ── [핵심 수정 포인트] 모달 레이어(999999)보다 무조건 높게 설정 ── */
-  z-index: 10000000 !important; 
+  /* ── 딱 이 두 줄만 추가되어 있는지 확인해 주세요 ── */
+  pointer-events: none !important; 
+  z-index: 10000000 !important;   /* 모달 윈도우 위로 완벽하게 떠오르게 만드는 마법의 서열 코드 */
+}
 }
 .cursor-follower.is-link {
   width: 20px; height: 20px;
