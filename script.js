@@ -114,33 +114,35 @@ const initThree = () => {
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 2.4; 
+  // 💥 과도한 빛 타오름을 막기 위해 노출값을 차분하게 하향 조정
+  threeRenderer.toneMappingExposure = 1.3; 
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.0); 
+  // 내부를 허얗게 띄우던 주범인 환경광 완전 소멸
+  const ambient = new THREE.AmbientLight(0x000000, 0); 
   threeScene.add(ambient);
 
-  // 별을 어둡고 묵직하게 잡아줄 메인 하향 조명
-  const mainLight1 = new THREE.DirectionalLight(0xffffff, 1.5);
-  mainLight1.position.set(0, 4, 2);
+  // 💡 하얀 뭉침을 녹여버리기 위해 조명 전력(Intensity)을 대폭 다이어트
+  const mainLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+  mainLight1.position.set(2, 4, 3);
   threeScene.add(mainLight1);
 
-  // 🌈 레퍼런스 특유의 영롱한 네온 무지갯빛 하이라이트를 강제로 맺히게 할 3중 테크니컬 스폿 조명
-  const laserCyan = new THREE.SpotLight(0x00f5ff, 280.0, 35, Math.PI / 4, 0.4, 0.1);
-  laserCyan.position.set(4, 3, 2);
+  const mainLight2 = new THREE.DirectionalLight(0xffffff, 0.3);
+  mainLight2.position.set(-2, -3, 2);
+  threeScene.add(mainLight2);
+
+  // 🌈 오로라 테두리만 날카롭게 스치고 지나가도록 각도를 비낀 은은한 네온 스폿라이트
+  const laserCyan = new THREE.SpotLight(0x00f5ff, 25.0, 30, Math.PI / 5, 0.5, 0.5);
+  laserCyan.position.set(4, 2, 1);
   threeScene.add(laserCyan);
 
-  const laserMagenta = new THREE.SpotLight(0xff00b5, 300.0, 35, Math.PI / 4, 0.4, 0.1);
-  laserMagenta.position.set(-4, -2, 2);
+  const laserMagenta = new THREE.SpotLight(0xff00b5, 30.0, 30, Math.PI / 5, 0.5, 0.5);
+  laserMagenta.position.set(-4, -2, 1);
   threeScene.add(laserMagenta);
-
-  const laserPurple = new THREE.SpotLight(0x8a00ff, 180.0, 30, Math.PI / 3, 0.5, 0.1);
-  laserPurple.position.set(0, 5, -2);
-  threeScene.add(laserPurple);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -181,26 +183,27 @@ const initThree = () => {
           }
         }
 
-        // 💎 [하얀 뭉침 완전 파괴 질감] 투과 연산을 버리고 깊이 차단막을 해제합니다.
+        // 💎 [하얀 속살 진압 질감] 투과 연산 수치를 현실적으로 타협하고 밀도를 높입니다.
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0x111115,          // 기본 바탕을 어둡게 깔아 하얗게 타는 현상 완전 원천 봉쇄
-          metalness:          0.2,               // 금속성을 살짝 주어 조명 컬러를 칼같이 반사하게 유도
-          roughness:          0.0,               // 탁한 기운을 완전히 제거한 맑은 유광 표면
+          color:              0x030306,          // 기본 베이스를 완전한 다크 실루엣으로 하향
+          metalness:          0.1,               
+          roughness:          0.08,              // 표면을 미세하게 불투명 유리처럼 만들어 내부 겹면을 뭉갭니다.
+          transmission:       0.65,              // 투과율을 낮춰 하얀색 속면이 훤히 들여다보이는 현상 방지
+          ior:                1.6,               // 일반 유리 수준의 자연스러운 굴절률로 롤백
+          thickness:          1.5,               // 두께를 두껍게 주어 내부로 들어갈수록 빛이 굴절되어 어두워지게 세팅
           transparent:        true,
-          opacity:            0.4,               // 정면 면적은 웹 사이트 배경이 투명하게 비치도록 다운
-          side:               THREE.DoubleSide,
+          side:               THREE.FrontSide,   // 뒷면 연산을 차단해 겹쳐서 하얗게 뜨는 버그를 원천 봉쇄
           
-          // 중첩된 껍질면들이 하얗게 뭉치고 지직거리던 버그를 엔진 단에서 연산 차단
-          depthWrite:         false,             
-          blending:           THREE.NormalBlending,
+          // 내부 하얀 면들을 흡수해 어둡게 깔아주는 핵심 장치
+          attenuationColor:   0x000000,          
+          attenuationDistance: 0.2,
 
-          // 🌈 엣지 라인을 따라 레퍼런스처럼 칼 같은 오로라 하이라이트를 만들어내는 코팅막 설정
+          // 🌈 가장자리 칼날 면에만 투명하게 맺히는 프리즘 코팅
           clearcoat:          1.0,               
           clearcoatRoughness: 0.0,
-          
-          iridescence:        1.0,               // 비눗방울/오로라 같은 박막 간섭 효과 ON
-          iridescenceIOR:     2.8,               // 굴절률을 최대치로 밀어붙여 오색빛깔이 흐려지지 않고 쨍하게 배치
-          iridescenceThicknessRange: [200, 700]  
+          iridescence:        0.8,               
+          iridescenceIOR:     1.9,               
+          iridescenceThicknessRange: [150, 400]  
         });
       });
 
