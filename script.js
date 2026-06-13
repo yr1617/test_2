@@ -142,22 +142,21 @@ const initThree = () => {
     canvas: modelCanvas,
     alpha: true,
     antialias: true,
-    powerPreference: "high-performance",
-    logarithmicDepthBuffer: true 
+    powerPreference: "high-performance"
   });
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 2.8);
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 3.0);
   dirLight1.position.set(5, 10, 7);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xa3e5ff, 1.8);
+  const dirLight2 = new THREE.DirectionalLight(0xa3e5ff, 2.0);
   dirLight2.position.set(-5, -5, 5);
   window.threeScene.add(dirLight2);
 
-  window.threeCamera = new THREE.PerspectiveCamera(32, W / H, 0.1, 100);
+  window.threeCamera = new THREE.PerspectiveCamera(30, W / H, 0.1, 100);
   window.threeCamera.position.set(0, 0, 5.5); 
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
@@ -179,36 +178,46 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 영롱함을 극대화한 크리스탈 글래스 매티리얼
+      // 지직거림 없이 가장 정갈하고 투명하게 떨어지는 크리스탈 유리 재질
       const crystalMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.0,
         roughness: 0.02,            
         transparent: true,
-        opacity: 0.35,               
-        transmission: 0.95,          
-        ior: 1.52,                  
-        side: THREE.DoubleSide, 
-        depthWrite: false,      
+        opacity: 0.4,               
+        transmission: 0.9,          
+        ior: 1.5,                  
+        side: THREE.FrontSide, // 자식 면끼리 겹치는 투과 노이즈를 완벽 차단하기 위해 겉면만 렌더링
+        depthWrite: true,      
         depthTest: true,
-        iridescence: 0.9,           
-        iridescenceIOR: 1.6,        
-        iridescenceThicknessRange: [100, 320], 
+        iridescence: 0.7,           
+        iridescenceIOR: 1.5,        
+        iridescenceThicknessRange: [100, 300], 
         clearcoat: 1.0,             
         clearcoatRoughness: 0.0
       });
 
-      // ⭐ [핵심 변경] 개별 메쉬의 원래 위치/회전은 절대로 건드리지 않고 재질만 스왑합니다.
+      const meshes = [];
       model.traverse((child) => {
-        if (child.isMesh) {
-          child.visible = true;
-          child.material = crystalMaterial;
-          child.castShadow = false;
-          child.receiveShadow = false;
+        if (child.isMesh) meshes.push(child);
+      });
+
+      // ⭐ [중요] 겹쳐있는 5개의 중복 별 중, 모든 다리가 온전하게 살아있는 진짜 '0번 별' 하나만 살립니다.
+      // 1, 2, 3, 4번은 겹침 유발 및 불량 메쉬이므로 완벽하게 off 처리합니다.
+      const CLEAN_VALID_INDEX = 0; 
+
+      meshes.forEach((mesh, index) => {
+        if (index === CLEAN_VALID_INDEX) {
+          mesh.visible = true;
+          mesh.material = crystalMaterial;
+          mesh.castShadow = false;
+          mesh.receiveShadow = false;
+        } else {
+          mesh.visible = false; // 나머지 껍데기 및 중복 별들 완벽 차단 및 삭제 공정
+          mesh.removeFromParent?.();
         }
       });
 
-      // 전체 모델의 통합 바운딩 박스를 구해 스케일과 중앙 정렬만 안전하게 수행합니다.
       const IDEAL_LAYOUT_BOUNDS = 2.4; 
       const box = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
@@ -219,15 +228,13 @@ const initThree = () => {
       const maxDim = Math.max(size.x, size.y, size.z);
       const scale = IDEAL_LAYOUT_BOUNDS / maxDim; 
       
-      // 개별 자식들이 아닌, 전체 최상위 부모 그룹의 축만 옮겨줍니다.
       model.position.sub(centre.multiplyScalar(scale));
       model.scale.setScalar(scale);
 
-      // ⚠️ 기존에 개별 메쉬를 짓눌렀던 강제 회전 코드를 삭제하고, 원본 상태를 유지합니다.
       window.modelAnchor = new THREE.Group();
       window.modelAnchor.add(model);
       
-      // 첫 화면에서 별이 정면을 예쁘게 바라보도록 앵커 그룹만 살짝 눕혀줍니다.
+      // 별이 사방으로 균형 잡힌 형태로 정면을 바라보게 맞춘 최적 순정 각도
       window.modelAnchor.rotation.set(Math.PI / 6, 0, 0); 
       window.threeScene.add(window.modelAnchor);
 
@@ -285,7 +292,6 @@ const animate = () => {
       rotationState.currentX += (rotationState.targetX - rotationState.currentX) * 0.09;
       rotationState.currentY += (rotationState.targetY - rotationState.currentY) * 0.09;
 
-      // 마우스 드래그 회전값이 순정 각도 위에 부드럽게 더해지도록 처리
       window.modelAnchor.rotation.x = Math.PI / 6 + rotationState.currentX;
       window.modelAnchor.rotation.y = rotationState.currentY;
 
