@@ -114,34 +114,33 @@ const initThree = () => {
   
   threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  threeRenderer.toneMappingExposure = 2.6; // 조명 대비를 레퍼런스처럼 칼같이 찢음
+  threeRenderer.toneMappingExposure = 2.4; 
 
   threeScene = new THREE.Scene();
 
   threeCamera = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
   threeCamera.position.set(0, 0, 4.4); 
 
-  // 주변을 뿌옇게 만들던 환경광 소멸
   const ambient = new THREE.AmbientLight(0xffffff, 0.0); 
   threeScene.add(ambient);
 
-  // 입체적인 하이라이트 경계를 빚어낼 직사광 2개 배치
-  const mainLight1 = new THREE.DirectionalLight(0xffffff, 2.5);
-  mainLight1.position.set(1, 4, 3);
+  // 별을 어둡고 묵직하게 잡아줄 메인 하향 조명
+  const mainLight1 = new THREE.DirectionalLight(0xffffff, 1.5);
+  mainLight1.position.set(0, 4, 2);
   threeScene.add(mainLight1);
 
-  const mainLight2 = new THREE.DirectionalLight(0xffffff, 1.2);
-  mainLight2.position.set(-1, -3, 2);
-  threeScene.add(mainLight2);
-
-  // 🌈 레퍼런스 고유의 글리치한 네온빛 스펙트럼을 투사할 고출력 스폿 조명
-  const laserCyan = new THREE.SpotLight(0x00f5ff, 250.0, 40, Math.PI / 4, 0.3, 0.1);
-  laserCyan.position.set(4, 3, 3);
+  // 🌈 레퍼런스 특유의 영롱한 네온 무지갯빛 하이라이트를 강제로 맺히게 할 3중 테크니컬 스폿 조명
+  const laserCyan = new THREE.SpotLight(0x00f5ff, 280.0, 35, Math.PI / 4, 0.4, 0.1);
+  laserCyan.position.set(4, 3, 2);
   threeScene.add(laserCyan);
 
-  const laserMagenta = new THREE.SpotLight(0xff00b5, 270.0, 40, Math.PI / 4, 0.3, 0.1);
-  laserMagenta.position.set(-4, -2, 3);
+  const laserMagenta = new THREE.SpotLight(0xff00b5, 300.0, 35, Math.PI / 4, 0.4, 0.1);
+  laserMagenta.position.set(-4, -2, 2);
   threeScene.add(laserMagenta);
+
+  const laserPurple = new THREE.SpotLight(0x8a00ff, 180.0, 30, Math.PI / 3, 0.5, 0.1);
+  laserPurple.position.set(0, 5, -2);
+  threeScene.add(laserPurple);
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
@@ -182,24 +181,26 @@ const initThree = () => {
           }
         }
 
-        // 💎 레퍼런스 무지개 크리스탈 유리를 구현하기 위한 최종 공식 적용
+        // 💎 [하얀 뭉침 완전 파괴 질감] 투과 연산을 버리고 깊이 차단막을 해제합니다.
         child.material = new THREE.MeshPhysicalMaterial({
-          color:              0xffffff,
-          metalness:          0.05,              
-          roughness:          0.0,               // 잔기스 없는 맑고 투명한 표면
-          transmission:       0.95,              // 빛 투과율 최고조
-          ior:                2.4,               // 다이아몬드급 굴절률로 가장자리 빛 굴절 왜곡 극대화
-          thickness:          0.8,               // 보석 두께감 부여
+          color:              0x111115,          // 기본 바탕을 어둡게 깔아 하얗게 타는 현상 완전 원천 봉쇄
+          metalness:          0.2,               // 금속성을 살짝 주어 조명 컬러를 칼같이 반사하게 유도
+          roughness:          0.0,               // 탁한 기운을 완전히 제거한 맑은 유광 표면
           transparent:        true,
+          opacity:            0.4,               // 정면 면적은 웹 사이트 배경이 투명하게 비치도록 다운
           side:               THREE.DoubleSide,
-          depthWrite:         true,
+          
+          // 중첩된 껍질면들이 하얗게 뭉치고 지직거리던 버그를 엔진 단에서 연산 차단
+          depthWrite:         false,             
+          blending:           THREE.NormalBlending,
 
-          // 🌈 엣지 라인에 무지갯빛 오로라 광택을 압착시키는 핵심 박막 코팅
+          // 🌈 엣지 라인을 따라 레퍼런스처럼 칼 같은 오로라 하이라이트를 만들어내는 코팅막 설정
           clearcoat:          1.0,               
           clearcoatRoughness: 0.0,
-          iridescence:        1.0,               
-          iridescenceIOR:     2.7,               
-          iridescenceThicknessRange: [100, 400]  // 얇고 쨍한 오색 스펙트럼 라인 유도
+          
+          iridescence:        1.0,               // 비눗방울/오로라 같은 박막 간섭 효과 ON
+          iridescenceIOR:     2.8,               // 굴절률을 최대치로 밀어붙여 오색빛깔이 흐려지지 않고 쨍하게 배치
+          iridescenceThicknessRange: [200, 700]  
         });
       });
 
