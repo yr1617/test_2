@@ -1127,3 +1127,15 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
 .landing-title {
     margin-bottom: 40px !important; /* 타이틀 글자와 아래 버튼 사이의 간격을 널찍하게 벌림 */
 }
+/* ⚡ 스크롤 시 아래에서 위로 떠오르는 효과 복구 */
+.reveal-card {
+    opacity: 0 !important;
+    transform: translateY(40px) !important;
+    transition: opacity 0.8s ease, transform 0.8s ease !important;
+}
+
+/* 인터랙션 조건이 충족되면 투명도가 풀리면서 위로 정렬 */
+.reveal-card.is-visible {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+}
