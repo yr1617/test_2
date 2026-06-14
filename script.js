@@ -2,104 +2,114 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
-// 전역 상태 및 마우스 변수
+// 전역 상태 초기화 및 중복 생성 방지
+if (window.animFrameId) cancelAnimationFrame(window.animFrameId);
+if (window.threeRenderer) window.threeRenderer.dispose();
+
+window.threeScene = new THREE.Scene();
+const modelCanvas = document.querySelector('#model-canvas');
+const displayShell = document.querySelector('.landing-display-shell') || document.querySelector('#landing-display');
+
 let mouseX = 0, mouseY = 0;
 let isHoveringModel = false;
 let clock = 0;
 const rotState = { x: 0, y: 0 };
 
-const modelCanvas = document.querySelector('#model-canvas');
-
+// 로더 가리기
 const hideSiteLoader = () => {
     const siteLoader = document.querySelector('#site-loader');
     if (siteLoader) {
-        setTimeout(() => siteLoader.classList.add('is-loaded'), 500);
+        setTimeout(() => siteLoader.classList.add('is-loaded'), 400);
     }
 };
 
-// 🌟 크롬 메탈의 반사각을 완벽하게 살려주는 고대비 백그라운드 환경 맵 생성
-const generatePureEnvironment = (renderer) => {
-    const scene = new THREE.Scene();
-    scene.background = null;
+/* ════════════════════════════════════════
+    ✨ 크롬 메탈에 생명을 불어넣는 은빛 반사판 환경 세팅
+════════════════════════════════════════ */
+const setupEnvironment = (scene, renderer) => {
+    // 오브젝트 주변에 가상의 거대한 흰색/회색 불빛 판들을 배치하여 메탈 면에 쨍한 하이라이트가 맺히게 합니다.
+    const envGroup = new THREE.Group();
 
-    const roomGeo = new THREE.SphereGeometry(60, 16, 16);
-    const roomMat = new THREE.MeshBasicMaterial({ color: 0x050508, side: THREE.BackSide });
-    const room = new THREE.Mesh(roomGeo, roomMat);
-    scene.add(room);
-
-    // 상단 면광 효과 추가
-    const topLight = new THREE.Mesh(
-        new THREE.BoxGeometry(60, 2, 60),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
+    // 1. 좌측 상단 강한 반사판
+    const lightPlate1 = new THREE.Mesh(
+        new THREE.PlaneGeometry(30, 30),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
     );
-    topLight.position.set(0, 30, 0);
-    scene.add(topLight);
+    lightPlate1.position.set(-15, 20, 15);
+    lightPlate1.lookAt(0, 0, 0);
+    envGroup.add(lightPlate1);
 
-    // 정면 반사판 추가 (은빛 하이라이트 생성용)
-    const frontCenter = new THREE.Mesh(
-        new THREE.SphereGeometry(15, 16, 16),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
+    // 2. 우측 정면 백색 반사판 (이게 있어야 전면이 쨍해집니다)
+    const lightPlate2 = new THREE.Mesh(
+        new THREE.PlaneGeometry(40, 40),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
     );
-    frontCenter.position.set(0, 10, 40);
-    scene.add(frontCenter);
+    lightPlate2.position.set(20, 5, 25);
+    lightPlate2.lookAt(0, 0, 0);
+    envGroup.add(lightPlate2);
 
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    pmrem.compileEquirectangularShader();
-    const rt = pmrem.fromScene(scene);
-    pmrem.dispose();
-    rt.texture.mapping = THREE.CubeReflectionMapping;
-    return rt.texture;
+    // 3. 상단 천장 전체 조명판
+    const lightPlate3 = new THREE.Mesh(
+        new THREE.PlaneGeometry(50, 50),
+        new THREE.MeshBasicMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide })
+    );
+    lightPlate3.position.set(0, 30, 0);
+    lightPlate3.rotation.x = Math.PI / 2;
+    envGroup.add(lightPlate3);
+
+    scene.add(envGroup);
+
+    // PMREM Generator를 이용해 반사판들을 360도 환경 맵 텍스처로 변환
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    pmremGenerator.compileEquirectangularShader();
+    const envMapTexture = pmremGenerator.fromScene(envGroup).texture;
+    
+    scene.environment = envMapTexture;
+    envGroup.visible = false; // 텍스처를 구운 후 실제 판들은 화면에서 숨김
+    pmremGenerator.dispose();
 };
 
+/* ════════════════════════════════════════
+    📦 THREE.JS 코어 초기화 (왜곡 절대 방지 수식 적용)
+════════════════════════════════════════ */
 const initThree = () => {
-    if (!modelCanvas) return;
+    if (!modelCanvas || !displayShell) { hideSiteLoader(); return; }
 
-    const shell = document.querySelector('.landing-display-shell') || { offsetWidth: 650, offsetHeight: 650 };
-    const W = shell.offsetWidth;
-    const H = shell.offsetHeight;
+    // 찌그러짐 방지: 캔버스가 들어갈 실제 DOM의 크기를 정확하게 측정합니다.
+    const width = displayShell.clientWidth || 650;
+    const height = displayShell.clientHeight || 650;
 
-    window.threeScene = new THREE.Scene();
-
+    // 렌더러 설정
     window.threeRenderer = new THREE.WebGLRenderer({
         canvas: modelCanvas,
         alpha: true,
         antialias: true,
         powerPreference: 'high-performance'
     });
-    window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    window.threeRenderer.setSize(W, H);
+    window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    window.threeRenderer.setSize(width, height);
     window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
-    window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping; 
-    window.threeRenderer.toneMappingExposure = 1.4; 
+    window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+    window.threeRenderer.toneMappingExposure = 1.2;
 
-    // 💡 [핵심 패치] 블렌더처럼 어두워지는 현상 완벽 방지 조명 세팅
-    // 1. 카메라 시선 방향과 완전히 일치하는 직사광선 배치 (정면 암전 원천 차단)
-    const cameraLight = new THREE.DirectionalLight(0xffffff, 3.5);
-    cameraLight.position.set(0, 0, 10);
-    window.threeScene.add(cameraLight);
+    // 카메라 세팅 (종횡비 가로/세로 균등 고정)
+    window.threeCamera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+    window.threeCamera.position.set(0, 0, 5.2);
 
-    // 2. 대각선 우측 상단 메인 라이트
-    const dirLight1 = new THREE.DirectionalLight(0xffffff, 4.0);
-    dirLight1.position.set(15, 15, 10);
-    window.threeScene.add(dirLight1);
+    // 은빛 반사 환경 맵 적용
+    setupEnvironment(window.threeScene, window.threeRenderer);
 
-    // 3. 대각선 좌측 보조 라이트
-    const dirLight2 = new THREE.DirectionalLight(0xffffff, 2.0);
-    dirLight2.position.set(-15, 10, 8);
-    window.threeScene.add(dirLight2);
-
-    // 4. 전체적인 음영을 은빛으로 채워줄 환경 기본광 상향
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
+    // 기본 조명 추가 (반사 외에 기본 음영 베이스용)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     window.threeScene.add(ambientLight);
 
-    window.threeCamera = new THREE.PerspectiveCamera(36, W / H, 0.1, 100);
-    window.threeCamera.position.set(0, 0, 4.2);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
+    dirLight.position.set(5, 10, 7);
+    window.threeScene.add(dirLight);
 
-    const envTexture = generatePureEnvironment(window.threeRenderer);
-    window.threeScene.environment = envTexture;
-
+    // GLTF 로더 세팅
     const loader = new GLTFLoader();
-    const draco  = new DRACOLoader();
+    const draco = new DRACOLoader();
     draco.setDecoderPath('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/libs/draco/');
     loader.setDRACOLoader(draco);
 
@@ -109,130 +119,123 @@ const initThree = () => {
             if (!gltf || !gltf.scene) { hideSiteLoader(); return; }
             const model = gltf.scene;
 
-            // ✨ 빛을 머금으면서도 정면에서 메탈릭하게 쨍한 신소재 질감 구현
-            const hyperChromeMat = new THREE.MeshStandardMaterial({
-                color: 0xeeeeee,          
-                metalness: 0.95,           
-                roughness: 0.16,         // 0.04에서 0.16으로 올려 정면이 흑화하는 물리적 버그 해결!
-                envMapIntensity: 5.0,    
+            // ✨ 무조건 거울처럼 쨍하게 반사되도록 만든 완전 크롬 신소재 질감
+            const chromeMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff,          // 백색 베이스
+                metalness: 1.0,           // 철 수치 100% (완전 메탈)
+                roughness: 0.05,          // 표면 거칠기 최소화 (거울처럼 반사)
+                envMapIntensity: 3.5,     // 반사광 강도 극대화
                 side: THREE.DoubleSide
             });
 
             model.traverse((child) => {
                 if (child.isMesh) {
-                    child.material = hyperChromeMat;
+                    child.material = chromeMaterial;
                 }
             });
 
+            // 오브젝트의 정중앙을 잡고 크기 자동 정렬 (아래 묻히는 버그 방지)
             const box = new THREE.Box3().setFromObject(model);
-            const centre = new THREE.Vector3();
-            box.getCenter(centre);
+            const center = new THREE.Vector3();
+            box.getCenter(center);
             const size = new THREE.Vector3();
             box.getSize(size);
-            
+
             const maxDim = Math.max(size.x, size.y, size.z);
-            const BOUNDS = 2.8; 
-            const scale = BOUNDS / maxDim;
-            model.scale.setScalar(scale);
-            model.position.set(-centre.x * scale, -centre.y * scale, -centre.z * scale);
+            const targetBounds = 3.2; // 화면 안에 가장 예쁘게 들어오는 크기 비율
+            const scale = targetBounds / maxDim;
             
-            // 최초에 가장 예쁘게 배치되는 기본 각도 설정
-            model.rotation.set(Math.PI * 0.38, Math.PI * 0.05, Math.PI * 0.12); 
+            model.scale.setScalar(scale);
+            // 정중앙 좌표 보정 및 아래 파묻히지 않도록 Y축 중심점 완벽 강제 일치
+            model.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
+
+            // 초기 각도 기획안 매칭
+            model.rotation.set(Math.PI * 0.38, Math.PI * 0.05, Math.PI * 0.12);
 
             window.modelAnchor = new THREE.Group();
             window.modelAnchor.add(model);
-            window.modelAnchor.position.set(0, 0, 0); 
             window.threeScene.add(window.modelAnchor);
 
             hideSiteLoader();
         },
         undefined,
         (err) => {
-            console.warn('GLB 로드 실패', err);
+            console.warn('모델 로드 오류:', err);
             hideSiteLoader();
         }
     );
 };
 
+/* ════════════════════════════════════════
+    🔄 루프 애니메이션 및 반응형 이벤트
+════════════════════════════════════════ */
 const animate = () => {
     window.animFrameId = requestAnimationFrame(animate);
     clock += 0.01;
 
     if (window.threeRenderer && window.threeScene && window.threeCamera) {
-        if (window.modelAnchor && window.modelAnchor.rotation) {
+        if (window.modelAnchor) {
             if (isHoveringModel) {
-                const targetX = -mouseY * 0.35;
-                const targetY = mouseX * 0.45;
-                rotState.x += (targetX - rotState.x) * 0.1;
-                rotState.y += (targetY - rotState.y) * 0.1;
+                // 마우스 반응 부드럽게 보간
+                const targetX = -mouseY * 0.3;
+                const targetY = mouseX * 0.4;
+                rotState.x += (targetX - rotState.x) * 0.08;
+                rotState.y += (targetY - rotState.y) * 0.08;
             } else {
+                // 마우스를 뗐을 때 은은하게 자동 회전
                 rotState.x += (0 - rotState.x) * 0.05;
-                rotState.y += 0.003; // 마우스 안 댔을 때 은은하게 자전하는 속도
+                rotState.y += 0.003;
             }
             window.modelAnchor.rotation.x = rotState.x;
             window.modelAnchor.rotation.y = rotState.y;
-            window.modelAnchor.position.y = Math.sin(clock * 0.6) * 0.04; 
+            // 위아래로 부드럽게 둥둥 뜨는 효과
+            window.modelAnchor.position.y = Math.sin(clock * 0.8) * 0.05;
         }
         window.threeRenderer.render(window.threeScene, window.threeCamera);
     }
 };
 
-const initScrollReveal = () => {
-    const cards = document.querySelectorAll('.reveal-card');
-    if (!cards.length) return;
+// 윈도우 리사이즈 대응 (화면이 변해도 찌그러짐 원천 봉쇄)
+const handleResize = () => {
+    if (!window.threeRenderer || !window.threeCamera || !displayShell) return;
+    const width = displayShell.clientWidth;
+    const height = displayShell.clientHeight;
 
-    const revealObserver = new IntersectionObserver(
-        (entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('is-visible');
-                    revealObserver.unobserve(entry.target);
-                }
-            });
-        },
-        { threshold: 0.1, rootMargin: '0px 0px -10% 0px' }
-    );
-
-    cards.forEach(card => revealObserver.observe(card));
+    window.threeRenderer.setSize(width, height);
+    window.threeCamera.aspect = width / height;
+    window.threeCamera.updateProjectionMatrix();
 };
 
-// 모든 이벤트 및 초기화 핸들러 통합
-const initAll = () => {
-    initThree();
-    animate();
-    initScrollReveal();
+// 마우스 움직임 추적
+window.addEventListener('mousemove', (e) => {
+    const width = window.innerWidth || 1;
+    const height = window.innerHeight || 1;
+    mouseX = (e.clientX / width) * 2 - 1;
+    mouseY = -(e.clientY / height) * 2 + 1;
 
-    window.addEventListener('mousemove', (e) => {
-        const winW = window.innerWidth || 1;
-        const winH = window.innerHeight || 1;
-        mouseX = (e.clientX / winW) * 2 - 1;
-        mouseY = -(e.clientY / winH) * 2 + 1;
-        
-        // 커서 팔로워 갱신 코드 추가
-        const follower = document.querySelector('.cursor-follower');
-        if (follower) {
-            follower.style.left = `${e.clientX}px`;
-            follower.style.top = `${e.clientY}px`;
-        }
-    }, { passive: true });
-
-    const displayShell = document.querySelector('.landing-display-shell');
-    if (displayShell) {
-        displayShell.addEventListener('pointerenter', () => { isHoveringModel = true; });
-        displayShell.addEventListener('pointerleave', () => { isHoveringModel = false; });
+    // 마우스 커서 팔로워 연동
+    const follower = document.querySelector('.cursor-follower');
+    if (follower) {
+        follower.style.left = `${e.clientX}px`;
+        follower.style.top = `${e.clientY}px`;
     }
-};
+}, { passive: true });
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initAll);
-} else {
-    initAll();
+// 영역 호버 감지
+if (displayShell) {
+    displayShell.addEventListener('pointerenter', () => { isHoveringModel = true; });
+    displayShell.addEventListener('pointerleave', () => { isHoveringModel = false; });
 }
 
-window.addEventListener('resize', () => {
-    if (!window.threeRenderer || !window.threeCamera) return;
-    const shell = document.querySelector('.landing-display-shell') || { offsetWidth: 650, offsetHeight: 650 };
-    window.threeRenderer.setSize(shell.offsetWidth, shell.offsetHeight);
-    window.threeCamera.aspect = shell.offsetWidth / shell.offsetHeight;
-    window.threeCamera.updateProjectionMatrix();
+window.addEventListener('resize', handleResize);
+
+// 실행
+document.addEventListener('DOMContentLoaded', () => {
+    initThree();
+    animate();
 });
+// DOM이 이미 완성된 상태일 경우 예외 처리
+if (document.readyState !== 'loading') {
+    initThree();
+    animate();
+}
