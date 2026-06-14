@@ -61,7 +61,6 @@ const setupLandingCanvas = () => {
     state.height = rect.height;
     state.dpr    = Math.min(window.devicePixelRatio || 1, 1.5);
     
-    // 오타 수정 완료: landingCanvasCanvas -> landingCanvas
     landingCanvas.width  = Math.max(1, Math.floor(rect.width  * state.dpr));
     landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
     landingCanvas.style.width  = `${rect.width}px`;
@@ -100,19 +99,17 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    레퍼런스급 초고대비 스튜디오 크롬 반사맵 (HDRI 대용)
+    스튜디오 크롬 반사맵 (HDRI 대용)
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
-  // 깊은 명암비를 위한 어두운 베이스 공간
   const roomGeo = new THREE.SphereGeometry(60, 16, 16);
   const roomMat = new THREE.MeshBasicMaterial({ color: 0x020203, side: THREE.BackSide });
   const room = new THREE.Mesh(roomGeo, roomMat);
   scene.add(room);
 
-  // 상단 하이라이트 실버 조명판
   const topLight = new THREE.Mesh(
     new THREE.BoxGeometry(60, 4, 60),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -120,7 +117,6 @@ const generatePureEnvironment = (renderer) => {
   topLight.position.set(0, 35, 0);
   scene.add(topLight);
 
-  // 정면 강렬한 크롬 하이라이트 조명
   const frontCenter = new THREE.Mesh(
     new THREE.SphereGeometry(18, 16, 16),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -128,7 +124,6 @@ const generatePureEnvironment = (renderer) => {
   frontCenter.position.set(0, 15, 35);
   scene.add(frontCenter);
 
-  // 좌우 에지 라인을 칼날처럼 살려줄 사이드 반사판
   const leftPanel = new THREE.Mesh(
     new THREE.BoxGeometry(2, 60, 40),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -160,7 +155,6 @@ const initThree = () => {
 
   window.threeScene = new THREE.Scene();
 
-  // 부모 컨테이너 크기 실시간 감지 (잘림 현상 근본 해결)
   const shell = landingDisplay || { offsetWidth: 650, offsetHeight: 650 };
   const W = shell.offsetWidth;
   const H = shell.offsetHeight;
@@ -177,7 +171,6 @@ const initThree = () => {
   window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping; 
   window.threeRenderer.toneMappingExposure = 1.6; 
 
-  // 리얼 크롬을 위해 뿌연 조명을 걷어내고 대비를 주는 디렉셔널 배치
   const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
   dirLight.position.set(5, 15, 20);
   window.threeScene.add(dirLight);
@@ -185,7 +178,6 @@ const initThree = () => {
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.2); 
   window.threeScene.add(ambientLight);
 
-  // 카메라 시야를 넉넉히 벌려 양옆 잘림 완벽 차단
   window.threeCamera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
   window.threeCamera.position.set(0, 0, 4.5);
 
@@ -205,12 +197,11 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 거울처럼 반사되는 순수 크롬 실버 질감
       const chromeSilverMat = new THREE.MeshStandardMaterial({
         color: 0xffffff,          
         metalness: 1.0,           
-        roughness: 0.0,           // 거칠기 0 (완전 거울면)
-        envMapIntensity: 15.0,    // 초고강도 반사로 레퍼런스 이미지 질감 구현
+        roughness: 0.0,           
+        envMapIntensity: 15.0,    
         side: THREE.DoubleSide
       });
 
@@ -220,7 +211,12 @@ const initThree = () => {
         }
       });
 
-      // 모델 센터 강제 바인딩 및 스케일 핏
+      // 1. 순수 모델 알맹이 상태일 때 누워있는 축 강제 정렬 (X축 기반 90도 회전)
+      // 파일에 따라 Math.PI / 2 또는 -Math.PI / 2 로 세워집니다. 우선 정면으로 기립하도록 설정했습니다.
+      model.rotation.set(Math.PI / 2, 0, 0); 
+      model.updateMatrixWorld(true);
+
+      // 2. 세워진 상태를 기준으로 바운딩 박스 및 피벗 센터 계산
       const box = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
@@ -228,18 +224,14 @@ const initThree = () => {
       box.getSize(size);
       
       const maxDim = Math.max(size.x, size.y, size.z);
-      
-      // 잘림 없는 한도 내에서 큼직하게 유지 (BOUNDS 조절)
-      const BOUNDS = 2.7; 
+      const BOUNDS = 2.5; 
       const scale = BOUNDS / maxDim;
       model.scale.setScalar(scale);
 
-      // 피벗 중심축 보정
+      // 세워진 모델의 중심점을 정중앙(0,0,0)으로 강제 이동
       model.position.set(-centre.x * scale, -centre.y * scale, -centre.z * scale);
 
-      // [누움 현상 완벽 해결] 정면 각도로 완벽하게 세우기
-      model.rotation.set(0, 0, 0); 
-
+      // 3. 외부 조작 및 애니메이션을 담당할 완벽한 '기립 상태'의 부모 앵커 생성
       window.modelAnchor = new THREE.Group();
       window.modelAnchor.add(model);
       window.modelAnchor.position.set(0, 0, 0); 
@@ -264,7 +256,6 @@ const hideSiteLoader = () => {
   }
 };
 
-// 양옆 잘림을 막기 위한 100% 가변형 리사이즈 로직
 const resizeThree = () => {
   if (!window.threeRenderer || !window.threeCamera) return;
   
@@ -364,7 +355,6 @@ const animate = () => {
       let targetX = 0;
       let targetY = 0;
 
-      // 마우스 오버 시 입체 각도 반응 효과 증가
       if (isHoveringModel) {
         targetX = -mouse.y * 0.45;
         targetY = mouse.x * 0.55;
@@ -372,7 +362,7 @@ const animate = () => {
         rotState.x += (targetX - rotState.x) * 0.1;
         rotState.y += (targetY - rotState.y) * 0.1;
       } else {
-        // 정면 상태를 유지하며 시원하게 Y축 회전
+        // 이미 90도 세워진 알맹이 위에서 평화롭게 회전하도록 제어
         rotState.x += (0 - rotState.x) * 0.05;
         rotState.y += 0.005;
       }
@@ -380,7 +370,6 @@ const animate = () => {
       window.modelAnchor.rotation.x = rotState.x;
       window.modelAnchor.rotation.y = rotState.y;
       
-      // 공중 부양 효과
       window.modelAnchor.position.y = Math.sin(clock * 0.8) * 0.05; 
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
