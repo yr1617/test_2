@@ -53,7 +53,7 @@ let isHoveringModel = false;
 let isModalOpen = false; 
 
 /* ════════════════════════════════════════
-    LANDING CANVAS BACKGROUND
+    LANDING CANVAS BACKGROUND (버그 완벽 수정)
 ════════════════════════════════════════ */
 const setupLandingCanvas = () => {
   if (!landing || !landingCanvas) return null;
@@ -105,7 +105,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    🔥 대비감을 찢어놓을 고반사 인바이런먼트 가상 룸
+    🔥 크롬 엣지 하이라이트를 만들어줄 가상 반사판 룸
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
@@ -116,7 +116,6 @@ const generatePureEnvironment = (renderer) => {
   const room = new THREE.Mesh(roomGeo, roomMat);
   scene.add(room);
 
-  // 상단 화이트 판
   const topLight = new THREE.Mesh(
     new THREE.BoxGeometry(50, 2, 50),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -124,7 +123,6 @@ const generatePureEnvironment = (renderer) => {
   topLight.position.set(0, 25, 0);
   scene.add(topLight);
 
-  // 정면 서클 반사판
   const frontCenter = new THREE.Mesh(
     new THREE.TorusGeometry(14, 4, 16, 100),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -132,7 +130,6 @@ const generatePureEnvironment = (renderer) => {
   frontCenter.position.set(0, 5, 25);
   scene.add(frontCenter);
 
-  // 사이드 엣지 라인을 잡아줄 고휘도 슬릿
   const leftPanel = new THREE.Mesh(
     new THREE.BoxGeometry(2, 60, 15),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -170,11 +167,10 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   
-  // ⚡ 극명한 대비와 눈부신 하이라이트를 위해 노출값 대폭 상향
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
   window.threeRenderer.toneMappingExposure = 4.5; 
 
-  // ⚡ [초고출력 조명] 실버 메탈의 광택 대비를 극대화하기 위한 우주급 서치라이트 배치
+  // 초고출력 3방향 서치라이트
   const dirLight1 = new THREE.DirectionalLight(0xffffff, 95.0); 
   dirLight1.position.set(10, 35, 25); 
   window.threeScene.add(dirLight1);
@@ -187,7 +183,6 @@ const initThree = () => {
   dirLight3.position.set(30, -10, 15); 
   window.threeScene.add(dirLight3);
 
-  // 어두운 부분이 떡지지 않고 깊이감을 유지하도록 은은한 간접 광원 보강
   const ambientLight = new THREE.AmbientLight(0xffffff, 3.5); 
   window.threeScene.add(ambientLight);
 
@@ -215,18 +210,15 @@ const initThree = () => {
         if (child.isMesh) {
           child.material.dispose(); 
           
-          // ⚡ [자체 발광 실버 메탈 재질 구현] 
+          // ⚡ 하얗게 타지 않고 어둠과 눈부신 은빛 대비가 공존하는 찐 크롬 실버 메탈 질감
           child.material = new THREE.MeshStandardMaterial({
-            color: 0xffffff,
-            metalness: 1.0,           // 100% 순수 메탈릭 리얼 실버
-            roughness: 0.01,          // 거울처럼 쨍하고 매끄러운 표면
-            
-            // 💡 핵심: 빛을 안 받아도 스스로 은은한 백색광을 뿜어내 어두워짐 방지
-            emissive: 0xffffff,       
-            emissiveIntensity: 0.28,  // 기본 발광 베이스라인 확보
-            
+            color: 0x111111,          // 베이스를 어둡게 눌러 하이라이트 효과 극대화
+            metalness: 1.0,           // 100% 리얼 메탈
+            roughness: 0.0,           // 거울처럼 쨍한 반사면
+            emissive: 0x222222,       // 빛이 아예 안 닿는 영역도 영롱한 어두운 은색 유지
+            emissiveIntensity: 0.3,   
             envMap: envTexture,       
-            envMapIntensity: 25.0,    // 주변 반사 광택을 25배로 증폭
+            envMapIntensity: 45.0,    // 가상 반사광 45배 증폭
             side: THREE.DoubleSide
           });
           child.material.needsUpdate = true;
@@ -586,7 +578,7 @@ const setupFolderGUI = () => {
 };
 
 /* ════════════════════════════════════════
-    ⚡ [인터랙션 전면 복구] SCROLL REVEAL CARDS 
+    ⚡ [전면 복구] SCROLL REVEAL CARDS
 ════════════════════════════════════════ */
 const setupReveal = () => {
   const cards = document.querySelectorAll('.reveal-card');
@@ -597,19 +589,18 @@ const setupReveal = () => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           entry.target.classList.add('is-visible');
-          // 한 번 나타난 카드는 스크롤을 올려도 다시 사라지지 않도록 고정
           obs.unobserve(entry.target); 
         }
       });
     },
     { 
-      threshold: 0.05,        // 카드가 아주 살짝(5%)만 보여도 즉시 가동 시작
+      threshold: 0.05, 
       rootMargin: '0px 0px -50px 0px' 
     }
   );
   
   cards.forEach(c => {
-    c.classList.remove('is-visible'); // 강제 리셋 후 감시 개시
+    c.classList.remove('is-visible'); 
     obs.observe(c);
   });
 };
@@ -622,7 +613,7 @@ const initAll = () => {
   setupHoverEvents();
   eliminateFakeModels();
   buildSectionMap();
-  setupReveal(); // 등장 인터랙션 등록
+  setupReveal(); 
   setupFolderGUI();
 
   initThree();
