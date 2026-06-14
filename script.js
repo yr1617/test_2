@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    ENGINE RE-INIT PROTECTION (안전한 초기화)
+    ENGINE RE-INIT PROTECTION (구동 엔진 안전 초기화)
 ════════════════════════════════════════ */
 if (window.animFrameId) {
   cancelAnimationFrame(window.animFrameId);
@@ -19,15 +19,15 @@ window.modelAnchor   = null;
 window.__threeInitialized = false;
 
 /* ════════════════════════════════════════
-    DOM REFS
+    DOM REFS & 전역 변수
 ════════════════════════════════════════ */
-const landing      = document.querySelector('.landing');
-const landingCanvas= document.querySelector('.landing-canvas');
+const landing        = document.querySelector('.landing');
+const landingCanvas  = document.querySelector('.landing-canvas');
 const landingDisplay = document.querySelector('#landing-display');
-const modelCanvas  = document.querySelector('#model-canvas');
-const follower     = document.querySelector('.cursor-follower');
-const navLinks     = document.querySelectorAll('.topnav a[data-target]');
-const sections     = [];
+const modelCanvas    = document.querySelector('#model-canvas');
+const follower       = document.querySelector('.cursor-follower');
+const navLinks       = document.querySelectorAll('.topnav a[data-target]');
+const sections       = [];
 
 const eliminateFakeModels = () => {
   ['#crystal-fallback','#codex-3d','.fallback-layer','.crystal-backup','#three-debug-hud'].forEach(sel => {
@@ -36,9 +36,6 @@ const eliminateFakeModels = () => {
   });
 };
 
-/* ════════════════════════════════════════
-    마우스 트래킹 & 전역 상태 변수
-════════════════════════════════════════ */
 const mouse = { x: 0, y: 0 };
 const pointer = {
   x: window.innerWidth * 0.5,  y: window.innerHeight * 0.5,
@@ -104,7 +101,7 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    🔥 무광 현상을 소멸시킬 초고대비 가상 스튜디오 룸 
+    HIGH-CONTRAST VIRTUAL STUDIO ENVIRONMENT
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
@@ -115,7 +112,6 @@ const generatePureEnvironment = (renderer) => {
   const room = new THREE.Mesh(roomGeo, roomMat);
   scene.add(room);
 
-  // 상단 하이라이트 발광판
   const topLight = new THREE.Mesh(
     new THREE.BoxGeometry(70, 5, 70),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -123,15 +119,13 @@ const generatePureEnvironment = (renderer) => {
   topLight.position.set(0, 30, 0);
   scene.add(topLight);
 
-  // 정면 대형 링라이트돔 (메탈 표면에 거울처럼 비치게 만듦)
   const frontCenter = new THREE.Mesh(
-    new THREE.SphereGeometry(22, 32, 32),
+    new THREE.SphereGeometry(25, 32, 32),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  frontCenter.position.set(0, 10, 30);
+  frontCenter.position.set(0, 10, 35);
   scene.add(frontCenter);
 
-  // 좌우 사이드 반사 윙 (그림자 구역을 없애고 맑게 비추기 위함)
   const leftPanel = new THREE.Mesh(
     new THREE.BoxGeometry(2, 60, 40),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -155,7 +149,7 @@ const generatePureEnvironment = (renderer) => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS ENGINE MAIN
+    THREE.JS MAIN CORE
 ════════════════════════════════════════ */
 const initThree = () => {
   if (!modelCanvas || window.__threeInitialized) return;
@@ -177,29 +171,24 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   
-  // ⚡ [조명 하얗게 타는 버그 수정 1단계] 톤매핑 노출도를 적절히 낮춰 화이트 폭발을 방지
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  window.threeRenderer.toneMappingExposure = 2.4; 
+  window.threeRenderer.toneMappingExposure = 2.2; 
 
-  // ⚡ [조명 하얗게 타는 버그 수정 2단계] 직사광선 강도를 하얗게 날아가지 않을 만큼만 튜닝 (60.0 -> 14.0)
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 14.0);
-  dirLight1.position.set(10, 30, 25); 
+  // 조명 분산 정밀 재배치 (하얗게 타지 않으면서 디테일 음영 극대화)
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 12.0);
+  dirLight1.position.set(15, 25, 30); 
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 8.0);
-  dirLight2.position.set(-25, 10, 20); 
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 6.0);
+  dirLight2.position.set(-30, 15, 15); 
   window.threeScene.add(dirLight2);
 
-  const dirLight3 = new THREE.DirectionalLight(0xffffff, 8.0);
-  dirLight3.position.set(25, 10, 20); 
-  window.threeScene.add(dirLight3);
-
-  const ambientLight = new THREE.AmbientLight(0xffffff, 3.5); 
+  const ambientLight = new THREE.AmbientLight(0xffffff, 3.2); 
   window.threeScene.add(ambientLight);
 
-  // 정사각형 박스 비율에 맞춰 카메라 포지션 뒤로 양보 (화면 밖 탈출 방지)
-  window.threeCamera = new THREE.PerspectiveCamera(23, W / H, 0.1, 100);
-  window.threeCamera.position.set(0, 0, 5.5);
+  // 카메라 시야각 조정으로 원근 왜곡 억제
+  window.threeCamera = new THREE.PerspectiveCamera(21, W / H, 0.1, 100);
+  window.threeCamera.position.set(0, 0, 6.0);
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
@@ -218,48 +207,48 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // ⚡ [조명 하얗게 타는 버그 수정 3단계] 자체 발광 속성을 어둡게 하여 디테일 뭉개짐 방지
       const chromeSilverMat = new THREE.MeshStandardMaterial({
         color: 0xffffff,          
         metalness: 1.0,           
-        roughness: 0.005,         // 거칠기를 더 극도로 낮춰 거울처럼 맑은 반사광 생성
-        emissive: 0x111111,       // 자체 발광을 다크 그레이로 낮춰 하얀색 폭발 방지
-        envMapIntensity: 6.5,     // 반사 맵 강도를 더 쨍하게 상향
+        roughness: 0.02,         
+        emissive: 0x0a0a0a,       
+        envMapIntensity: 5.8,     
         side: THREE.DoubleSide
       });
 
       model.traverse((child) => {
         if (child.isMesh) {
-          child.material    = chromeSilverMat;
-          child.castShadow    = false;
+          child.material = chromeSilverMat;
+          child.castShadow = false;
           child.receiveShadow = false;
         }
       });
 
-      // ⚡ [너무 누워있는 현상 수정] 초기 회전 각도를 직립에 가깝게 보정
-      model.rotation.x = 0.50;  // 앞으로 너무 누워있는 각도를 세워줌 (기존 1.20)
-      model.rotation.y = 0.60;  // 살짝 정면으로 틀어줌 (기존 0.50)
-      model.rotation.z = -0.15; // 틸트 각도 조율 (기존 -0.30)
+      // ⚡ [누움 현상 완벽 해결] 정면을 바라보면서 스타일리시하게 각도 고정
+      model.rotation.set(0.20, 0.45, -0.05);
 
-      // ⚡ [너무 큰 현상 수정] 화면 밖 탈출을 막기 위해 바운딩 스케일 축소 (2.7 -> 2.1)
-      const BOUNDS = 2.1; 
-      const box    = new THREE.Box3().setFromObject(model);
+      // ⚡ [크기 복원 핵심] 치우친 피벗 중심점을 무력화하고 공간 한가운데 정렬
+      const box = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
-      const size   = new THREE.Vector3();
+      const size = new THREE.Vector3();
       box.getSize(size);
       
       const maxDim = Math.max(size.x, size.y, size.z);
-      const scale  = BOUNDS / maxDim;
+      
+      // ⚡ 아까 전전의 웅장함을 찾기 위해 스케일 한계 바운드를 3.4로 상향 복구!
+      const BOUNDS = 3.4; 
+      const scale = BOUNDS / maxDim;
       model.scale.setScalar(scale);
 
+      // 🚨 중심 오프셋 피벗 강제 리포지셔닝
       model.position.set(-centre.x * scale, -centre.y * scale, -centre.z * scale);
 
       window.modelAnchor = new THREE.Group();
       window.modelAnchor.add(model);
       
-      // 🚨 모델 하단 쏠림 방지: 중심축 연산 후 부모 그룹 내부에서 y축 정중앙 보정
-      window.modelAnchor.position.set(0, 0, 0); 
+      // 화면 정중앙 배치 안착
+      window.modelAnchor.position.set(0, -0.05, 0); 
       window.threeScene.add(window.modelAnchor);
 
       window.modelAnchor.rotation.x = baseRotation.x;
@@ -285,7 +274,6 @@ const hideSiteLoader = () => {
 
 const resizeThree = () => {
   if (!window.threeRenderer || !window.threeCamera) return;
-  // 박스가 650x650 고정이므로 리사이즈 시에도 650 정비율 유지
   window.threeRenderer.setSize(650, 650);
   window.threeCamera.aspect = 1;
   window.threeCamera.updateProjectionMatrix();
@@ -379,11 +367,9 @@ const animate = () => {
       let targetY = 0;
 
       if (isHoveringModel) {
-        // [답답함 해결] 마우스 움직임 감도와 회전 가동 범위를 폭발적으로 상향 (0.15/0.25 -> 0.55/0.75)
-        targetX = 0 + (-mouse.y * 0.55);
-        targetY = 0 + (mouse.x * 0.75);
+        targetX = 0 + (-mouse.y * 0.45);
+        targetY = 0 + (mouse.x * 0.60);
         
-        // 보간 속도 역시 기민하게 변경하여 즉각즉각 반응하도록 설정 (0.06 -> 0.12)
         rotState.x += (targetX - rotState.x) * 0.12;
         rotState.y += (targetY - rotState.y) * 0.12;
       } else {
@@ -394,8 +380,7 @@ const animate = () => {
       window.modelAnchor.rotation.x = rotState.x;
       window.modelAnchor.rotation.y = rotState.y;
       
-      // 잔잔한 위아래 부유 효과
-      window.modelAnchor.position.y = Math.sin(clock * 0.5) * 0.02; 
+      window.modelAnchor.position.y = Math.sin(clock * 0.5) * 0.03 - 0.05; 
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
   }
@@ -425,7 +410,7 @@ const setupHoverEvents = () => {
 };
 
 /* ════════════════════════════════════════
-    폴더 GUI 데이터 및 인터랙션
+    FOLDER GUI ARCHIVE INTERACTION
 ════════════════════════════════════════ */
 const FOLDER_DATA = {
   academic: {
@@ -580,22 +565,12 @@ const setupFolderGUI = () => {
     openModal(item.dataset.folder);
   });
 
-  grid.addEventListener('keydown', (e) => {
-    const item = e.target.closest('.folder-item');
-    if (!item) return;
-    if (e.key === 'Enter') openModal(item.dataset.folder);
-    if (e.key === ' ')     item.classList.toggle('is-selected');
-  });
-
   if (modalClose) modalClose.addEventListener('click', closeModal);
   if (modalBack) modalBack.addEventListener('click',  closeModal);
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
-  });
 };
 
 /* ════════════════════════════════════════
-    SCROLL REVEAL
+    SCROLL REVEAL CARD
 ════════════════════════════════════════ */
 const setupReveal = () => {
   const cards = document.querySelectorAll('.reveal-card');
@@ -615,7 +590,7 @@ const setupReveal = () => {
 };
 
 /* ════════════════════════════════════════
-    INIT ALL
+    CORE INIT ENTRY
 ════════════════════════════════════════ */
 const initAll = () => {
   landingCanvasCtrl = setupLandingCanvas();
@@ -630,7 +605,6 @@ const initAll = () => {
 
   window.addEventListener('scroll', () => {
     updateNavProgress();
-
     const spotlight = document.querySelector('.page-spotlight');
     if (spotlight) {
       const px = (pointer.x / window.innerWidth)  * 100;
