@@ -53,7 +53,7 @@ let isHoveringModel = false;
 let isModalOpen = false; 
 
 /* ════════════════════════════════════════
-    LANDING CANVAS BACKGROUND (오타 완벽 수정)
+    LANDING CANVAS BACKGROUND
 ════════════════════════════════════════ */
 const setupLandingCanvas = () => {
   if (!landing || !landingCanvas) return null;
@@ -69,7 +69,6 @@ const setupLandingCanvas = () => {
     landingCanvas.width  = Math.max(1, Math.floor(rect.width  * state.dpr));
     landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
     
-    // ⚡ [버그 수정 완료] 중복 적혀있던 단어를 올바르게 교정했습니다.
     landingCanvas.style.width  = `${rect.width}px`;
     landingCanvas.style.height = `${rect.height}px`;
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
@@ -106,37 +105,36 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    🔥 무광 현상 타파를 위한 초고정밀 가상 반사판 룸 
+    🔥 대비감을 찢어놓을 고반사 인바이런먼트 가상 룸
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
-  // 어두운 부분을 확실하게 깊고 묵직하게 만들어줄 블랙 공간
   const roomGeo = new THREE.SphereGeometry(60, 16, 16);
-  const roomMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
+  const roomMat = new THREE.MeshBasicMaterial({ color: 0x020205, side: THREE.BackSide });
   const room = new THREE.Mesh(roomGeo, roomMat);
   scene.add(room);
 
-  // 상단 하이라이트용 고강도 흰색 발광 블록
+  // 상단 화이트 판
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(40, 2, 40),
+    new THREE.BoxGeometry(50, 2, 50),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
   topLight.position.set(0, 25, 0);
   scene.add(topLight);
 
-  // 정면 거울 반사용 쨍한 토러스 화이트 링 추가
+  // 정면 서클 반사판
   const frontCenter = new THREE.Mesh(
-    new THREE.TorusGeometry(12, 3, 16, 100),
+    new THREE.TorusGeometry(14, 4, 16, 100),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
   frontCenter.position.set(0, 5, 25);
   scene.add(frontCenter);
 
-  // 왼쪽에서 날카롭게 들어오는 발광판 슬릿
+  // 사이드 엣지 라인을 잡아줄 고휘도 슬릿
   const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(1, 50, 10),
+    new THREE.BoxGeometry(2, 60, 15),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
   leftPanel.position.set(-30, 0, 5);
@@ -172,25 +170,25 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   
-  // ⚡ 극명한 대비(High-Contrast) 연산을 위해 ACESFilmic 톤매핑으로 셋팅
+  // ⚡ 극명한 대비와 눈부신 하이라이트를 위해 노출값 대폭 상향
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  window.threeRenderer.toneMappingExposure = 3.6; 
+  window.threeRenderer.toneMappingExposure = 4.5; 
 
-  // ⚡ 조명 파워를 60배 수준으로 폭발시켜 흰색 반사와 그림자 대비 극대화
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 60.0); 
-  dirLight1.position.set(5, 30, 20); 
+  // ⚡ [초고출력 조명] 실버 메탈의 광택 대비를 극대화하기 위한 우주급 서치라이트 배치
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 95.0); 
+  dirLight1.position.set(10, 35, 25); 
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 35.0); 
-  dirLight2.position.set(-25, 0, 15); 
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 65.0); 
+  dirLight2.position.set(-30, 10, 20); 
   window.threeScene.add(dirLight2);
 
-  const dirLight3 = new THREE.DirectionalLight(0xddffff, 20.0); 
-  dirLight3.position.set(25, -5, 10); 
+  const dirLight3 = new THREE.DirectionalLight(0xffffff, 45.0); 
+  dirLight3.position.set(30, -10, 15); 
   window.threeScene.add(dirLight3);
 
-  // 전체를 뭉툭하게 밝히던 앰비언트 라이트는 줄여서 어두운 하이라이트 보호
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
+  // 어두운 부분이 떡지지 않고 깊이감을 유지하도록 은은한 간접 광원 보강
+  const ambientLight = new THREE.AmbientLight(0xffffff, 3.5); 
   window.threeScene.add(ambientLight);
 
   window.threeCamera = new THREE.PerspectiveCamera(24, 1, 0.1, 100);
@@ -216,15 +214,19 @@ const initThree = () => {
       model.traverse((child) => {
         if (child.isMesh) {
           child.material.dispose(); 
+          
+          // ⚡ [자체 발광 실버 메탈 재질 구현] 
           child.material = new THREE.MeshStandardMaterial({
             color: 0xffffff,
-            metalness: 1.0,           
-            roughness: 0.02,          // 아주 미세한 질감으로 빛 맺힘 극대화
+            metalness: 1.0,           // 100% 순수 메탈릭 리얼 실버
+            roughness: 0.01,          // 거울처럼 쨍하고 매끄러운 표면
+            
+            // 💡 핵심: 빛을 안 받아도 스스로 은은한 백색광을 뿜어내 어두워짐 방지
+            emissive: 0xffffff,       
+            emissiveIntensity: 0.28,  // 기본 발광 베이스라인 확보
+            
             envMap: envTexture,       
-            envMapIntensity: 15.0,    // 반사 세기 증가
-            roughnessMap: null,       
-            metalnessMap: null,
-            normalMap: null,
+            envMapIntensity: 25.0,    // 주변 반사 광택을 25배로 증폭
             side: THREE.DoubleSide
           });
           child.material.needsUpdate = true;
@@ -584,23 +586,32 @@ const setupFolderGUI = () => {
 };
 
 /* ════════════════════════════════════════
-    SCROLL REVEAL
+    ⚡ [인터랙션 전면 복구] SCROLL REVEAL CARDS 
 ════════════════════════════════════════ */
 const setupReveal = () => {
   const cards = document.querySelectorAll('.reveal-card');
   if (!cards.length) return;
+
   const obs = new IntersectionObserver(
     (entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           entry.target.classList.add('is-visible');
-          obs.unobserve(entry.target);
+          // 한 번 나타난 카드는 스크롤을 올려도 다시 사라지지 않도록 고정
+          obs.unobserve(entry.target); 
         }
       });
     },
-    { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
+    { 
+      threshold: 0.05,        // 카드가 아주 살짝(5%)만 보여도 즉시 가동 시작
+      rootMargin: '0px 0px -50px 0px' 
+    }
   );
-  cards.forEach(c => obs.observe(c));
+  
+  cards.forEach(c => {
+    c.classList.remove('is-visible'); // 강제 리셋 후 감시 개시
+    obs.observe(c);
+  });
 };
 
 /* ════════════════════════════════════════
@@ -611,7 +622,7 @@ const initAll = () => {
   setupHoverEvents();
   eliminateFakeModels();
   buildSectionMap();
-  setupReveal();
+  setupReveal(); // 등장 인터랙션 등록
   setupFolderGUI();
 
   initThree();
