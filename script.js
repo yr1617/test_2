@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 /* ════════════════════════════════════════
-    ENGINE RE-INIT PROTECTION (구동 엔진 안전 초기화)
+    ENGINE RE-INIT PROTECTION
 ════════════════════════════════════════ */
 if (window.animFrameId) {
   cancelAnimationFrame(window.animFrameId);
@@ -43,11 +43,8 @@ const pointer = {
 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
-const baseRotation = { x: 0, y: 0 }; 
-const rotState     = { x: 0, y: 0 };
-
+const rotState = { x: 0, y: 0 };
 let isHoveringModel = false; 
-let isModalOpen = false; 
 
 /* ════════════════════════════════════════
     LANDING CANVAS BACKGROUND
@@ -101,43 +98,47 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    HIGH-CONTRAST VIRTUAL STUDIO ENVIRONMENT
+    HIGH-CONTRAST STUDIO ENVIRONMENT (메탈 반사용 고대비 맵)
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
+  // 우주 같은 어두운 배경 반사
   const roomGeo = new THREE.SphereGeometry(60, 16, 16);
-  const roomMat = new THREE.MeshBasicMaterial({ color: 0x010103, side: THREE.BackSide });
+  const roomMat = new THREE.MeshBasicMaterial({ color: 0x050508, side: THREE.BackSide });
   const room = new THREE.Mesh(roomGeo, roomMat);
   scene.add(room);
 
+  // 상단 하이라이트 조명판
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(70, 5, 70),
+    new THREE.BoxGeometry(50, 2, 50),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  topLight.position.set(0, 30, 0);
+  topLight.position.set(0, 35, 0);
   scene.add(topLight);
 
+  // 전면 하이라이트 구체
   const frontCenter = new THREE.Mesh(
-    new THREE.SphereGeometry(25, 32, 32),
+    new THREE.SphereGeometry(15, 16, 16),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  frontCenter.position.set(0, 10, 35);
+  frontCenter.position.set(0, 10, 40);
   scene.add(frontCenter);
 
+  // 좌우 에지 라인을 잡아줄 측면 사이드 조명판
   const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 60, 40),
+    new THREE.BoxGeometry(1, 50, 30),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  leftPanel.position.set(-35, 5, 0);
+  leftPanel.position.set(-30, 0, 10);
   scene.add(leftPanel);
 
   const rightPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 60, 40),
+    new THREE.BoxGeometry(1, 50, 30),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  rightPanel.position.set(35, 5, 0);
+  rightPanel.position.set(30, 0, 10);
   scene.add(rightPanel);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -170,32 +171,26 @@ const initThree = () => {
   window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
-  
-  window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  window.threeRenderer.toneMappingExposure = 2.2; 
+  window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping; 
+  window.threeRenderer.toneMappingExposure = 1.5; 
 
-  // 조명 분산 정밀 재배치 (하얗게 타지 않으면서 디테일 음영 극대화)
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 12.0);
-  dirLight1.position.set(15, 25, 30); 
-  window.threeScene.add(dirLight1);
+  // 뿌연 느낌을 없애기 위해 기본 조명 세기를 내리고 환경 반사 위주로 세팅
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  dirLight.position.set(5, 10, 15);
+  window.threeScene.add(dirLight);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 6.0);
-  dirLight2.position.set(-30, 15, 15); 
-  window.threeScene.add(dirLight2);
-
-  const ambientLight = new THREE.AmbientLight(0xffffff, 3.2); 
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); 
   window.threeScene.add(ambientLight);
 
-  // 카메라 시야각 조정으로 원근 왜곡 억제
-  window.threeCamera = new THREE.PerspectiveCamera(21, W / H, 0.1, 100);
-  window.threeCamera.position.set(0, 0, 6.0);
+  // ⚡ 카메라 시야각과 위치 재조정 (가깝고 큼직하게 비추도록 변경)
+  window.threeCamera = new THREE.PerspectiveCamera(35, W / H, 0.1, 100);
+  window.threeCamera.position.set(0, 0, 4.2);
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
 
   const loader = new GLTFLoader();
   const draco  = new DRACOLoader();
-  
   draco.setDecoderPath('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/libs/draco/');
   loader.setDRACOLoader(draco);
 
@@ -207,27 +202,22 @@ const initThree = () => {
 
       const model = gltf.scene;
 
+      // ⚡ 번쩍이는 리얼 크롬 메탈 질감 정의
       const chromeSilverMat = new THREE.MeshStandardMaterial({
-        color: 0xffffff,          
-        metalness: 1.0,           
-        roughness: 0.02,         
-        emissive: 0x0a0a0a,       
-        envMapIntensity: 5.8,     
+        color: 0xdddddd,          
+        metalness: 1.0,           // 완전한 금속
+        roughness: 0.0,           // 거칠기 0 (거울처럼 매끄러운 표면)
+        envMapIntensity: 12.0,    // 가상 스튜디오 반사광 극대화 (메탈감 뿜어내기)
         side: THREE.DoubleSide
       });
 
       model.traverse((child) => {
         if (child.isMesh) {
           child.material = chromeSilverMat;
-          child.castShadow = false;
-          child.receiveShadow = false;
         }
       });
 
-      // ⚡ [누움 현상 완벽 해결] 정면을 바라보면서 스타일리시하게 각도 고정
-      model.rotation.set(0.20, 0.45, -0.05);
-
-      // ⚡ [크기 복원 핵심] 치우친 피벗 중심점을 무력화하고 공간 한가운데 정렬
+      // ⚡ [중요] 피벗 정렬 및 화면 크기 꽉 차게 보정
       const box = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
@@ -236,23 +226,23 @@ const initThree = () => {
       
       const maxDim = Math.max(size.x, size.y, size.z);
       
-      // ⚡ 아까 전전의 웅장함을 찾기 위해 스케일 한계 바운드를 3.4로 상향 복구!
-      const BOUNDS = 3.4; 
+      // ⚡ 크기 바운드를 대폭 확장하여 시원하고 거대하게 스케일업!
+      const BOUNDS = 2.8; 
       const scale = BOUNDS / maxDim;
       model.scale.setScalar(scale);
 
-      // 🚨 중심 오프셋 피벗 강제 리포지셔닝
+      // 중심점 이탈 방지 강제 제어
       model.position.set(-centre.x * scale, -centre.y * scale, -centre.z * scale);
+
+      // ⚡ [누움 현상 완벽 해결] 정면 각도로 올바르게 바라보도록 고정
+      model.rotation.set(0, 0, 0); 
 
       window.modelAnchor = new THREE.Group();
       window.modelAnchor.add(model);
       
-      // 화면 정중앙 배치 안착
-      window.modelAnchor.position.set(0, -0.05, 0); 
+      // 화면 내 위치 안정화 안착
+      window.modelAnchor.position.set(0, 0, 0); 
       window.threeScene.add(window.modelAnchor);
-
-      window.modelAnchor.rotation.x = baseRotation.x;
-      window.modelAnchor.rotation.y = baseRotation.y;
 
       eliminateFakeModels();
       hideSiteLoader();
@@ -366,21 +356,24 @@ const animate = () => {
       let targetX = 0;
       let targetY = 0;
 
+      // ⚡ 정면 기준 마우스 인터랙션 회전 범위 최적화
       if (isHoveringModel) {
-        targetX = 0 + (-mouse.y * 0.45);
-        targetY = 0 + (mouse.x * 0.60);
+        targetX = -mouse.y * 0.35;
+        targetY = mouse.x * 0.45;
         
-        rotState.x += (targetX - rotState.x) * 0.12;
-        rotState.y += (targetY - rotState.y) * 0.12;
+        rotState.x += (targetX - rotState.x) * 0.1;
+        rotState.y += (targetY - rotState.y) * 0.1;
       } else {
-        rotState.x += (0 - rotState.x) * 0.03; 
-        rotState.y += 0.003; 
+        // 평소에는 정면인 채로 Y축만 고급스럽게 자동 회전
+        rotState.x += (0 - rotState.x) * 0.05;
+        rotState.y += 0.004;
       }
 
       window.modelAnchor.rotation.x = rotState.x;
       window.modelAnchor.rotation.y = rotState.y;
       
-      window.modelAnchor.position.y = Math.sin(clock * 0.5) * 0.03 - 0.05; 
+      // 우아한 미세 공중 부양 효과
+      window.modelAnchor.position.y = Math.sin(clock * 0.6) * 0.04; 
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
   }
@@ -529,13 +522,11 @@ const setupFolderGUI = () => {
 
     modal.classList.add('is-open');
     document.body.style.overflow = 'hidden';
-    isModalOpen = true; 
   };
 
   const closeModal = () => {
     modal.classList.remove('is-open');
     document.body.style.overflow = '';
-    isModalOpen = false; 
   };
 
   grid.addEventListener('click', (e) => {
