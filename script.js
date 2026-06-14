@@ -53,7 +53,7 @@ let isHoveringModel = false;
 let isModalOpen = false; 
 
 /* ════════════════════════════════════════
-    LANDING CANVAS BACKGROUND (오타 버그 완벽 수정!)
+    LANDING CANVAS BACKGROUND
 ════════════════════════════════════════ */
 const setupLandingCanvas = () => {
   if (!landing || !landingCanvas) return null;
@@ -67,7 +67,6 @@ const setupLandingCanvas = () => {
     state.height = rect.height;
     state.dpr    = Math.min(window.devicePixelRatio || 1, 1.5);
     
-    // 💡 [버그 수정 완료] landingCanvasCanvas 오타를 landingCanvas로 전면 정상화했습니다.
     landingCanvas.width  = Math.max(1, Math.floor(rect.width  * state.dpr));
     landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
     
@@ -107,46 +106,55 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    🔥 크롬 메탈에 거울 반사를 먹여줄 초강력 가상 스튜디오 룸
+    🔥 무조건 쨍하게 빛나도록 설계한 초강력 환경맵 스튜디오
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
+  // 기본 공간을 아주 어둡지 않게 은은한 그레이 톤으로 감싸 그림자 면도 확보
   const roomGeo = new THREE.SphereGeometry(60, 16, 16);
-  const roomMat = new THREE.MeshBasicMaterial({ color: 0x050508, side: THREE.BackSide });
+  const roomMat = new THREE.MeshBasicMaterial({ color: 0x222226, side: THREE.BackSide });
   const room = new THREE.Mesh(roomGeo, roomMat);
   scene.add(room);
 
-  // 상단 대형 소프트박스 반사판
+  // 상단 대형 화이트 조명판
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(60, 2, 60),
+    new THREE.BoxGeometry(50, 2, 50),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
   topLight.position.set(0, 30, 0);
   scene.add(topLight);
 
-  // 정면 링라이트 스타일 반사판 (메탈 테두리 라인을 쨍하게 잡아줌)
-  const frontCenter = new THREE.Mesh(
-    new THREE.TorusGeometry(18, 5, 16, 100),
+  // 하단 반사판 (아래로 누웠을 때 밑면이 까맣게 죽는 현상 완벽 방지!)
+  const bottomLight = new THREE.Mesh(
+    new THREE.BoxGeometry(50, 2, 50),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  frontCenter.position.set(0, 5, 25);
+  bottomLight.position.set(0, -30, 0);
+  scene.add(bottomLight);
+
+  // 정면 거대한 링 라이트 (카메라가 보는 모든 방향에 크롬 하이라이트 제공)
+  const frontCenter = new THREE.Mesh(
+    new THREE.TorusGeometry(20, 4, 16, 100),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
+  );
+  frontCenter.position.set(0, 0, 25);
   scene.add(frontCenter);
 
-  // 측면 슬릿 조명판 (칼날 하이라이트용)
+  // 좌우 측면 칼날 광택용 사이드 패널
   const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 60, 20),
+    new THREE.BoxGeometry(2, 50, 30),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  leftPanel.position.set(-35, 0, 5);
+  leftPanel.position.set(-35, 0, 0);
   scene.add(leftPanel);
 
   const rightPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 60, 20),
+    new THREE.BoxGeometry(2, 50, 30),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  rightPanel.position.set(35, 0, 5);
+  rightPanel.position.set(35, 0, 0);
   scene.add(rightPanel);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -179,30 +187,30 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   
-  // 영화 같은 대비감을 주는 톤매핑 세팅
+  // 과도한 대비로 타거나 어두워지지 않게 선명하게 톤 보정
   window.threeRenderer.toneMapping      = THREE.ACESFilmicToneMapping; 
-  window.threeRenderer.toneMappingExposure = 3.5; 
+  window.threeRenderer.toneMappingExposure = 2.5; 
 
-  // 강력한 입체감을 줄 전후좌우 서치라이트 배치
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 80.0); 
-  dirLight1.position.set(15, 40, 30); 
+  // 사방에서 쏟아지는 직사광선 조명 (총 4개 방향 레이아웃 배치)
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 15.0); 
+  dirLight1.position.set(20, 30, 25); 
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 50.0); 
-  dirLight2.position.set(-35, 15, 25); 
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 12.0); 
+  dirLight2.position.set(-20, 20, 25); 
   window.threeScene.add(dirLight2);
 
-  const dirLight3 = new THREE.DirectionalLight(0xffffff, 35.0); 
-  dirLight3.position.set(35, -15, 20); 
+  const dirLight3 = new THREE.DirectionalLight(0xffffff, 10.0); 
+  dirLight3.position.set(0, -30, 15); 
   window.threeScene.add(dirLight3);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 2.0); 
+  // 전체적인 음영을 화사하게 올려줄 앰비언트 라이트 업그레이드
+  const ambientLight = new THREE.AmbientLight(0xffffff, 4.0); 
   window.threeScene.add(ambientLight);
 
   window.threeCamera = new THREE.PerspectiveCamera(24, 1, 0.1, 100);
   window.threeCamera.position.set(0, 0, 4.9);
 
-  // 스튜디오 환경 맵 바인딩
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
 
@@ -224,14 +232,13 @@ const initThree = () => {
         if (child.isMesh) {
           child.material.dispose(); 
           
-          // ✨ 시커멓지 않고 면을 따라 거울처럼 주변 광을 반사하는 진짜 묵직한 크롬 실버 질감
+          // ✨ 어두운 사각지대 없이 거울처럼 맑고 투명하게 빛을 튕겨내는 리얼 크롬 실버 재질
           child.material = new THREE.MeshStandardMaterial({
-            color: 0x222222,          // 살짝 그레이 톤 베이스로 안정감 확보
-            metalness: 1.0,           // 100% 완전 메탈화
-            roughness: 0.02,          // 살짝 매끄러운 광택면
-            emissive: 0x000000,       
+            color: 0xdddddd,          // 베이스 색상을 밝은 실버 화이트로 지정하여 암흑 현상 완벽 차단
+            metalness: 0.95,          // 크롬 고유의 메탈릭 성질
+            roughness: 0.05,          // 주변 스튜디오 빛 매끄럽게 반사
             envMap: envTexture,       
-            envMapIntensity: 12.0,    // 주변 조명판 반사 강도를 12배로 세련되게 밀어붙임
+            envMapIntensity: 5.0,     // 환경맵 세기를 자연스럽고 강렬하게 매칭
             side: THREE.DoubleSide
           });
           child.material.needsUpdate = true;
@@ -240,9 +247,9 @@ const initThree = () => {
         }
       });
 
-      // 예쁜 메탈 각도가 나오도록 회전축 세밀 보정
-      model.rotation.x = 0.50;  
-      model.rotation.y = 0.60;  
+      // 무대 정면을 바라보도록 초기 회전값 예쁘게 보정
+      model.rotation.x = 0.20;  
+      model.rotation.y = 0.00;  
       model.rotation.z = 0.00; 
 
       const BOUNDS = 2.45; 
@@ -379,8 +386,8 @@ const animate = () => {
       let targetY = 0;
 
       if (isHoveringModel) {
-        targetX = 0 + (-mouse.y * 0.65);
-        targetY = 0 + (mouse.x * 0.95);
+        targetX = 0 + (-mouse.y * 0.55);
+        targetY = 0 + (mouse.x * 0.75);
         
         rotState.x += (targetX - rotState.x) * 0.12;
         rotState.y += (targetY - rotState.y) * 0.12;
@@ -438,7 +445,7 @@ const FOLDER_DATA = {
       { text: '흥부전 픽토그램 디자인 프로젝트', highlight: false },
       { text: 'GUI 스타일별 아이콘 제작 프로젝트', highlight: true },
       { text: 'OTT 서비스 디자인 시스템 컴포넌트 및 디자인 시스템 제작 프로젝트', highlight: true },
-      { text: '패션 종합 어플리케이션 [MFF] 창업 계획서 작성 프로젝트', highlight: false },
+      { text: '패션 종합 어플리케이션 [MFF] 창업 계획서 작성 프로젝트', highlight: false }
     ]
   },
   club: {
@@ -448,7 +455,7 @@ const FOLDER_DATA = {
       { text: '급식 티켓팅 서비스 제작 프로젝트 [급식 패스]', highlight: true },
       { text: '미림 해커톤 / 컬러워크 기록 서비스 제작 프로젝트 [투데인트]', highlight: true },
       { text: 'AI ESG 교육 이수', highlight: false },
-      { text: 'JS 스터디 홍보 게시물 제작', highlight: true },
+      { text: 'JS 스터디 홍보 게시물 제작', highlight: true }
     ]
   },
   personal: {
@@ -456,7 +463,7 @@ const FOLDER_DATA = {
     path:  '~/archive/personal/',
     items: [
       { text: '컵에 끼우는 화상 방지용 실리콘 차단물로 창업 아이디어 경진 대회 참여', highlight: false },
-      { text: '(진행중) 하루 한번 면접 질문 서비스 제작 프로젝트 [모디곰]', highlight: true },
+      { text: '(진행중) 하루 한번 면접 질문 서비스 제작 프로젝트 [모디곰]', highlight: true }
     ]
   },
   books: {
@@ -469,7 +476,7 @@ const FOLDER_DATA = {
       { text: '< (비전공자를 위한 이해할 수 있는) IT 지식 > — 최원영', highlight: false },
       { text: '< 1일 1로그 100일 완성 IT 지식 > — 브라이언 W. 커니핸', highlight: false },
       { text: '< 폰트의 비밀 > — 고바야시 아키라', highlight: true },
-      { text: '< 갱부 > — 나쓰메 소세키', highlight: false },
+      { text: '< 갱부 > — 나쓰메 소세키', highlight: false }
     ]
   },
   cert: {
@@ -477,7 +484,7 @@ const FOLDER_DATA = {
     path:  '~/archive/cert/',
     items: [
       { text: 'GTQ 1급', highlight: false },
-      { text: 'ITQ 한글 A급, PPT C급', highlight: false },
+      { text: 'ITQ 한글 A급, PPT C급', highlight: false }
     ]
   },
   awards: {
@@ -487,7 +494,7 @@ const FOLDER_DATA = {
       { text: '신입생 대표 선서, 학교장 장학금', highlight: true },
       { text: '1학년 1학기 일본어 교과우수상 수상', highlight: false },
       { text: '피그마 재즈 대상 수상', highlight: true },
-      { text: 'AI ESG 교육 이수 수료증', highlight: false },
+      { text: 'AI ESG 교육 이수 수료증', highlight: false }
     ]
   }
 };
