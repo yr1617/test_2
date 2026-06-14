@@ -43,6 +43,7 @@ const pointer = {
 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
+// 회전 상태 초기값 세팅
 const rotState = { x: 0, y: 0 };
 let isHoveringModel = false; 
 
@@ -99,43 +100,47 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    스튜디오 크롬 반사맵 (HDRI 대용)
+    스튜디오 크롬 반사맵 환경 (암전 방지형 화이트 돔)
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
+  // 전체적으로 맑은 은색 톤을 띄게 하기 위해 베이스 룸을 밝은 그레이로 전환 (암전 해결)
   const roomGeo = new THREE.SphereGeometry(60, 16, 16);
-  const roomMat = new THREE.MeshBasicMaterial({ color: 0x020203, side: THREE.BackSide });
+  const roomMat = new THREE.MeshBasicMaterial({ color: 0x555555, side: THREE.BackSide });
   const room = new THREE.Mesh(roomGeo, roomMat);
   scene.add(room);
 
+  // 상단 탑 소프트 라이트 판
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(60, 4, 60),
+    new THREE.BoxGeometry(50, 4, 50),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  topLight.position.set(0, 35, 0);
+  topLight.position.set(0, 30, 0);
   scene.add(topLight);
 
+  // 정면 입체감을 위한 메인 하이라이트 조명구
   const frontCenter = new THREE.Mesh(
-    new THREE.SphereGeometry(18, 16, 16),
+    new THREE.SphereGeometry(15, 16, 16),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  frontCenter.position.set(0, 15, 35);
+  frontCenter.position.set(0, 10, 30);
   scene.add(frontCenter);
 
+  // 좌우 칼날 에지를 살려줄 반사판들
   const leftPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 60, 40),
+    new THREE.BoxGeometry(2, 50, 30),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  leftPanel.position.set(-35, 0, 15);
+  leftPanel.position.set(-30, 0, 10);
   scene.add(leftPanel);
 
   const rightPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 60, 40),
+    new THREE.BoxGeometry(2, 50, 30),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
-  rightPanel.position.set(35, 0, 15);
+  rightPanel.position.set(30, 0, 10);
   scene.add(rightPanel);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -169,17 +174,23 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping; 
-  window.threeRenderer.toneMappingExposure = 1.6; 
+  window.threeRenderer.toneMappingExposure = 1.2; 
 
-  const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
-  dirLight.position.set(5, 15, 20);
+  // 입체 면 분할을 드라마틱하게 보여줄 메인 조명각 조절
+  const dirLight = new THREE.DirectionalLight(0xffffff, 3.5);
+  dirLight.position.set(8, 12, 15);
   window.threeScene.add(dirLight);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.2); 
+  // 반대편 어두운 면이 새까맣게 죽지 않도록 바운스 조명 보충
+  const dirLightSub = new THREE.DirectionalLight(0xaaccff, 1.0);
+  dirLightSub.position.set(-8, -5, -5);
+  window.threeScene.add(dirLightSub);
+
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); 
   window.threeScene.add(ambientLight);
 
-  window.threeCamera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
-  window.threeCamera.position.set(0, 0, 4.5);
+  window.threeCamera = new THREE.PerspectiveCamera(38, W / H, 0.1, 100);
+  window.threeCamera.position.set(0, 0, 4.8);
 
   const envTexture = generatePureEnvironment(window.threeRenderer);
   window.threeScene.environment = envTexture;
@@ -197,11 +208,12 @@ const initThree = () => {
 
       const model = gltf.scene;
 
+      // 맑은 메탈릭 실버 질감 밸런싱 (완전 검은색 현상 해결)
       const chromeSilverMat = new THREE.MeshStandardMaterial({
-        color: 0xffffff,          
-        metalness: 1.0,           
-        roughness: 0.0,           
-        envMapIntensity: 15.0,    
+        color: 0xdddddd,          
+        metalness: 0.9,           
+        roughness: 0.12,          // 미세한 서리광을 주어 면 분할과 라이팅이 눈에 띔
+        envMapIntensity: 2.5,     
         side: THREE.DoubleSide
       });
 
@@ -211,12 +223,12 @@ const initThree = () => {
         }
       });
 
-      // 1. 순수 모델 알맹이 상태일 때 누워있는 축 강제 정렬 (X축 기반 90도 회전)
-      // 파일에 따라 Math.PI / 2 또는 -Math.PI / 2 로 세워집니다. 우선 정면으로 기립하도록 설정했습니다.
-      model.rotation.set(Math.PI / 2, 0, 0); 
+      // 1. [기립 및 비스듬한 입체 각도 튜닝]
+      // 대자로 누워있던 축을 세우고(X축), 비스듬하게 얼짱 각도로 틀어 입체감이 폭발하도록 설정
+      model.rotation.set(Math.PI * 0.38, Math.PI * 0.05, Math.PI * 0.12); 
       model.updateMatrixWorld(true);
 
-      // 2. 세워진 상태를 기준으로 바운딩 박스 및 피벗 센터 계산
+      // 2. 바운딩 박스 및 센터 자동 정렬
       const box = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
@@ -224,14 +236,14 @@ const initThree = () => {
       box.getSize(size);
       
       const maxDim = Math.max(size.x, size.y, size.z);
-      const BOUNDS = 2.5; 
+      const BOUNDS = 2.4; 
       const scale = BOUNDS / maxDim;
       model.scale.setScalar(scale);
 
-      // 세워진 모델의 중심점을 정중앙(0,0,0)으로 강제 이동
+      // 비스듬한 상태 그대로 정중앙에 고정
       model.position.set(-centre.x * scale, -centre.y * scale, -centre.z * scale);
 
-      // 3. 외부 조작 및 애니메이션을 담당할 완벽한 '기립 상태'의 부모 앵커 생성
+      // 3. 부모 앵커 그룹에 바인딩
       window.modelAnchor = new THREE.Group();
       window.modelAnchor.add(model);
       window.modelAnchor.position.set(0, 0, 0); 
@@ -355,22 +367,24 @@ const animate = () => {
       let targetX = 0;
       let targetY = 0;
 
+      // 마우스 반응 및 자동 회전이 비스듬한 상태 위에서 부드럽게 얹어지도록 처리
       if (isHoveringModel) {
-        targetX = -mouse.y * 0.45;
-        targetY = mouse.x * 0.55;
+        targetX = -mouse.y * 0.3;
+        targetY = mouse.x * 0.4;
         
         rotState.x += (targetX - rotState.x) * 0.1;
         rotState.y += (targetY - rotState.y) * 0.1;
       } else {
-        // 이미 90도 세워진 알맹이 위에서 평화롭게 회전하도록 제어
         rotState.x += (0 - rotState.x) * 0.05;
-        rotState.y += 0.005;
+        // 자연스럽게 비스듬한 궤적을 그리며 공전 회전
+        rotState.y += 0.004;
       }
 
       window.modelAnchor.rotation.x = rotState.x;
       window.modelAnchor.rotation.y = rotState.y;
       
-      window.modelAnchor.position.y = Math.sin(clock * 0.8) * 0.05; 
+      // 공중 부양 둥실둥실 효과
+      window.modelAnchor.position.y = Math.sin(clock * 0.7) * 0.04; 
     }
     window.threeRenderer.render(window.threeScene, window.threeCamera);
   }
