@@ -47,7 +47,7 @@ const rotState = { x: 0, y: 0 };
 let isHoveringModel = false; 
 
 /* ════════════════════════════════════════
-    LANDING CANVAS BACKGROUND (오타 수정 완료)
+    LANDING CANVAS BACKGROUND
 ════════════════════════════════════════ */
 const setupLandingCanvas = () => {
   if (!landing || !landingCanvas) return null;
@@ -61,7 +61,6 @@ const setupLandingCanvas = () => {
     state.height = rect.height;
     state.dpr    = Math.min(window.devicePixelRatio || 1, 1.5);
     
-    // ⚠️ 에러 원인이었던 landingCanvasCanvas 오타를 landingCanvas로 완벽 수정
     landingCanvas.width  = Math.max(1, Math.floor(rect.width  * state.dpr));
     landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
     landingCanvas.style.width  = `${rect.width}px`;
@@ -100,29 +99,29 @@ const updateLandingVars = () => {
 };
 
 /* ════════════════════════════════════════
-    강한 대비를 만드는 하이퍼 크롬 스튜디오 환경 (핵심 변경)
+    강한 대비를 만드는 하이퍼 크롬 스튜디오 환경 (광량 대폭 강화)
 ════════════════════════════════════════ */
 const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
-  // 우주 공간처럼 대비를 주기 위해 베이스 구체는 완전 블랙으로 세팅
+  // 완벽한 우주적 고대비를 위해 배경 구체는 블랙 세팅
   const roomGeo = new THREE.SphereGeometry(60, 16, 16);
   const roomMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
   const room = new THREE.Mesh(roomGeo, roomMat);
   scene.add(room);
 
-  // 1. 상단 초강력 하이라이트 라인 
+  // 1. 상단 초강력 하이라이트 박스광
   const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(50, 2, 50),
+    new THREE.BoxGeometry(60, 4, 60),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
   topLight.position.set(0, 30, -5);
   scene.add(topLight);
 
-  // 2. 정면 우측 - 메인 칼날 반사판 (별의 우측 에지를 하얗게 태워버리는 역할)
+  // 2. 정면 우측 - 메인 칼날 반사판 (별의 에지를 하얗게 비춰줄 주광)
   const frontRight = new THREE.Mesh(
-    new THREE.BoxGeometry(10, 40, 10),
+    new THREE.BoxGeometry(15, 50, 15),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
   frontRight.position.set(25, 10, 25);
@@ -131,16 +130,16 @@ const generatePureEnvironment = (renderer) => {
 
   // 3. 정면 좌측 - 보조 은빛 반사판
   const frontLeft = new THREE.Mesh(
-    new THREE.BoxGeometry(4, 40, 20),
-    new THREE.MeshBasicMaterial({ color: 0xcccccc, toneMapped: false })
+    new THREE.BoxGeometry(6, 50, 25),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
   frontLeft.position.set(-25, 5, 20);
   frontLeft.rotation.y = Math.PI / 4;
   scene.add(frontLeft);
 
-  // 4. 하단 반사광 - 어두운 바닥면으로 돌아갈 때 블렌더 느낌을 지워줄 하단 화이트 링
+  // 4. 하단 반사광 - 바닥면 음영을 지우고 테두리를 살려주는 화이트 링
   const bottomLight = new THREE.Mesh(
-    new THREE.TorusGeometry(25, 2, 8, 24),
+    new THREE.TorusGeometry(30, 3, 8, 24),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
   );
   bottomLight.position.set(0, -25, 0);
@@ -156,7 +155,7 @@ const generatePureEnvironment = (renderer) => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS MAIN CORE
+    THREE.JS MAIN CORE (새까맣게 타는 현상 방지 로직 주입)
 ════════════════════════════════════════ */
 const initThree = () => {
   if (!modelCanvas || window.__threeInitialized) return;
@@ -178,21 +177,25 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   
-  // 쨍한 대비를 위해 톤매핑 노출값을 강하게 올림
+  // ACESFilmic 노출 설정을 더 극대화하여 메탈의 화이트 하이라이트를 한계까지 인상시킴
   window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping; 
-  window.threeRenderer.toneMappingExposure = 1.6; 
+  window.threeRenderer.toneMappingExposure = 2.2; 
 
-  // 조명도 일반 3D 공간용이 아닌, 쇼케이스용 고대비 직사광 세팅
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 5.0);
-  dirLight1.position.set(15, 20, 15);
+  // 환경맵이 먹히지 않는 비상 상황을 대비한 고광량 3중 직사광 인공 배치
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 8.0);
+  dirLight1.position.set(20, 25, 20);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 2.5);
-  dirLight2.position.set(-15, -5, 10);
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 4.0);
+  dirLight2.position.set(-20, -10, 15);
   window.threeScene.add(dirLight2);
 
-  // 평평하게 만드는 주위광(Ambient)은 줄이고 선명도를 올림
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); 
+  const dirLight3 = new THREE.DirectionalLight(0xffffff, 3.0);
+  dirLight3.position.set(0, 10, -20);
+  window.threeScene.add(dirLight3);
+
+  // 찰흙 같은 어둠을 걷어내기 위해 전체적인 최저 밝기(Ambient)를 크게 상향
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
   window.threeScene.add(ambientLight);
 
   window.threeCamera = new THREE.PerspectiveCamera(36, W / H, 0.1, 100);
@@ -214,26 +217,30 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 거울처럼 주변을 반사하는 초고광택 하이퍼 크롬 재질 정의
+      // 🌟 [핵심 수정] 겉돌지 않고 무조건 적용되는 거울 질감의 실버 크롬 마테리얼 정의
       const hyperChromeMat = new THREE.MeshStandardMaterial({
-        color: 0xffffff,          // 완전한 순백색으로 반사율 극대화
-        metalness: 1.0,           // 100% 리얼 메탈화
-        roughness: 0.02,          // 0.02로 낮춰 거울처럼 쨍하게 하이라이트가 맺히게 함
-        envMapIntensity: 5.5,     // 환경맵 반사 강도를 대폭 상승시켜 그늘진 면도 실버로 빛남
+        color: 0xffffff,          
+        metalness: 0.98,          // 리얼 메탈 바디 구축
+        roughness: 0.04,          // 거울면처럼 매끄럽게 떨어지는 수치
+        envMapIntensity: 6.0,     // 가상 환경 스튜디오 빛을 극한으로 흡수하도록 세팅
         side: THREE.DoubleSide
       });
 
+      // 🚨 모델 내부 노드 깊숙한 곳까지 탐색하여 재질 무조건 덮어쓰기 강제 실행
       model.traverse((child) => {
         if (child.isMesh) {
           child.material = hyperChromeMat;
+          child.material.needsUpdate = true;
+          child.castShadow = false;
+          child.receiveShadow = false;
         }
       });
 
-      // 가장 입체적인 각도로 정렬
+      // 가장 덩어리감이 잘 느껴지는 비스듬한 앵글 배치
       model.rotation.set(Math.PI * 0.38, Math.PI * 0.05, Math.PI * 0.12); 
       model.updateMatrixWorld(true);
 
-      // 크기를 캔버스에 꽉 차게 조절 (BOUNDS를 3.6으로 확장)
+      // 크기 최적화 스케일링
       const box = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
