@@ -2,153 +2,102 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
-/* ════════════════════════════════════════
-    🧹 유령 모델링 원천 차단 (CLEANUP CORE)
-════════════════════════════════════════ */
+// 애니메이션 프레임 전역 관리
 if (window.animFrameId) {
     cancelAnimationFrame(window.animFrameId);
     window.animFrameId = null;
 }
 
-// 기존에 남아있던 전역 변수나 씬 구조가 있다면 완전히 도려냅니다.
-if (window.threeRenderer) {
-    window.threeRenderer.dispose();
-    window.threeRenderer = null;
-}
-if (window.threeScene) {
-    while(window.threeScene.children.length > 0){ 
-        const obj = window.threeScene.children[0];
-        window.threeScene.remove(obj); 
-    }
-    window.threeScene = null;
-}
-
-// 완전히 깨끗한 상태에서 새 장면 정의
-window.threeScene = new THREE.Scene();
-const modelCanvas = document.querySelector('#model-canvas');
-const displayShell = document.querySelector('.landing-display-shell') || document.querySelector('#landing-display');
-
+let scene, camera, renderer, modelAnchor;
 let mouseX = 0, mouseY = 0;
 let isHoveringModel = false;
 let clock = 0;
 const rotState = { x: 0, y: 0 };
 
-const hideSiteLoader = () => {
-    const siteLoader = document.querySelector('#site-loader');
-    if (siteLoader) {
-        setTimeout(() => siteLoader.classList.add('is-loaded'), 400);
-    }
-};
+const displayShell = document.querySelector('.landing-display-shell') || document.querySelector('#landing-display');
 
 /* ════════════════════════════════════════
-    ✨ 크롬 하이라이트용 환경 맵 세팅
+    ✨ 메탈 텍스처를 살려주는 초간결 조명/환경 시스템
 ════════════════════════════════════════ */
-const setupEnvironment = (scene, renderer) => {
-    const envGroup = new THREE.Group();
+const setupEnvironment = (targetScene) => {
+    // 사방에서 들어오는 은은한 기본 빛 (진흙처럼 어두워지는 현상 방지)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+    targetScene.add(ambientLight);
 
-    // 반사판 1 (좌측 상단)
-    const lightPlate1 = new THREE.Mesh(
-        new THREE.PlaneGeometry(35, 35),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
-    );
-    lightPlate1.position.set(-15, 20, 15);
-    lightPlate1.lookAt(0, 0, 0);
-    envGroup.add(lightPlate1);
+    // 정면과 측면에서 메탈 질감을 하얗게 반사시킬 강력한 직사광선 배치
+    const keyLight = new THREE.DirectionalLight(0xffffff, 4.0);
+    keyLight.position.set(5, 8, 10);
+    targetScene.add(keyLight);
 
-    // 반사판 2 (우측 정면 강한 하이라이트)
-    const lightPlate2 = new THREE.Mesh(
-        new THREE.PlaneGeometry(45, 45),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
-    );
-    lightPlate2.position.set(20, 8, 25);
-    lightPlate2.lookAt(0, 0, 0);
-    envGroup.add(lightPlate2);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 2.0);
+    fillLight.position.set(-8, 5, 5);
+    targetScene.add(fillLight);
 
-    // 반사판 3 (천장 베이스광)
-    const lightPlate3 = new THREE.Mesh(
-        new THREE.PlaneGeometry(60, 60),
-        new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.DoubleSide })
-    );
-    lightPlate3.position.set(0, 35, 0);
-    lightPlate3.rotation.x = Math.PI / 2;
-    envGroup.add(lightPlate3);
-
-    scene.add(envGroup);
-
-    const pmremGenerator = new THREE.PMREMGenerator(renderer);
-    pmremGenerator.compileEquirectangularShader();
-    const envMapTexture = pmremGenerator.fromScene(envGroup).texture;
-    
-    scene.environment = envMapTexture;
-    envGroup.visible = false; 
-    
-    // 메모리 누수 방지 리소스 해제
-    envGroup.traverse((child) => {
-        if (child.isMesh) {
-            child.geometry.dispose();
-            child.material.dispose();
-        }
-    });
-    pmremGenerator.dispose();
+    const topLight = new THREE.DirectionalLight(0xffffff, 2.5);
+    topLight.position.set(0, 15, 2);
+    targetScene.add(topLight);
 };
 
 /* ════════════════════════════════════════
-    📦 THREE.JS 코어 초기화 (1 프레임 단 한 번만 실행)
+    📦 THREE.JS 완전 초기화 (물리적 캔버스 리셋 방식)
 ════════════════════════════════════════ */
 const initThree = () => {
-    if (!modelCanvas || !displayShell) { hideSiteLoader(); return; }
+    if (!displayShell) return;
 
+    // 1. 유령 모델 원천 차단: 기존에 있던 캔버스를 완전히 파괴하고 새로 만듭니다.
+    const oldCanvas = document.querySelector('#model-canvas');
+    if (oldCanvas) oldCanvas.remove();
+
+    const newCanvas = document.createElement('canvas');
+    newCanvas.id = 'model-canvas';
+    // CSS 레이아웃에 맞춰 꽉 차게 설정
+    newCanvas.style.width = '100%';
+    newCanvas.style.height = '100%';
+    displayShell.appendChild(newCanvas);
+
+    // 2. CSS 배치와 폰트가 다 완료된 시점의 크기를 정확하게 측정
     const width = displayShell.clientWidth || 650;
     const height = displayShell.clientHeight || 650;
 
-    window.threeRenderer = new THREE.WebGLRenderer({
-        canvas: modelCanvas,
+    // 3. Three 세팅 빌드
+    scene = new THREE.Scene();
+    
+    renderer = new THREE.WebGLRenderer({
+        canvas: newCanvas,
         alpha: true,
         antialias: true,
         powerPreference: 'high-performance'
     });
-    window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    window.threeRenderer.setSize(width, height);
-    window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
-    window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-    window.threeRenderer.toneMappingExposure = 1.25;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(width, height);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.4; // 칙칙함을 날려버릴 밝기 보정
 
-    window.threeCamera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
-    window.threeCamera.position.set(0, 0, 5.3);
+    // 4. 왜곡 방지 카메라 스케일 고정
+    camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
+    camera.position.set(0, 0, 5.2);
 
-    setupEnvironment(window.threeScene, window.threeRenderer);
+    setupEnvironment(scene);
 
-    // 흑화 현상 방지용 기본 조명 보강
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
-    window.threeScene.add(ambientLight);
-
-    const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
-    dirLight.position.set(5, 12, 8);
-    window.threeScene.add(dirLight);
-
+    // 5. GLTF 로드
     const loader = new GLTFLoader();
     const draco = new DRACOLoader();
     draco.setDecoderPath('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/libs/draco/');
     loader.setDRACOLoader(draco);
 
-    // 중복 호출로 씬에 누적되는 현상 방지를 위해 기존 modelAnchor 완전 삭제
-    if (window.modelAnchor) {
-        window.threeScene.remove(window.modelAnchor);
-        window.modelAnchor = null;
-    }
-
     loader.load(
         './modeling.glb',
         (gltf) => {
-            if (!gltf || !gltf.scene) { hideSiteLoader(); return; }
+            if (!gltf || !gltf.scene) return;
             const model = gltf.scene;
 
-            // 크롬 실버 메탈 질감 강제 주입
+            // 눈이 부시도록 반짝이는 은빛 하이퍼 크롬 재질 강제 주입
             const chromeMaterial = new THREE.MeshStandardMaterial({
-                color: 0xffffff,         
-                metalness: 1.0,          
-                roughness: 0.08,         
-                envMapIntensity: 4.0,    
+                color: 0xffffff,
+                metalness: 0.98,          // 메탈 100%에 가깝게
+                roughness: 0.08,          // 매끄러운 표면
+                envMapIntensity: 2.0,
                 side: THREE.DoubleSide
             });
 
@@ -158,7 +107,7 @@ const initThree = () => {
                 }
             });
 
-            // 바운딩 박스를 기준으로 화면 정중앙 배치 정렬
+            // 바운딩 박스로 중심점 및 크기 정상화 (누워버리거나 묻히는 버그 방지)
             const box = new THREE.Box3().setFromObject(model);
             const center = new THREE.Vector3();
             box.getCenter(center);
@@ -166,63 +115,69 @@ const initThree = () => {
             box.getSize(size);
 
             const maxDim = Math.max(size.x, size.y, size.z);
-            const targetBounds = 3.2; 
+            const targetBounds = 3.3; 
             const scale = targetBounds / maxDim;
             
             model.scale.setScalar(scale);
+            // 원본 모델의 꼬인 좌표축을 정중앙(0,0,0)으로 강제 일치시킵니다.
             model.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
+            
+            // 처음 기획했던 얼짱 각도로 정면 고정
             model.rotation.set(Math.PI * 0.38, Math.PI * 0.05, Math.PI * 0.12);
 
-            window.modelAnchor = new THREE.Group();
-            window.modelAnchor.add(model);
-            window.threeScene.add(window.modelAnchor);
+            modelAnchor = new THREE.Group();
+            modelAnchor.add(model);
+            scene.add(modelAnchor);
 
-            hideSiteLoader();
+            // 로더 제거
+            const siteLoader = document.querySelector('#site-loader');
+            if (siteLoader) siteLoader.classList.add('is-loaded');
         },
         undefined,
-        (err) => {
-            console.warn('모델 로드 실패:', err);
-            hideSiteLoader();
-        }
+        (err) => { console.warn('모델 로드 실패:', err); }
     );
 };
 
 /* ════════════════════════════════════════
-    🔄 루프 애니메이션 및 이벤트 바인딩
+    🔄 루프 애니메이션 및 반응형 이벤트
 ════════════════════════════════════════ */
 const animate = () => {
     window.animFrameId = requestAnimationFrame(animate);
     clock += 0.01;
 
-    if (window.threeRenderer && window.threeScene && window.threeCamera) {
-        if (window.modelAnchor) {
+    if (renderer && scene && camera) {
+        if (modelAnchor) {
             if (isHoveringModel) {
+                // 마우스 트래킹 반응
                 const targetX = -mouseY * 0.35;
                 const targetY = mouseX * 0.45;
                 rotState.x += (targetX - rotState.x) * 0.08;
                 rotState.y += (targetY - rotState.y) * 0.08;
             } else {
+                // 평상시 은은한 자동 회전
                 rotState.x += (0 - rotState.x) * 0.05;
-                rotState.y += 0.004; // 부드러운 기본 자동 회전
+                rotState.y += 0.004;
             }
-            window.modelAnchor.rotation.x = rotState.x;
-            window.modelAnchor.rotation.y = rotState.y;
-            window.modelAnchor.position.y = Math.sin(clock * 0.8) * 0.05; 
+            modelAnchor.rotation.x = rotState.x;
+            modelAnchor.rotation.y = rotState.y;
+            // 상하 부드러운 둥둥 가속도 효과
+            modelAnchor.position.y = Math.sin(clock * 0.8) * 0.04;
         }
-        window.threeRenderer.render(window.threeScene, window.threeCamera);
+        renderer.render(scene, camera);
     }
 };
 
 const handleResize = () => {
-    if (!window.threeRenderer || !window.threeCamera || !displayShell) return;
+    if (!renderer || !camera || !displayShell) return;
     const width = displayShell.clientWidth;
     const height = displayShell.clientHeight;
 
-    window.threeRenderer.setSize(width, height);
-    window.threeCamera.aspect = width / height;
-    window.threeCamera.updateProjectionMatrix();
+    renderer.setSize(width, height);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
 };
 
+// 마우스 위치 갱신 및 마우스 팔로워 연동
 window.addEventListener('mousemove', (e) => {
     const width = window.innerWidth || 1;
     const height = window.innerHeight || 1;
@@ -243,12 +198,8 @@ if (displayShell) {
 
 window.addEventListener('resize', handleResize);
 
-// 메인 초기화 실행
-document.addEventListener('DOMContentLoaded', () => {
+// 🔥 핵심 변경점: HTML 레이아웃과 CSS가 완전히 로드되어 배치된 후 비로소 단 '한 번만' 렌더링 엔진을 가동합니다.
+window.onload = () => {
     initThree();
     animate();
-});
-if (document.readyState !== 'loading') {
-    initThree();
-    animate();
-}
+};
